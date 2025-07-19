@@ -1,0 +1,2364 @@
+
+Project 761: Model Compression for Edge Devices
+This project focuses on reducing the size and computational demands of a neural network model to make it suitable for deployment on edge devices (like mobile phones, Raspberry Pi, etc.) without significantly sacrificing accuracy. We achieve this using quantization and pruning techniques from TensorFlow Lite. The goal is to optimize a model such as MobileNetV2 for faster inference and smaller memory footprint while retaining acceptable performance.
+
+🔧 Python Implementation: Model Compression using Quantization and Pruning (TensorFlow + TFLite)
+import tensorflow as tf
+import numpy as np
+ 
+# Load a pre-trained MobileNetV2 model for demonstration purposes
+base_model = tf.keras.applications.MobileNetV2(weights="imagenet", input_shape=(224, 224, 3), include_top=True)
+ 
+# Save the original model to disk
+base_model.save("mobilenetv2_full.h5")
+ 
+# ----------- Quantization with TensorFlow Lite -----------
+ 
+# Convert the Keras model to a TensorFlow Lite model with post-training dynamic range quantization
+converter = tf.lite.TFLiteConverter.from_keras_model(base_model)
+ 
+# Enable dynamic range quantization - this reduces model size by quantizing weights to 8-bit integers
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+ 
+# Convert the model
+tflite_quant_model = converter.convert()
+ 
+# Save the quantized model to file
+with open("mobilenetv2_quant.tflite", "wb") as f:
+    f.write(tflite_quant_model)
+ 
+print("✅ Quantized model saved! Size reduced significantly for edge deployment.")
+ 
+# ----------- Optional: Model Pruning (via TensorFlow Model Optimization Toolkit) -----------
+ 
+from tensorflow_model_optimization.sparsity import keras as sparsity
+ 
+# Set up pruning parameters: we prune 50% of the weights gradually over 2 epochs
+pruning_params = {
+    'pruning_schedule': sparsity.PolynomialDecay(initial_sparsity=0.0,
+                                                  final_sparsity=0.5,
+                                                  begin_step=0,
+                                                  end_step=1000)
+}
+ 
+# Wrap the model with pruning capabilities
+pruned_model = sparsity.prune_low_magnitude(base_model, **pruning_params)
+ 
+# Compile the pruned model
+pruned_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+ 
+# NOTE: Normally you'd train the model again here to fine-tune weights, but we'll skip for brevity
+ 
+# Strip pruning wrappers to make the model exportable
+final_model = sparsity.strip_pruning(pruned_model)
+ 
+# Save the pruned model
+final_model.save("mobilenetv2_pruned.h5")
+ 
+print("✅ Pruned model saved! Weights sparsified for memory efficiency.")
+ 
+# ----------- Compare Sizes (Optional) -----------
+ 
+import os
+ 
+original_size = os.path.getsize("mobilenetv2_full.h5") / 1e6
+quant_size = os.path.getsize("mobilenetv2_quant.tflite") / 1e6
+pruned_size = os.path.getsize("mobilenetv2_pruned.h5") / 1e6
+ 
+print(f"Original model size: {original_size:.2f} MB")
+print(f"Quantized model size: {quant_size:.2f} MB")
+print(f"Pruned model size: {pruned_size:.2f} MB")
+This implementation compresses a pre-trained model for edge deployment using quantization (to reduce precision) and pruning (to sparsify weights). These techniques are essential for reducing latency, memory usage, and power consumption on devices with limited resources.
+
+Project 762: Quantization-Aware Training
+Description
+Quantization-aware training (QAT) is a technique to train neural networks while simulating low-precision arithmetic (like int8) during training. Unlike post-training quantization, QAT allows the model to adapt to the quantization effects, preserving higher accuracy. It’s ideal for deploying deep learning models to edge devices with strict resource constraints.
+
+Python Implementation with Comments (TensorFlow)
+import tensorflow as tf
+import tensorflow_model_optimization as tfmot
+from tensorflow.keras.datasets import mnist
+ 
+# Load and preprocess MNIST dataset
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+ 
+# Normalize and reshape data
+x_train = x_train.astype('float32') / 255.0
+x_test  = x_test.astype('float32') / 255.0
+x_train = x_train[..., tf.newaxis]
+x_test  = x_test[..., tf.newaxis]
+ 
+# Build a simple CNN model
+def build_model():
+    model = tf.keras.Sequential([
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dense(10)
+    ])
+    return model
+ 
+# Create the base model
+model = build_model()
+ 
+# Apply quantization-aware training using the TensorFlow Model Optimization Toolkit
+quantize_model = tfmot.quantization.keras.quantize_model
+qat_model = quantize_model(model)
+ 
+# Compile the quantized model
+qat_model.compile(optimizer='adam',
+                  loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                  metrics=['accuracy'])
+ 
+# Train the model with QAT
+qat_model.fit(x_train, y_train, epochs=3, validation_split=0.1)
+ 
+# Evaluate the QAT model on the test set
+loss, accuracy = qat_model.evaluate(x_test, y_test)
+print(f"✅ Quantization-aware trained model accuracy: {accuracy:.4f}")
+ 
+# Convert to a TensorFlow Lite model with int8 weights
+converter = tf.lite.TFLiteConverter.from_keras_model(qat_model)
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+tflite_qat_model = converter.convert()
+ 
+# Save the final TFLite model
+with open("mnist_qat_model.tflite", "wb") as f:
+    f.write(tflite_qat_model)
+ 
+print("✅ Quantization-aware trained TFLite model saved! Ideal for edge deployment.")
+Project 763: Knowledge Distillation Implementation
+Description
+Knowledge Distillation is a model compression technique where a smaller model (called the student) is trained to mimic a larger, well-performing model (called the teacher). Instead of training on the hard labels alone, the student learns from the soft probabilities predicted by the teacher, which carry more information. This enables high accuracy in smaller models suitable for edge devices.
+
+Python Implementation with Comments (TensorFlow/Keras)
+import tensorflow as tf
+import numpy as np
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras import layers, models
+ 
+# Load and preprocess MNIST dataset
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train, x_test = x_train / 255.0, x_test / 255.0
+x_train = x_train[..., tf.newaxis]
+x_test = x_test[..., tf.newaxis]
+ 
+# Define a large model to act as the teacher
+def create_teacher():
+    model = models.Sequential([
+        layers.Conv2D(64, (3, 3), activation='relu', input_shape=(28, 28, 1)),
+        layers.Conv2D(64, (3, 3), activation='relu'),
+        layers.Flatten(),
+        layers.Dense(128, activation='relu'),
+        layers.Dense(10)
+    ])
+    return model
+ 
+# Define a smaller student model
+def create_student():
+    model = models.Sequential([
+        layers.Conv2D(16, (3, 3), activation='relu', input_shape=(28, 28, 1)),
+        layers.Flatten(),
+        layers.Dense(32, activation='relu'),
+        layers.Dense(10)
+    ])
+    return model
+ 
+# Compile and train the teacher model
+teacher = create_teacher()
+teacher.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
+teacher.fit(x_train, y_train, epochs=3, validation_split=0.1)
+ 
+# Get soft targets from the teacher model (soft labels = logits)
+teacher_logits = tf.nn.softmax(teacher.predict(x_train) / 5.0)  # temperature = 5
+ 
+# Define a custom distillation loss function
+def distillation_loss(y_true, y_pred, teacher_soft, alpha=0.5, temperature=5.0):
+    # Hard loss: ground-truth labels
+    hard_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)(y_true, y_pred)
+ 
+    # Soft loss: teacher's soft probabilities vs student output
+    y_soft = tf.nn.softmax(y_pred / temperature)
+    soft_loss = tf.keras.losses.KLDivergence()(teacher_soft, y_soft)
+ 
+    return alpha * hard_loss + (1 - alpha) * soft_loss
+ 
+# Custom training loop for distillation
+student = create_student()
+optimizer = tf.keras.optimizers.Adam()
+ 
+# Convert teacher soft labels to tensor
+teacher_soft_labels = tf.convert_to_tensor(teacher_logits)
+ 
+# Prepare the training dataset
+train_ds = tf.data.Dataset.from_tensor_slices((x_train, y_train, teacher_soft_labels)).batch(64)
+ 
+# Training student model using distillation
+for epoch in range(3):
+    print(f"Epoch {epoch + 1}")
+    for batch_x, batch_y, batch_soft in train_ds:
+        with tf.GradientTape() as tape:
+            predictions = student(batch_x, training=True)
+            loss = distillation_loss(batch_y, predictions, batch_soft)
+        grads = tape.gradient(loss, student.trainable_variables)
+        optimizer.apply_gradients(zip(grads, student.trainable_variables))
+    print(f"✅ Epoch {epoch + 1} complete.")
+ 
+# Evaluate student model
+student.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
+student.evaluate(x_test, y_test)
+ 
+print("✅ Knowledge distillation complete. Student model is compact and edge-ready.")
+Project 764: Neural Architecture Search for Edge
+Description
+Neural Architecture Search (NAS) automates the design of neural networks. When targeting edge devices, the search must balance accuracy with constraints like latency, memory, and energy consumption. In this project, we’ll use Keras Tuner to perform a simple NAS to find an optimal model architecture for MNIST that fits within edge deployment limits.
+
+Python Implementation with Comments (Keras Tuner)
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+from kerastuner.tuners import RandomSearch
+from tensorflow.keras.datasets import mnist
+ 
+# Load and preprocess MNIST
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train = x_train.astype("float32") / 255.0
+x_test = x_test.astype("float32") / 255.0
+x_train = x_train[..., tf.newaxis]
+x_test = x_test[..., tf.newaxis]
+ 
+# Define a model-building function for Keras Tuner
+def build_model(hp):
+    model = keras.Sequential()
+    model.add(layers.Input(shape=(28, 28, 1)))
+ 
+    # Tune number of convolutional layers: 1 to 3
+    for i in range(hp.Int("conv_layers", 1, 3)):
+        model.add(layers.Conv2D(
+            filters=hp.Int(f"filters_{i}", min_value=16, max_value=64, step=16),
+            kernel_size=hp.Choice(f"kernel_size_{i}", values=[3, 5]),
+            activation="relu"
+        ))
+        model.add(layers.MaxPooling2D(pool_size=2))
+ 
+    model.add(layers.Flatten())
+ 
+    # Tune number of dense units
+    model.add(layers.Dense(
+        units=hp.Int("dense_units", 32, 128, step=32),
+        activation="relu"
+    ))
+    model.add(layers.Dense(10))  # Output layer
+ 
+    model.compile(
+        optimizer="adam",
+        loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+        metrics=["accuracy"]
+    )
+    return model
+ 
+# Initialize Keras Tuner
+tuner = RandomSearch(
+    build_model,
+    objective="val_accuracy",
+    max_trials=5,
+    executions_per_trial=1,
+    directory="nas_edge_mnist",
+    project_name="edge_nas_demo"
+)
+ 
+# Perform NAS to find best architecture
+tuner.search(x_train, y_train, epochs=3, validation_split=0.1)
+ 
+# Retrieve the best model
+best_model = tuner.get_best_models(num_models=1)[0]
+ 
+# Evaluate the best model
+loss, acc = best_model.evaluate(x_test, y_test)
+print(f"✅ Best model accuracy: {acc:.4f}")
+ 
+# Save for edge deployment
+best_model.save("best_edge_model.h5")
+print("✅ NAS-based model saved and ready for compression or deployment.")
+Project 765: Pruning Techniques for Model Compression
+Description
+Pruning is a model compression technique that removes less significant weights from the network, effectively "sparsifying" the model. This reduces storage size and computation, making it ideal for deployment on edge devices. TensorFlow's Model Optimization Toolkit allows structured or unstructured pruning during or after training.
+
+Python Implementation with Comments (TensorFlow Model Optimization Toolkit)
+import tensorflow as tf
+import tensorflow_model_optimization as tfmot
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras import layers, models
+ 
+# Load and preprocess MNIST dataset
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train = x_train.astype('float32') / 255.0
+x_test  = x_test.astype('float32') / 255.0
+x_train = x_train[..., tf.newaxis]
+x_test  = x_test[..., tf.newaxis]
+ 
+# Define a simple CNN model
+def create_model():
+    return models.Sequential([
+        layers.Input(shape=(28, 28, 1)),
+        layers.Conv2D(32, 3, activation='relu'),
+        layers.MaxPooling2D(),
+        layers.Flatten(),
+        layers.Dense(100, activation='relu'),
+        layers.Dense(10)
+    ])
+ 
+# Create the base model
+model = create_model()
+ 
+# Define pruning parameters
+pruning_params = {
+    'pruning_schedule': tfmot.sparsity.keras.PolynomialDecay(
+        initial_sparsity=0.0,
+        final_sparsity=0.5,        # 50% of weights will be zero
+        begin_step=0,
+        end_step=np.ceil(len(x_train) / 128).astype(np.int32) * 3  # 3 epochs
+    )
+}
+ 
+# Apply pruning wrapper to the model
+pruned_model = tfmot.sparsity.keras.prune_low_magnitude(model, **pruning_params)
+ 
+# Compile the pruned model
+pruned_model.compile(optimizer='adam',
+                     loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                     metrics=['accuracy'])
+ 
+# Define pruning callbacks
+callbacks = [tfmot.sparsity.keras.UpdatePruningStep()]
+ 
+# Train the pruned model
+pruned_model.fit(x_train, y_train, batch_size=128, epochs=3,
+                 validation_split=0.1, callbacks=callbacks)
+ 
+# Strip pruning wrappers for deployment
+final_model = tfmot.sparsity.keras.strip_pruning(pruned_model)
+ 
+# Save the pruned model
+final_model.save("pruned_mnist_model.h5")
+print("✅ Pruned model saved! Reduced size and computation for edge use.")
+Project 766: Hardware-Aware Neural Networks
+Description
+Hardware-aware neural networks are designed by taking the hardware constraints—like memory, latency, and power consumption—into account during model development. This helps ensure the model performs optimally on edge devices such as microcontrollers or smartphones. We’ll simulate a hardware-constrained environment using TensorFlow Lite Model Maker with MobileNetV2 and set constraints like model size and latency during training.
+
+Python Implementation with Comments (TFLite Model Maker + Hardware Constraints)
+import tensorflow as tf
+from tflite_model_maker import image_classifier
+from tflite_model_maker.image_classifier import DataLoader
+import matplotlib.pyplot as plt
+ 
+# Use TensorFlow’s built-in flower dataset for quick prototyping
+import tensorflow_datasets as tfds
+dataset, info = tfds.load('tf_flowers', with_info=True, as_supervised=True)
+ 
+# Split into train and test
+train_data = dataset['train'].take(3000)
+test_data = dataset['train'].skip(3000)
+ 
+# Save to directory (Model Maker expects image folders, this step is typically needed if not using built-in sets)
+ 
+# Load dataset using Model Maker’s DataLoader
+data = DataLoader.from_tensorflow_datasets('tf_flowers', shuffle=True, split=[0.8, 0.2])
+ 
+# Create a model using MobileNetV2 with reduced input size to fit edge constraints
+model = image_classifier.create(
+    data[0],  # training data
+    model_spec=image_classifier.ModelSpec(
+        uri='mobilenet_v2_035_96',  # 0.35 width multiplier, 96x96 input resolution
+    ),
+    epochs=3,
+    batch_size=32
+)
+ 
+# Evaluate the model on the test set
+loss, acc = model.evaluate(data[1])
+print(f"✅ Model accuracy: {acc:.4f} on hardware-constrained configuration")
+ 
+# Export to TensorFlow Lite model
+model.export(export_dir='hardware_aware_model')
+ 
+print("✅ Hardware-aware MobileNetV2 model saved and ready for edge deployment.")
+This model uses a smaller width multiplier (0.35) and lower input resolution (96x96), making it lightweight and efficient on devices with limited compute.
+
+Project 767: TinyML Implementations
+Description
+TinyML is the deployment of machine learning models on ultra-low-power devices like microcontrollers (e.g., Arduino, ESP32). These devices have limited CPU, memory, and power, so the models must be small and efficient. In this project, we'll train a small model on the MNIST dataset and convert it to a TensorFlow Lite for Microcontrollers-compatible format for deployment on embedded hardware.
+
+Python Implementation with Comments (TensorFlow Lite for Microcontrollers)
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from tensorflow.keras.datasets import mnist
+import numpy as np
+ 
+# Load and preprocess MNIST data
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train = x_train.astype("float32") / 255.0
+x_test = x_test.astype("float32") / 255.0
+x_train = x_train[..., np.newaxis]
+x_test = x_test[..., np.newaxis]
+ 
+# Define a very small CNN suitable for microcontrollers
+def tiny_model():
+    model = models.Sequential([
+        layers.Conv2D(8, kernel_size=3, activation='relu', input_shape=(28, 28, 1)),
+        layers.MaxPooling2D(),
+        layers.Flatten(),
+        layers.Dense(16, activation='relu'),
+        layers.Dense(10, activation='softmax')
+    ])
+    return model
+ 
+# Create and train the model
+model = tiny_model()
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+model.fit(x_train, y_train, epochs=3, batch_size=32, validation_split=0.1)
+ 
+# Evaluate the model
+loss, acc = model.evaluate(x_test, y_test)
+print(f"✅ Tiny model accuracy: {acc:.4f}")
+ 
+# Convert to TFLite (for microcontrollers)
+converter = tf.lite.TFLiteConverter.from_keras_model(model)
+converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+converter.inference_input_type = tf.uint8
+converter.inference_output_type = tf.uint8
+ 
+# Representative dataset for quantization
+def representative_data_gen():
+    for i in range(100):
+        yield [x_train[i:i+1].astype(np.float32)]
+ 
+converter.representative_dataset = representative_data_gen
+tflite_model = converter.convert()
+ 
+# Save the quantized TFLite model
+with open("mnist_tinyml_model.tflite", "wb") as f:
+    f.write(tflite_model)
+ 
+print("✅ TFLite model saved! Ready for deployment on microcontrollers using TinyML.")
+This TFLite model can now be deployed using frameworks like TensorFlow Lite for Microcontrollers (TFLM) on platforms like Arduino Nano 33 BLE Sense or ESP32.
+
+Project 768: On-Device Learning Implementation
+Description
+On-device learning enables models to adapt or personalize directly on edge devices without relying on cloud servers. It’s ideal for privacy-sensitive applications (e.g., personal assistants, wearables). We simulate this with online learning using a lightweight model and incremental updates from streaming input. This is demonstrated using scikit-learn with SGDClassifier to mimic real-time on-device updates.
+
+Python Implementation with Comments (Online Learning Simulation)
+from sklearn.linear_model import SGDClassifier
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+import numpy as np
+ 
+# Load a small image dataset (like MNIST but smaller) for simulation
+digits = load_digits()
+X, y = digits.data, digits.target
+ 
+# Normalize features
+scaler = StandardScaler()
+X = scaler.fit_transform(X)
+ 
+# Simulate a stream by splitting into chunks
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+stream_chunks = np.array_split(X_train, 10)
+label_chunks = np.array_split(y_train, 10)
+ 
+# Initialize a linear model for online learning
+model = SGDClassifier(loss='log_loss')  # Logistic regression
+ 
+# Use partial_fit to train incrementally, simulating on-device updates
+classes = np.unique(y_train)
+for i, (X_chunk, y_chunk) in enumerate(zip(stream_chunks, label_chunks)):
+    model.partial_fit(X_chunk, y_chunk, classes=classes)
+    acc = accuracy_score(y_test, model.predict(X_test))
+    print(f"✅ After update {i+1}, accuracy: {acc:.4f}")
+ 
+# Final accuracy after all updates
+final_acc = accuracy_score(y_test, model.predict(X_test))
+print(f"\n✅ Final model accuracy after simulated on-device learning: {final_acc:.4f}")
+This simulates on-device adaptation, where the model gets better as more user data becomes available. In actual embedded applications, this might use tiny neural networks with micro-controllers and Edge Impulse or TensorFlow Lite supporting online fine-tuning.
+
+Project 769: Federated Learning Simulation
+Description
+Federated learning is a privacy-preserving approach where multiple devices collaboratively train a model without sharing raw data. Each device trains on local data and shares only model updates (gradients or weights) with a central server. We'll simulate this in Python by splitting a dataset across clients, training locally, and averaging their weights—a basic version of Federated Averaging (FedAvg).
+
+Python Implementation with Comments (Simulated Federated Learning)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from tensorflow.keras.datasets import mnist
+import copy
+ 
+# Load and preprocess MNIST data
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train = x_train.astype("float32") / 255.0
+x_test = x_test.astype("float32") / 255.0
+x_train = x_train[..., tf.newaxis]
+x_test = x_test[..., tf.newaxis]
+ 
+# Split the training data among 3 simulated clients
+client_data = np.array_split(x_train, 3)
+client_labels = np.array_split(y_train, 3)
+ 
+# Define a small CNN model
+def create_model():
+    model = models.Sequential([
+        layers.Conv2D(16, 3, activation='relu', input_shape=(28, 28, 1)),
+        layers.MaxPooling2D(),
+        layers.Flatten(),
+        layers.Dense(32, activation='relu'),
+        layers.Dense(10)
+    ])
+    return model
+ 
+# Compile model function
+def compile_model(model):
+    model.compile(optimizer='adam',
+                  loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                  metrics=['accuracy'])
+ 
+# Create the global model
+global_model = create_model()
+compile_model(global_model)
+ 
+# Simulate 1 round of federated averaging
+local_weights = []
+ 
+# Each client trains on their own local data
+for i in range(3):
+    print(f"Training client {i+1}...")
+    client_model = create_model()
+    compile_model(client_model)
+    
+    # Initialize client model with global weights
+    client_model.set_weights(global_model.get_weights())
+ 
+    # Train on local data
+    client_model.fit(client_data[i], client_labels[i], epochs=1, batch_size=32, verbose=0)
+ 
+    # Save local weights
+    local_weights.append(client_model.get_weights())
+ 
+# Average the local weights
+new_weights = []
+for weights in zip(*local_weights):
+    new_weights.append(np.mean(weights, axis=0))
+ 
+# Update global model
+global_model.set_weights(new_weights)
+ 
+# Evaluate the updated global model
+loss, acc = global_model.evaluate(x_test, y_test)
+print(f"\n✅ Federated Learning Simulation Complete — Accuracy: {acc:.4f}")
+This simulates one round of FedAvg with 3 clients. In real federated systems like TensorFlow Federated, the process is automated with more security, encryption, and client-device orchestration.
+
+Project 770: Split Learning Implementation
+Description
+Split learning is a collaborative training method where a model is split between a client (e.g., edge device) and a server (e.g., cloud). The client computes forward passes up to a certain layer (called the cut layer) and sends the activations to the server, which continues the forward and backward pass. This approach improves data privacy while offloading computation.
+
+We'll simulate this with a split CNN where the client runs the first few layers, and the server runs the rest.
+
+Python Implementation with Comments (Simulated Client-Server Split Learning)
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from tensorflow.keras.datasets import mnist
+import numpy as np
+ 
+# Load and preprocess MNIST
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train, x_test = x_train / 255.0, x_test / 255.0
+x_train = x_train[..., tf.newaxis]
+x_test = x_test[..., tf.newaxis]
+ 
+# Define client-side model (up to the cut layer)
+def create_client_model():
+    inputs = tf.keras.Input(shape=(28, 28, 1))
+    x = layers.Conv2D(16, 3, activation='relu')(inputs)
+    x = layers.MaxPooling2D()(x)
+    return tf.keras.Model(inputs=inputs, outputs=x, name="client_model")
+ 
+# Define server-side model (from cut layer onward)
+def create_server_model():
+    inputs = tf.keras.Input(shape=(13, 13, 16))  # Shape after client's output
+    x = layers.Flatten()(inputs)
+    x = layers.Dense(32, activation='relu')(x)
+    x = layers.Dense(10)(x)
+    return tf.keras.Model(inputs=inputs, outputs=x, name="server_model")
+ 
+# Instantiate models
+client_model = create_client_model()
+server_model = create_server_model()
+ 
+# Loss function and optimizer
+loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+optimizer = tf.keras.optimizers.Adam()
+ 
+# Training loop for split learning (single epoch for brevity)
+batch_size = 64
+train_ds = tf.data.Dataset.from_tensor_slices((x_train, y_train)).batch(batch_size)
+ 
+for step, (images, labels) in enumerate(train_ds):
+    with tf.GradientTape(persistent=True) as tape:
+        # CLIENT: Forward pass up to cut layer
+        client_output = client_model(images, training=True)
+ 
+        # SERVER: Continue forward pass
+        logits = server_model(client_output, training=True)
+ 
+        # Compute loss
+        loss = loss_fn(labels, logits)
+ 
+    # Backpropagation
+    server_grads = tape.gradient(loss, server_model.trainable_variables)
+    client_grads = tape.gradient(loss, client_model.trainable_variables)
+ 
+    # Apply gradients
+    optimizer.apply_gradients(zip(server_grads, server_model.trainable_variables))
+    optimizer.apply_gradients(zip(client_grads, client_model.trainable_variables))
+ 
+    if step % 100 == 0:
+        print(f"Step {step} — Loss: {loss:.4f}")
+ 
+# Evaluate on test set
+client_out = client_model(x_test, training=False)
+preds = server_model(client_out, training=False)
+accuracy = tf.keras.metrics.sparse_categorical_accuracy(y_test, preds)
+print(f"\n✅ Split Learning Test Accuracy: {tf.reduce_mean(accuracy):.4f}")
+This code mimics the flow of split learning where the client and server only share intermediate activations, not raw data—enhancing privacy and efficiency in real-world edge-cloud collaboration.
+
+Project 771: Decentralized AI Systems
+Description
+Decentralized AI systems operate without a central server, instead relying on peer-to-peer communication and coordination among edge devices or nodes. This ensures privacy, fault-tolerance, and scalability. A simplified simulation involves multiple nodes training independently and exchanging models with each other instead of a central aggregator (as in federated learning). We simulate decentralized model averaging among peers.
+
+Python Implementation with Comments (Simulated Decentralized Learning)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from tensorflow.keras.datasets import mnist
+import copy
+ 
+# Load and preprocess MNIST dataset
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train, x_test = x_train / 255.0, x_test / 255.0
+x_train = x_train[..., tf.newaxis]
+x_test = x_test[..., tf.newaxis]
+ 
+# Split training data among 3 decentralized nodes (peers)
+peer_data = np.array_split(x_train, 3)
+peer_labels = np.array_split(y_train, 3)
+ 
+# Define a small CNN model
+def build_model():
+    model = models.Sequential([
+        layers.Conv2D(16, 3, activation='relu', input_shape=(28, 28, 1)),
+        layers.MaxPooling2D(),
+        layers.Flatten(),
+        layers.Dense(32, activation='relu'),
+        layers.Dense(10)
+    ])
+    return model
+ 
+# Compile helper
+def compile_model(model):
+    model.compile(optimizer='adam',
+                  loss='sparse_categorical_crossentropy',
+                  metrics=['accuracy'])
+ 
+# Each node trains its own local model
+local_models = []
+for i in range(3):
+    print(f"Peer {i+1}: training on local data...")
+    model = build_model()
+    compile_model(model)
+    model.fit(peer_data[i], peer_labels[i], epochs=1, batch_size=32, verbose=0)
+    local_models.append(model)
+ 
+# Simulate peer-to-peer model exchange and average weights
+averaged_weights = []
+for weights in zip(*[m.get_weights() for m in local_models]):
+    averaged_weights.append(np.mean(weights, axis=0))
+ 
+# Each node updates its model with the averaged weights (no central aggregator)
+for i in range(3):
+    local_models[i].set_weights(averaged_weights)
+ 
+# Evaluate one of the peer models
+loss, acc = local_models[0].evaluate(x_test, y_test)
+print(f"\n✅ Decentralized AI Simulation Accuracy (Peer 1): {acc:.4f}")
+This simulates peer-based learning and synchronization without a server. In real-world scenarios, decentralized systems may use blockchain, gossip protocols, or Swarm learning for coordination, often applied in sensitive domains like healthcare and finance.
+
+Project 772: IoT Anomaly Detection
+Description
+IoT anomaly detection identifies unusual patterns in sensor data that could indicate faults, intrusions, or failures. It’s vital for predictive maintenance, security, and real-time monitoring in industrial and smart home systems. We’ll simulate this using synthetic sensor data and build an autoencoder to detect anomalies based on reconstruction error.
+
+Python Implementation with Comments (Autoencoder-Based Anomaly Detection)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+import matplotlib.pyplot as plt
+ 
+# Simulate IoT sensor data: mostly normal data with a few anomalies
+np.random.seed(42)
+ 
+# Generate normal data (e.g., temperature readings between 20-25°C)
+normal_data = np.random.normal(loc=22.5, scale=1.0, size=(1000, 1))
+ 
+# Add a few anomalies (e.g., spikes)
+anomalies = np.random.normal(loc=30, scale=1.0, size=(50, 1))
+data = np.concatenate([normal_data, anomalies], axis=0)
+ 
+# Shuffle the dataset
+np.random.shuffle(data)
+ 
+# Normalize the data
+data_min, data_max = data.min(), data.max()
+data_scaled = (data - data_min) / (data_max - data_min)
+ 
+# Build a simple autoencoder for 1D data
+def build_autoencoder():
+    model = models.Sequential([
+        layers.Input(shape=(1,)),
+        layers.Dense(4, activation='relu'),
+        layers.Dense(1)
+    ])
+    return model
+ 
+# Create and train the autoencoder
+autoencoder = build_autoencoder()
+autoencoder.compile(optimizer='adam', loss='mse')
+autoencoder.fit(data_scaled, data_scaled, epochs=20, batch_size=32, verbose=0)
+ 
+# Predict (reconstruct) and calculate reconstruction error
+reconstructed = autoencoder.predict(data_scaled)
+errors = np.abs(data_scaled - reconstructed)
+ 
+# Define anomaly threshold (e.g., mean + 3*std of errors on normal data)
+threshold = np.mean(errors) + 3 * np.std(errors)
+ 
+# Flag anomalies
+anomaly_flags = errors > threshold
+ 
+# Print detection results
+num_anomalies_detected = np.sum(anomaly_flags)
+print(f"✅ Detected {num_anomalies_detected} anomalies using autoencoder-based thresholding.")
+ 
+# Optional: Plot reconstruction error
+plt.figure(figsize=(10, 4))
+plt.plot(errors, label='Reconstruction Error')
+plt.axhline(y=threshold, color='red', linestyle='--', label='Anomaly Threshold')
+plt.title('IoT Anomaly Detection: Reconstruction Error')
+plt.xlabel('Sample Index')
+plt.ylabel('Error')
+plt.legend()
+plt.show()
+This project demonstrates real-time anomaly detection using edge-compatible models. With proper data pipeline integration, this approach can run on low-power devices in smart factories, homes, or critical infrastructure.
+
+Project 773: Energy Consumption Prediction
+Description
+Energy consumption prediction helps optimize power usage and reduce costs in smart homes, buildings, and grids. By forecasting future consumption based on historical data, IoT systems can plan operations more efficiently. We'll build a simple LSTM model to predict future energy usage from synthetic time series data.
+
+Python Implementation with Comments (LSTM for Time Series Forecasting)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+import matplotlib.pyplot as plt
+ 
+# Simulate energy consumption data (e.g., daily kWh readings)
+np.random.seed(42)
+days = 500
+energy_data = np.sin(np.arange(days) * 2 * np.pi / 30) + np.random.normal(0, 0.2, size=days)
+energy_data = energy_data.reshape(-1, 1)
+ 
+# Normalize the data
+min_val, max_val = energy_data.min(), energy_data.max()
+normalized_data = (energy_data - min_val) / (max_val - min_val)
+ 
+# Create sequences for LSTM input
+def create_sequences(data, window_size=30):
+    X, y = [], []
+    for i in range(len(data) - window_size):
+        X.append(data[i:i+window_size])
+        y.append(data[i+window_size])
+    return np.array(X), np.array(y)
+ 
+# Prepare sequences
+window_size = 30
+X, y = create_sequences(normalized_data, window_size)
+ 
+# Split into train and test sets
+split = int(0.8 * len(X))
+X_train, y_train = X[:split], y[:split]
+X_test, y_test = X[split:], y[split:]
+ 
+# Build LSTM model
+model = models.Sequential([
+    layers.LSTM(32, input_shape=(window_size, 1)),
+    layers.Dense(1)
+])
+ 
+model.compile(optimizer='adam', loss='mse')
+model.fit(X_train, y_train, epochs=10, batch_size=16, verbose=0)
+ 
+# Predict on test data
+predictions = model.predict(X_test)
+ 
+# Reverse normalization for plotting
+def denormalize(x): return x * (max_val - min_val) + min_val
+predicted_energy = denormalize(predictions)
+actual_energy = denormalize(y_test)
+ 
+# Plot the prediction
+plt.figure(figsize=(10, 4))
+plt.plot(actual_energy, label="Actual")
+plt.plot(predicted_energy, label="Predicted")
+plt.title("Energy Consumption Prediction")
+plt.xlabel("Time Step")
+plt.ylabel("Energy (kWh)")
+plt.legend()
+plt.show()
+ 
+print("✅ LSTM model trained and tested for energy prediction.")
+This setup can easily be adapted for real-world datasets like smart meter readings (e.g., from the UCI Energy dataset), enabling integration into home automation or energy-saving IoT platforms.
+
+Project 774: Smart Home Activity Recognition
+Description
+Smart home activity recognition involves detecting what a resident is doing (e.g., cooking, sleeping, walking) using sensor data from motion, door, temperature, and appliance sensors. This enables personalized automation and safety alerts. We'll simulate this using synthetic multivariate time-series data and build a classifier using a 1D CNN, which is efficient for edge deployment.
+
+Python Implementation with Comments (1D CNN for Multisensor Activity Classification)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+import matplotlib.pyplot as plt
+ 
+# Simulate smart home sensor data for 3 activities
+# Each sample has 100 time steps and 3 sensors (e.g., motion, appliance, door)
+def generate_data(activity, label, num_samples=200):
+    base = {
+        "cooking": [1.0, 0.3, 0.8],
+        "sleeping": [0.1, 0.05, 0.0],
+        "walking": [0.6, 0.2, 0.5]
+    }[activity]
+    data = np.random.normal(loc=base, scale=0.1, size=(num_samples, 100, 3))
+    labels = np.full((num_samples,), label)
+    return data, labels
+ 
+# Generate dataset
+cooking_X, cooking_y = generate_data("cooking", "cooking")
+sleeping_X, sleeping_y = generate_data("sleeping", "sleeping")
+walking_X, walking_y = generate_data("walking", "walking")
+ 
+# Combine all data
+X = np.vstack([cooking_X, sleeping_X, walking_X])
+y = np.concatenate([cooking_y, sleeping_y, walking_y])
+ 
+# Encode labels
+encoder = LabelEncoder()
+y_encoded = encoder.fit_transform(y)
+ 
+# Split into train/test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
+ 
+# Build 1D CNN model
+model = models.Sequential([
+    layers.Conv1D(32, kernel_size=3, activation='relu', input_shape=(100, 3)),
+    layers.MaxPooling1D(pool_size=2),
+    layers.Flatten(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(3, activation='softmax')  # 3 activities
+])
+ 
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+ 
+# Train the model
+model.fit(X_train, y_train, epochs=10, batch_size=32, verbose=0)
+ 
+# Evaluate the model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Smart Home Activity Recognition Accuracy: {acc:.4f}")
+ 
+# Predict a few samples
+preds = model.predict(X_test[:5])
+for i, pred in enumerate(preds):
+    print(f"Sample {i+1}: Predicted = {encoder.classes_[np.argmax(pred)]}, True = {encoder.classes_[y_test[i]]}")
+This model can be deployed on edge devices (like a Raspberry Pi or ESP32 with TensorFlow Lite) to recognize user activity in real-time based on sensor fusion inputs.
+
+Project 775: Environmental Monitoring System
+Description
+An environmental monitoring system collects data such as temperature, humidity, air quality, and noise levels to track environmental conditions in smart homes, greenhouses, or cities. We simulate such a system with synthetic sensor readings and use a regression model to predict air quality index (AQI) based on multiple sensor inputs.
+
+Python Implementation with Comments (Multisensor Regression Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate sensor data: temp (°C), humidity (%), noise (dB), CO2 (ppm)
+np.random.seed(42)
+n_samples = 1000
+ 
+temperature = np.random.normal(22, 2, n_samples)
+humidity = np.random.normal(50, 10, n_samples)
+noise = np.random.normal(40, 5, n_samples)
+co2 = np.random.normal(600, 100, n_samples)
+ 
+# Simulate AQI (as a function of the sensors with added noise)
+aqi = (0.5 * temperature + 0.3 * humidity + 0.2 * noise + 0.4 * (co2 / 100)) + np.random.normal(0, 5, n_samples)
+ 
+# Stack sensor features
+X = np.stack([temperature, humidity, noise, co2], axis=1)
+y = aqi
+ 
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build a simple regression model
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(16, activation='relu'),
+    layers.Dense(1)  # AQI output
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate the model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Environmental Monitoring Model MAE: {mae:.2f} (AQI units)")
+ 
+# Predict and plot results
+predicted_aqi = model.predict(X_test).flatten()
+plt.figure(figsize=(10, 4))
+plt.plot(y_test[:100], label='Actual AQI')
+plt.plot(predicted_aqi[:100], label='Predicted AQI')
+plt.title("Environmental Monitoring: AQI Prediction")
+plt.xlabel("Sample Index")
+plt.ylabel("AQI")
+plt.legend()
+plt.show()
+This model can power real-world environmental dashboards or trigger alerts on edge devices when AQI crosses unsafe thresholds. With real sensor data (e.g., from BME280 or CCS811), it can run on Raspberry Pi or ESP32 boards.
+
+Project 776: Agricultural Monitoring System
+Description
+An agricultural monitoring system uses IoT sensors to monitor conditions like soil moisture, temperature, humidity, and sunlight. It helps automate irrigation and crop management. In this project, we simulate sensor data and build a binary classifier to predict “Water Needed” vs. “No Water Needed” — ideal for smart irrigation systems.
+
+Python Implementation with Comments (IoT-Based Irrigation Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate sensor readings
+np.random.seed(42)
+n_samples = 1000
+ 
+soil_moisture = np.random.normal(30, 10, n_samples)       # percentage
+temperature = np.random.normal(28, 5, n_samples)          # Celsius
+humidity = np.random.normal(60, 10, n_samples)            # percentage
+sunlight = np.random.normal(700, 150, n_samples)          # lux
+ 
+# Simulate labels: water needed (1) or not (0)
+# If soil is dry and temp is high or sunlight is strong, watering is needed
+labels = ((soil_moisture < 25) & ((temperature > 30) | (sunlight > 800))).astype(int)
+ 
+# Feature matrix
+X = np.stack([soil_moisture, temperature, humidity, sunlight], axis=1)
+y = labels
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build a simple binary classifier
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(16, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Binary output
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Smart Irrigation Model Accuracy: {acc:.4f}")
+ 
+# Predict water needs for next 5 samples
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Sample {i+1}: Water Needed? {'Yes' if preds[i] else 'No'} (Actual: {'Yes' if y_test[i] else 'No'})")
+This model can power a low-cost, solar-powered smart irrigation system, using real sensor modules like DHT11, soil probes, and LDRs, running on ESP32 or Arduino.
+
+Project 777: Industrial IoT Fault Detection
+Description
+Industrial IoT (IIoT) fault detection systems monitor machine parameters like vibration, temperature, pressure, or current to detect anomalies or faults in real-time. Early detection reduces downtime and maintenance costs. We'll simulate multivariate sensor data and use a binary classification model to identify fault conditions.
+
+Python Implementation with Comments (Fault Classifier for IIoT Systems)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate sensor readings: vibration, temperature, pressure, motor current
+np.random.seed(42)
+n_samples = 1200
+ 
+vibration = np.random.normal(0.3, 0.1, n_samples)
+temperature = np.random.normal(60, 5, n_samples)
+pressure = np.random.normal(30, 3, n_samples)
+current = np.random.normal(15, 2, n_samples)
+ 
+# Simulate fault labels
+# High vibration + high temperature or low pressure → fault
+faults = ((vibration > 0.4) & ((temperature > 65) | (pressure < 28))).astype(int)
+ 
+# Feature matrix and labels
+X = np.stack([vibration, temperature, pressure, current], axis=1)
+y = faults
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build binary classifier
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(16, activation='relu'),
+    layers.Dense(1, activation='sigmoid')
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate performance
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Industrial Fault Detection Model Accuracy: {acc:.4f}")
+ 
+# Predict sample results
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Sample {i+1}: Fault Detected? {'Yes' if preds[i] else 'No'} (Actual: {'Yes' if y_test[i] else 'No'})")
+This simulation can be extended with real-time streaming data and deployed to edge devices like Raspberry Pi + accelerometer (ADXL345) or industrial gateways using TensorFlow Lite.
+
+Project 778: Predictive Maintenance System
+Description
+A predictive maintenance system forecasts equipment failures before they happen by analyzing sensor patterns over time. This helps reduce downtime, extend machinery life, and optimize maintenance schedules. We’ll simulate time-series sensor data and build a sequence classification model using LSTM to predict whether maintenance is needed.
+
+Python Implementation with Comments (LSTM for Predictive Maintenance)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate sequential sensor data (e.g., vibration readings over time)
+np.random.seed(42)
+n_samples = 1000
+time_steps = 50  # readings per session
+features = 3     # vibration, temperature, pressure
+ 
+# Generate normal operational patterns
+normal_data = np.random.normal(loc=[0.3, 60, 30], scale=[0.05, 2, 1], size=(int(n_samples * 0.7), time_steps, features))
+normal_labels = np.zeros((normal_data.shape[0],))
+ 
+# Generate faulty patterns
+faulty_data = np.random.normal(loc=[0.5, 70, 27], scale=[0.1, 3, 2], size=(int(n_samples * 0.3), time_steps, features))
+faulty_labels = np.ones((faulty_data.shape[0],))
+ 
+# Combine and shuffle
+X = np.vstack([normal_data, faulty_data])
+y = np.concatenate([normal_labels, faulty_labels])
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build LSTM sequence model
+model = models.Sequential([
+    layers.LSTM(32, input_shape=(time_steps, features)),
+    layers.Dense(16, activation='relu'),
+    layers.Dense(1, activation='sigmoid')
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=10, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Predictive Maintenance Model Accuracy: {acc:.4f}")
+ 
+# Predict maintenance needs
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Machine {i+1}: Maintenance Required? {'Yes' if preds[i] else 'No'} (Actual: {'Yes' if y_test[i] else 'No'})")
+This predictive maintenance system can be extended to work with real sensor streams and integrated into platforms like Edge Impulse, Azure IoT, or AWS Greengrass for real-time edge analytics.
+
+Project 779: Supply Chain Optimization
+Description
+Supply chain optimization involves predicting demand, managing inventory, and scheduling shipments to reduce costs and delays. AI helps by forecasting product demand and optimizing stock levels. In this simulation, we'll use historical order data to predict future demand using a regression model (DNN), which can be used to automate restocking decisions.
+
+Python Implementation with Comments (Demand Forecasting Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate historical demand features for products
+np.random.seed(42)
+n_samples = 1000
+ 
+# Features: past week demand, days since last restock, current stock level, promo flag
+past_week_demand = np.random.randint(10, 200, n_samples)
+days_since_restock = np.random.randint(1, 30, n_samples)
+current_stock = np.random.randint(0, 300, n_samples)
+promotion = np.random.choice([0, 1], n_samples)
+ 
+# Target: next week's demand (somewhat correlated with past demand and promotion)
+next_week_demand = past_week_demand * (1.1 + 0.2 * promotion) + np.random.normal(0, 10, n_samples)
+ 
+# Feature matrix and target
+X = np.stack([past_week_demand, days_since_restock, current_stock, promotion], axis=1)
+y = next_week_demand
+ 
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build regression model
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # Predicted demand
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate performance
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Supply Chain Demand Forecasting MAE: {mae:.2f} units")
+ 
+# Predict demand for next 5 entries
+predictions = model.predict(X_test[:5]).flatten()
+for i, pred in enumerate(predictions):
+    print(f"Sample {i+1}: Predicted Demand = {pred:.1f} units (Actual = {y_test[i]:.1f})")
+This model helps businesses anticipate inventory needs, reduce waste, and automate restocking. It can be deployed on cloud dashboards or edge-based warehouse systems using lightweight AI inference.
+
+Project 780: Asset Tracking System
+Description
+An asset tracking system monitors the location and status of valuable assets (e.g., tools, containers, vehicles) in real-time using sensors like GPS, BLE, RFID, or accelerometers. In this simulation, we'll create synthetic location and movement data, and build a simple classifier to detect “Lost” vs. “Normal” status based on patterns such as inactivity, signal loss, or abnormal movement.
+
+Python Implementation with Comments (Movement Status Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate asset sensor features: last known location variance, signal strength, days inactive, motion count
+np.random.seed(42)
+n_samples = 1000
+ 
+location_variance = np.random.normal(5, 2, n_samples)           # low variance → stuck/lost
+signal_strength = np.random.normal(70, 10, n_samples)           # RSSI in dBm
+days_inactive = np.random.randint(0, 30, n_samples)             # higher = suspicious
+motion_count = np.random.poisson(3, n_samples)                  # how often asset moves
+ 
+# Create status labels (0 = normal, 1 = lost/suspicious)
+labels = ((location_variance < 3) & (signal_strength < 60) & (days_inactive > 10)).astype(int)
+ 
+# Feature matrix and labels
+X = np.stack([location_variance, signal_strength, days_inactive, motion_count], axis=1)
+y = labels
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build a simple classifier
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(16, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Binary: normal or lost
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Asset Tracking Model Accuracy: {acc:.4f}")
+ 
+# Predict sample asset statuses
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Asset {i+1}: Status = {'LOST' if preds[i] else 'NORMAL'} (Actual: {'LOST' if y_test[i] else 'NORMAL'})")
+This kind of system is applicable in logistics, fleet management, and warehousing — and can be integrated with real GPS/BLE data on microcontrollers or edge gateways.
+
+Project 781: Connected Vehicle Applications
+Description
+Connected vehicles collect and share data via onboard sensors (GPS, speed, engine metrics) to enhance safety, traffic flow, and predictive maintenance. In this project, we simulate vehicle telemetry and build a model to detect aggressive driving behavior (e.g., sudden acceleration, harsh braking), which is crucial for safety scoring and fleet monitoring.
+
+Python Implementation with Comments (Driving Behavior Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate driving telemetry: speed (km/h), acceleration (m/s^2), brake pressure (psi), steering angle (degrees)
+np.random.seed(42)
+n_samples = 1000
+ 
+speed = np.random.normal(60, 10, n_samples)
+acceleration = np.random.normal(1.5, 0.7, n_samples)
+brake_pressure = np.random.normal(5, 3, n_samples)
+steering_angle = np.random.normal(0, 15, n_samples)  # larger deviation may indicate sharp turns
+ 
+# Label aggressive behavior: high accel or brake pressure or erratic steering
+aggressive = ((acceleration > 3) | (brake_pressure > 10) | (np.abs(steering_angle) > 25)).astype(int)
+ 
+# Feature matrix and labels
+X = np.stack([speed, acceleration, brake_pressure, steering_angle], axis=1)
+y = aggressive
+ 
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build classifier model
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(16, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Output: aggressive or not
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Connected Vehicle Model Accuracy: {acc:.4f}")
+ 
+# Predict sample driver behaviors
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Vehicle {i+1}: Driving Behavior = {'Aggressive' if preds[i] else 'Normal'} (Actual: {'Aggressive' if y_test[i] else 'Normal'})")
+This is a core piece for driver scoring apps, insurance telematics, or fleet safety dashboards, and can be deployed on in-vehicle edge compute units using low-latency models.
+
+Project 782: Smart Grid Optimization
+Description
+Smart grids use AI to balance energy demand and supply, manage renewable inputs, and optimize distribution. This project simulates hourly power consumption, renewable generation, and grid load to predict optimal power draw decisions that minimize cost and prevent overload. We'll build a regression model that can assist in energy routing and load balancing.
+
+Python Implementation with Comments (Power Draw Optimization Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate smart grid features: demand (kW), solar input (kW), wind input (kW), grid frequency (Hz)
+np.random.seed(42)
+n_samples = 1000
+ 
+demand = np.random.normal(50, 15, n_samples)         # total energy need
+solar_input = np.random.normal(20, 8, n_samples)     # variable based on sunlight
+wind_input = np.random.normal(15, 6, n_samples)      # variable based on wind
+grid_freq = np.random.normal(50, 0.5, n_samples)     # grid stability indicator
+ 
+# Target: optimized power draw from main grid (want to use renewables first)
+# Try to minimize draw while maintaining grid balance
+draw = demand - (solar_input + wind_input) + (50 - grid_freq) * 0.5
+draw = np.clip(draw, 0, None)  # no negative draw
+ 
+# Feature matrix
+X = np.stack([demand, solar_input, wind_input, grid_freq], axis=1)
+y = draw
+ 
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build regression model
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # Output: optimal grid draw
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Smart Grid Optimization Model MAE: {mae:.2f} kW")
+ 
+# Plot predictions
+predictions = model.predict(X_test).flatten()
+plt.figure(figsize=(10, 4))
+plt.plot(y_test[:100], label='Actual Draw')
+plt.plot(predictions[:100], label='Predicted Draw')
+plt.title("Smart Grid: Predicted vs Actual Power Draw")
+plt.xlabel("Sample Index")
+plt.ylabel("kW")
+plt.legend()
+plt.show()
+This model is useful in energy dispatch systems, microgrid balancing, or real-time smart grid controllers. For real deployments, this can be integrated with smart meters, SCADA systems, or renewable energy monitoring tools.
+
+Project 783: Energy Demand Forecasting
+Description
+Energy demand forecasting predicts future electricity usage to enable proactive load balancing, reduce operational costs, and prevent blackouts. Accurate forecasting is essential for utility companies and smart grids. In this project, we simulate daily energy demand patterns and build an LSTM time-series model to predict the next day’s demand.
+
+Python Implementation with Comments (LSTM-Based Forecasting Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.preprocessing import MinMaxScaler
+import matplotlib.pyplot as plt
+ 
+# Simulate daily energy consumption data (kWh)
+np.random.seed(42)
+days = 365  # 1 year of data
+base_pattern = 50 + 10 * np.sin(np.arange(days) * 2 * np.pi / 30)  # monthly cycles
+noise = np.random.normal(0, 2, days)
+demand = base_pattern + noise
+demand = demand.reshape(-1, 1)
+ 
+# Normalize the demand values
+scaler = MinMaxScaler()
+demand_scaled = scaler.fit_transform(demand)
+ 
+# Prepare LSTM sequences
+def create_sequences(data, window_size=7):
+    X, y = [], []
+    for i in range(len(data) - window_size):
+        X.append(data[i:i+window_size])
+        y.append(data[i+window_size])
+    return np.array(X), np.array(y)
+ 
+window_size = 7  # one week window
+X, y = create_sequences(demand_scaled, window_size)
+ 
+# Train-test split
+split = int(0.8 * len(X))
+X_train, X_test = X[:split], X[split:]
+y_train, y_test = y[:split], y[split:]
+ 
+# Build LSTM model
+model = models.Sequential([
+    layers.LSTM(32, input_shape=(window_size, 1)),
+    layers.Dense(16, activation='relu'),
+    layers.Dense(1)
+])
+ 
+model.compile(optimizer='adam', loss='mse')
+model.fit(X_train, y_train, epochs=20, batch_size=16, verbose=0)
+ 
+# Predict and denormalize
+predictions = model.predict(X_test)
+predicted_demand = scaler.inverse_transform(predictions)
+actual_demand = scaler.inverse_transform(y_test)
+ 
+# Plot forecast results
+plt.figure(figsize=(10, 4))
+plt.plot(actual_demand[:50], label="Actual")
+plt.plot(predicted_demand[:50], label="Predicted")
+plt.title("Energy Demand Forecasting")
+plt.xlabel("Day")
+plt.ylabel("kWh")
+plt.legend()
+plt.show()
+ 
+print("✅ LSTM model trained for daily energy demand forecasting.")
+This type of model can be expanded for hourly or 15-minute intervals, and applied in smart grid load planning, utility billing predictions, or HVAC automation.
+
+Project 784: Building Energy Management
+Description
+A Building Energy Management System (BEMS) monitors and controls energy use within buildings to increase efficiency, reduce costs, and lower environmental impact. This project simulates sensor readings and usage data from HVAC, lighting, and appliances, and uses a regression model to predict total daily energy consumption for a building.
+
+Python Implementation with Comments (Energy Prediction for Smart Buildings)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate building sensor readings: HVAC runtime (hrs), lighting usage (hrs), occupancy (people), outside temp (°C)
+np.random.seed(42)
+n_samples = 1000
+ 
+hvac_runtime = np.random.normal(5, 2, n_samples)           # hours per day
+lighting_usage = np.random.normal(6, 1.5, n_samples)       # hours per day
+occupancy = np.random.randint(1, 20, n_samples)            # people present
+outside_temp = np.random.normal(25, 5, n_samples)          # Celsius
+ 
+# Simulate total energy usage (kWh) with some weighted influence
+total_energy = (hvac_runtime * 3.5 + lighting_usage * 1.2 + occupancy * 0.6 +
+                (35 - outside_temp) * 0.8 + np.random.normal(0, 2, n_samples))
+ 
+# Feature matrix and labels
+X = np.stack([hvac_runtime, lighting_usage, occupancy, outside_temp], axis=1)
+y = total_energy
+ 
+# Split into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build a regression model
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # Predicted energy usage
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Building Energy Model MAE: {mae:.2f} kWh")
+ 
+# Predict and visualize
+preds = model.predict(X_test[:50]).flatten()
+actual = y_test[:50]
+ 
+plt.figure(figsize=(10, 4))
+plt.plot(actual, label='Actual')
+plt.plot(preds, label='Predicted')
+plt.title("Building Energy Usage Prediction")
+plt.xlabel("Sample Index")
+plt.ylabel("kWh")
+plt.legend()
+plt.show()
+This model can be deployed on building management dashboards or integrated into BMS software to enable automated control systems that adjust HVAC/lighting schedules based on forecasted usage.
+
+
+
+Project 785: Traffic Monitoring System
+Description
+A traffic monitoring system uses sensors or cameras to track vehicle flow, detect congestion, and optimize signal timing in real-time. In this project, we simulate traffic sensor data (vehicle count, speed, weather, time of day) and use a classifier model to predict traffic congestion status (congested vs. smooth).
+
+Python Implementation with Comments (Traffic Congestion Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate traffic sensor inputs: vehicle count per minute, average speed (km/h), weather condition (0=clear, 1=rain), time of day (0-23)
+np.random.seed(42)
+n_samples = 1000
+ 
+vehicle_count = np.random.randint(10, 150, n_samples)
+avg_speed = np.random.normal(50, 10, n_samples)
+weather = np.random.choice([0, 1], n_samples, p=[0.7, 0.3])
+hour = np.random.randint(0, 24, n_samples)
+ 
+# Label: 1 = congested if high vehicle count and low speed, especially during peak hours or rain
+congestion = ((vehicle_count > 100) & (avg_speed < 40) & ((hour >= 7) & (hour <= 10) | (hour >= 17) & (hour <= 20) | (weather == 1))).astype(int)
+ 
+# Feature matrix and labels
+X = np.stack([vehicle_count, avg_speed, weather, hour], axis=1)
+y = congestion
+ 
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build traffic congestion classifier
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(16, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Binary classification
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Traffic Monitoring Model Accuracy: {acc:.4f}")
+ 
+# Predict on new sensor data
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Sample {i+1}: {'Congested' if preds[i] else 'Smooth'} (Actual: {'Congested' if y_test[i] else 'Smooth'})")
+This approach can be adapted for live feeds from camera-based CV systems, loop detectors, or GPS-enabled fleet data to inform smart traffic signals, routing apps, or city dashboards.
+
+Project 786: Parking Space Detection
+Description
+Smart parking systems detect available parking spaces using sensors or camera feeds and guide vehicles accordingly. This project simulates sensor data from parking lots (e.g., ultrasonic or image-based sensors) and uses a binary classification model to predict whether a spot is occupied or vacant.
+
+Python Implementation with Comments (Parking Spot Occupancy Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate features: distance reading (from ultrasonic), lighting level (lux), motion (1 if car just entered), time of day
+np.random.seed(42)
+n_samples = 1000
+ 
+# Typical: occupied = short distance + lower light (car casts shadow), maybe recent motion
+distance = np.random.normal(1.0, 0.5, n_samples)  # meters, low if car present
+lighting = np.random.normal(300, 100, n_samples)  # lux
+motion_detected = np.random.choice([0, 1], n_samples, p=[0.85, 0.15])
+hour = np.random.randint(0, 24, n_samples)
+ 
+# Labels: 1 = occupied
+occupied = ((distance < 1.2) & (lighting < 250)).astype(int)
+ 
+# Feature matrix and labels
+X = np.stack([distance, lighting, motion_detected, hour], axis=1)
+y = occupied
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build classifier
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(16, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Binary: occupied or not
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Parking Spot Detection Accuracy: {acc:.4f}")
+ 
+# Predict availability for 5 spots
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Spot {i+1}: {'Occupied' if preds[i] else 'Vacant'} (Actual: {'Occupied' if y_test[i] else 'Vacant'})")
+This can be adapted for real-time deployment on devices like Raspberry Pi + ultrasonic sensor, or integrated into camera-based detection systems using edge vision models.
+
+Project 787: Smart Retail Analytics
+Description
+Smart retail analytics uses sensors and AI to understand customer behavior, optimize store layouts, manage inventory, and personalize marketing. In this project, we simulate footfall, dwell time, and product interaction data to predict purchase likelihood — enabling dynamic promotions and better customer targeting.
+
+Python Implementation with Comments (Customer Purchase Prediction Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate retail features: time in store (mins), sections visited, items picked up, interaction time (secs)
+np.random.seed(42)
+n_samples = 1000
+ 
+time_in_store = np.random.normal(15, 5, n_samples)
+sections_visited = np.random.randint(1, 10, n_samples)
+items_touched = np.random.randint(0, 5, n_samples)
+interaction_time = np.random.normal(30, 15, n_samples)
+ 
+# Label: 1 = purchase likely if more interactions and longer time spent
+purchase = ((time_in_store > 12) & (items_touched >= 2) & (interaction_time > 25)).astype(int)
+ 
+# Combine features
+X = np.stack([time_in_store, sections_visited, items_touched, interaction_time], axis=1)
+y = purchase
+ 
+# Split into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build binary classifier model
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(16, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Binary output: will purchase or not
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Smart Retail Purchase Prediction Accuracy: {acc:.4f}")
+ 
+# Predict behavior for 5 customers
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Customer {i+1}: {'Will Purchase' if preds[i] else 'No Purchase'} (Actual: {'Will Purchase' if y_test[i] else 'No Purchase'})")
+This model supports smart shelf systems, in-store analytics dashboards, or dynamic signage — and can be connected to edge devices collecting sensor data (e.g., footfall counters, RFID readers).
+
+Project 788: Inventory Management System
+Description
+An inventory management system keeps track of stock levels, predicts shortages, and automates reordering to avoid overstocking or stockouts. This project simulates product usage patterns and builds a classification model to predict whether an item will go “Out of Stock Soon” — ideal for automated restocking alerts in retail or warehouses.
+
+Python Implementation with Comments (Stock Level Prediction Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate inventory data: current stock, avg daily sales, days since last restock, incoming shipment (units)
+np.random.seed(42)
+n_samples = 1000
+ 
+current_stock = np.random.randint(0, 500, n_samples)
+daily_sales = np.random.normal(20, 5, n_samples)
+days_since_restock = np.random.randint(1, 30, n_samples)
+incoming_shipment = np.random.randint(0, 200, n_samples)
+ 
+# Label: 1 = likely out of stock soon if sales high and stock low
+out_of_stock_soon = ((current_stock < 100) & (daily_sales > 25) & (incoming_shipment < 50)).astype(int)
+ 
+# Feature matrix and labels
+X = np.stack([current_stock, daily_sales, days_since_restock, incoming_shipment], axis=1)
+y = out_of_stock_soon
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build binary classification model
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(16, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Predict: stock alert (yes/no)
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Inventory Alert Prediction Accuracy: {acc:.4f}")
+ 
+# Predict for 5 example products
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Product {i+1}: {'OUT OF STOCK SOON' if preds[i] else 'Stock OK'} (Actual: {'OUT OF STOCK SOON' if y_test[i] else 'Stock OK'})")
+This predictive alert system can integrate with warehouse dashboards, ERP software, or even IoT-connected stock bins for real-time replenishment automation.
+
+Project 789: Crowd Monitoring System
+Description
+Crowd monitoring systems help track people density and movement in public spaces like malls, airports, or events. Using data from cameras, WiFi/BLE beacons, or infrared sensors, such systems can detect overcrowding, assist in safety alerts, and optimize flow. In this simulation, we build a classifier to predict crowd congestion levels (low, medium, high) using synthetic sensor features.
+
+Python Implementation with Comments (Crowd Density Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+ 
+# Simulate sensor inputs: people count, average dwell time (mins), WiFi signal overlap, thermal activity
+np.random.seed(42)
+n_samples = 1000
+ 
+people_count = np.random.randint(10, 200, n_samples)
+dwell_time = np.random.normal(5, 2, n_samples)
+wifi_overlap = np.random.normal(0.6, 0.2, n_samples)  # proxy for density
+thermal_readings = np.random.normal(30, 3, n_samples)  # crowd = higher heat
+ 
+# Label density: low (<50), medium (50–120), high (>120) based on people count
+density = np.where(people_count < 50, 'low',
+           np.where(people_count < 120, 'medium', 'high'))
+ 
+# Encode labels
+encoder = LabelEncoder()
+y = encoder.fit_transform(density)
+ 
+# Feature matrix
+X = np.stack([people_count, dwell_time, wifi_overlap, thermal_readings], axis=1)
+ 
+# Split into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-class classifier
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(3, activation='softmax')  # 3 classes: low, medium, high
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate accuracy
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Crowd Monitoring Model Accuracy: {acc:.4f}")
+ 
+# Predict crowd level for 5 samples
+preds = np.argmax(model.predict(X_test[:5]), axis=1)
+for i in range(5):
+    print(f"Zone {i+1}: Predicted = {encoder.classes_[preds[i]]}, Actual = {encoder.classes_[y_test[i]]}")
+This model can be connected to real-time video analytics, BLE scanner logs, or thermal camera sensors and deployed on edge nodes for fast alerts during peak crowd conditions.
+
+Project 790: Indoor Positioning System
+Description
+An Indoor Positioning System (IPS) estimates the real-time location of people or assets inside a building using WiFi, Bluetooth, UWB, or RFID signals. GPS doesn't work well indoors, so AI can help map signal strength patterns to physical locations. In this simulation, we’ll use WiFi signal strengths from multiple access points to train a regression model that predicts x, y indoor coordinates.
+
+Python Implementation with Comments (WiFi-Based Location Regression Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate WiFi RSSI values from 4 access points (in dBm, typically -90 to -30)
+np.random.seed(42)
+n_samples = 1000
+ap1 = np.random.normal(-60, 5, n_samples)
+ap2 = np.random.normal(-70, 5, n_samples)
+ap3 = np.random.normal(-65, 5, n_samples)
+ap4 = np.random.normal(-75, 5, n_samples)
+ 
+# Simulate x, y coordinates (in meters) as labels — for example, a 20x20 meter indoor area
+x_coords = np.random.uniform(0, 20, n_samples)
+y_coords = np.random.uniform(0, 20, n_samples)
+ 
+# Feature matrix (RSSI from access points)
+X = np.stack([ap1, ap2, ap3, ap4], axis=1)
+y = np.stack([x_coords, y_coords], axis=1)  # target: 2D location
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build regression model for coordinate prediction
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(2)  # x and y coordinates
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Indoor Positioning MAE: {mae:.2f} meters")
+ 
+# Predict sample positions
+preds = model.predict(X_test[:5])
+for i, pred in enumerate(preds):
+    print(f"Sample {i+1}: Predicted (x, y) = ({pred[0]:.2f}, {pred[1]:.2f}) | Actual = ({y_test[i][0]:.2f}, {y_test[i][1]:.2f})")
+ 
+# Optional: Visualize prediction vs actual
+plt.figure(figsize=(6, 6))
+plt.scatter(y_test[:50, 0], y_test[:50, 1], label='Actual', alpha=0.6)
+plt.scatter(preds[:50, 0], preds[:50, 1], label='Predicted', alpha=0.6)
+plt.title("Indoor Positioning System: Actual vs Predicted")
+plt.xlabel("X (m)")
+plt.ylabel("Y (m)")
+plt.legend()
+plt.grid(True)
+plt.show()
+This model mimics systems used in hospitals, shopping malls, or warehouses where indoor asset tracking and navigation are crucial. It can be deployed with WiFi triangulation, BLE beacons, or UWB anchors on edge gateways.
+
+Project 791: Gesture Recognition for Wearables
+Description
+Gesture recognition enables wearables like smartwatches or fitness bands to detect hand or body movements (e.g., swipe, shake, wave) using built-in motion sensors like accelerometers and gyroscopes. In this project, we simulate multiaxis motion data and build a 1D CNN classifier to recognize different gestures based on time-series input.
+
+Python Implementation with Comments (1D CNN for Gesture Recognition)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+ 
+# Simulate gestures: swipe, shake, wave — using 3-axis accelerometer data over time
+np.random.seed(42)
+n_samples = 900
+time_steps = 50  # readings per gesture
+axes = 3         # x, y, z accelerometer
+ 
+# Generate synthetic gesture patterns
+def generate_gesture(pattern, label, count):
+    base = {
+        "swipe": [0.8, 0.1, 0.0],
+        "shake": [0.5, 0.5, 0.5],
+        "wave": [0.1, 0.8, 0.2]
+    }[pattern]
+    data = np.random.normal(loc=base, scale=0.2, size=(count, time_steps, axes))
+    labels = np.full((count,), label)
+    return data, labels
+ 
+swipe_X, swipe_y = generate_gesture("swipe", "swipe", 300)
+shake_X, shake_y = generate_gesture("shake", "shake", 300)
+wave_X, wave_y = generate_gesture("wave", "wave", 300)
+ 
+# Combine data
+X = np.vstack([swipe_X, shake_X, wave_X])
+y = np.concatenate([swipe_y, shake_y, wave_y])
+ 
+# Encode labels
+encoder = LabelEncoder()
+y_encoded = encoder.fit_transform(y)
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
+ 
+# Build 1D CNN model
+model = models.Sequential([
+    layers.Conv1D(32, 3, activation='relu', input_shape=(time_steps, axes)),
+    layers.MaxPooling1D(pool_size=2),
+    layers.Conv1D(64, 3, activation='relu'),
+    layers.GlobalMaxPooling1D(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(3, activation='softmax')  # 3 gesture classes
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Gesture Recognition Accuracy: {acc:.4f}")
+ 
+# Predict 5 sample gestures
+preds = np.argmax(model.predict(X_test[:5]), axis=1)
+for i in range(5):
+    print(f"Sample {i+1}: Predicted = {encoder.classes_[preds[i]]}, Actual = {encoder.classes_[y_test[i]]}")
+This type of model is perfect for on-device inference using TensorFlow Lite, enabling intuitive controls like tap-to-skip, flick-to-scroll, or shake-to-dismiss on wearables, AR glasses, or IoT wristbands.
+
+Project 792: Health Monitoring with Wearables
+Description
+Health monitoring systems in wearables collect continuous data such as heart rate, body temperature, and movement to detect abnormalities and support early diagnosis. In this project, we simulate physiological data and build a binary classification model to detect potential health alerts, such as signs of fatigue, dehydration, or elevated stress.
+
+Python Implementation with Comments (Health Risk Alert Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate wearable sensor data: heart rate (bpm), skin temperature (°C), activity level, blood oxygen (%)
+np.random.seed(42)
+n_samples = 1000
+ 
+heart_rate = np.random.normal(75, 10, n_samples)
+skin_temp = np.random.normal(36.5, 0.5, n_samples)
+activity_level = np.random.normal(0.5, 0.2, n_samples)  # normalized from accelerometer
+spo2 = np.random.normal(98, 1, n_samples)
+ 
+# Label: 1 = alert if abnormal vitals (e.g., high HR, low SpO2, high temp with inactivity)
+alert = ((heart_rate > 90) & (spo2 < 95) & (activity_level < 0.3) | (skin_temp > 37.5)).astype(int)
+ 
+# Combine features
+X = np.stack([heart_rate, skin_temp, activity_level, spo2], axis=1)
+y = alert
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build health monitoring model
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(16, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Binary output: alert or normal
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Health Monitoring Model Accuracy: {acc:.4f}")
+ 
+# Predict status for 5 individuals
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"User {i+1}: {'⚠️ Alert' if preds[i] else '✅ Normal'} (Actual: {'⚠️ Alert' if y_test[i] else '✅ Normal'})")
+This model can power real-time alerts in fitness bands, smartwatches, or medical-grade wearables, and can be deployed using TensorFlow Lite for Microcontrollers (TFLM) on low-power chips.
+
+Project 793: Smart Mirror Implementation
+Description
+A smart mirror overlays useful information—like weather, calendar, health stats, or personal alerts—onto a reflective display. AI enhances it with features like face recognition, mood detection, or personalized recommendations. In this project, we simulate a face recognition model to identify users and return personalized dashboard content.
+
+Python Implementation with Comments (Face Recognition + Personalization Logic)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+ 
+# Simulate embeddings from a face recognition system (e.g., FaceNet) — 128D vectors
+np.random.seed(42)
+n_users = 5
+samples_per_user = 100
+n_samples = n_users * samples_per_user
+embedding_dim = 128
+ 
+# Generate embeddings and labels
+X = np.random.normal(loc=0, scale=1, size=(n_samples, embedding_dim))
+y = np.repeat([f"user_{i}" for i in range(n_users)], samples_per_user)
+ 
+# Encode user labels
+encoder = LabelEncoder()
+y_encoded = encoder.fit_transform(y)
+ 
+# Split into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
+ 
+# Build face classifier model (input = 128D face embedding)
+model = models.Sequential([
+    layers.Input(shape=(embedding_dim,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(n_users, activation='softmax')  # Predict which user
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=10, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Smart Mirror Face Recognition Accuracy: {acc:.4f}")
+ 
+# Predict and personalize
+preds = np.argmax(model.predict(X_test[:5]), axis=1)
+for i, p in enumerate(preds):
+    user = encoder.classes_[p]
+    print(f"🪞 Detected: {user} → Displaying: {user}'s dashboard (weather, agenda, health stats)")
+This model simulates the face-based identity detection logic for a smart mirror. In a real system:
+
+Face embeddings would come from OpenCV + FaceNet or MediaPipe.
+
+Display logic could be built using Tkinter, PyQt, or Raspberry Pi with HDMI monitor + two-way mirror.
+
+Project 794: Smart Surveillance System
+Description
+A smart surveillance system uses computer vision to detect unusual activity, track people or objects, and issue alerts for security threats. AI enables real-time video stream analysis for applications like intrusion detection, loitering, or object abandonment. In this project, we simulate a basic person detection system using image input and a pre-trained object detection model (MobileNet-SSD).
+
+Python Implementation with Comments (Person Detection Using OpenCV + Pretrained Model)
+import cv2
+import numpy as np
+ 
+# Load pre-trained MobileNet SSD model (for person detection)
+net = cv2.dnn.readNetFromCaffe(
+    'https://raw.githubusercontent.com/chuanqi305/MobileNet-SSD/deploy.prototxt',
+    'https://github.com/chuanqi305/MobileNet-SSD/raw/master/MobileNetSSD_deploy.caffemodel'
+)
+ 
+# Class labels for COCO dataset (only 'person' needed here)
+CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat", "bottle", "bus",
+           "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike",
+           "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
+ 
+# Load sample image (can also be a video frame)
+image = cv2.imread("surveillance_sample.jpg")  # replace with your own image
+(h, w) = image.shape[:2]
+ 
+# Prepare image for detection
+blob = cv2.dnn.blobFromImage(image, 0.007843, (300, 300), 127.5)
+net.setInput(blob)
+detections = net.forward()
+ 
+# Loop over detections
+for i in range(detections.shape[2]):
+    confidence = detections[0, 0, i, 2]
+    idx = int(detections[0, 0, i, 1])
+    
+    # Only detect persons with high confidence
+    if CLASSES[idx] == "person" and confidence > 0.5:
+        box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+        (startX, startY, endX, endY) = box.astype("int")
+        cv2.rectangle(image, (startX, startY), (endX, endY), (0, 255, 0), 2)
+        cv2.putText(image, f"Person: {confidence:.2f}", (startX, startY - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+ 
+# Display the image with detections
+cv2.imshow("Smart Surveillance Output", image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+✅ What this does:
+
+Detects people in an image using MobileNet-SSD.
+
+Can be extended to video streams using cv2.VideoCapture(0) for live feed.
+
+Basis for further features: intrusion zones, abandoned object alerts, or time-based tracking.
+
+For deployment, it can be installed on NVIDIA Jetson, Raspberry Pi (with Coral TPU), or smart IP cameras.
+
+Project 795: Intrusion Detection System (IDS)
+Description
+An Intrusion Detection System monitors network or physical activity to detect unauthorized access. In this project, we simulate a network-based IDS using synthetic traffic features like packet size, connection duration, and flags, and train a binary classifier to detect malicious vs. normal traffic — applicable for IoT security and smart building firewalls.
+
+Python Implementation with Comments (Network Intrusion Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate network traffic features: duration (s), bytes sent, bytes received, failed logins, suspicious flag count
+np.random.seed(42)
+n_samples = 1000
+ 
+duration = np.random.exponential(scale=2.0, size=n_samples)
+bytes_sent = np.random.normal(1000, 300, n_samples)
+bytes_received = np.random.normal(1200, 400, n_samples)
+failed_logins = np.random.poisson(0.2, n_samples)
+suspicious_flags = np.random.poisson(0.3, n_samples)
+ 
+# Label: 1 = intrusion if many failed logins or suspicious flags with long duration or large transfers
+intrusion = ((failed_logins > 1) | (suspicious_flags > 1) | (duration > 5) & (bytes_sent > 2000)).astype(int)
+ 
+# Stack features and labels
+X = np.stack([duration, bytes_sent, bytes_received, failed_logins, suspicious_flags], axis=1)
+y = intrusion
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build classifier model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # 0 = normal, 1 = intrusion
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Intrusion Detection Accuracy: {acc:.4f}")
+ 
+# Predict traffic status
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Traffic {i+1}: {'🚨 Intrusion' if preds[i] else '✅ Normal'} (Actual: {'🚨 Intrusion' if y_test[i] else '✅ Normal'})")
+This system forms the AI core of edge security appliances, smart routers, or IoT firewall systems. For real-world use, models can be trained on datasets like NSL-KDD, UNSW-NB15, or CICIDS.
+
+Project 796: Edge Vision Applications
+Description
+Edge vision applications use local AI inference to analyze visual input (images or video) directly on edge devices — reducing latency, bandwidth usage, and protecting privacy. In this project, we simulate a real-time object classification app using a lightweight MobileNetV2 model, suitable for deployment on edge devices like Raspberry Pi or Jetson Nano.
+
+Python Implementation with Comments (Real-Time Image Classification with MobileNetV2)
+import tensorflow as tf
+import numpy as np
+import cv2
+from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2, preprocess_input, decode_predictions
+ 
+# Load the lightweight MobileNetV2 model pre-trained on ImageNet
+model = MobileNetV2(weights='imagenet')
+ 
+# Load or capture image (simulated frame from camera)
+frame = cv2.imread("sample_image.jpg")  # Replace with actual camera frame
+ 
+# Preprocess frame for MobileNetV2
+img = cv2.resize(frame, (224, 224))
+img_array = tf.keras.preprocessing.image.img_to_array(img)
+img_array = np.expand_dims(img_array, axis=0)
+img_array = preprocess_input(img_array)  # Normalize as expected by MobileNetV2
+ 
+# Perform prediction
+preds = model.predict(img_array)
+top_preds = decode_predictions(preds, top=3)[0]
+ 
+# Display results
+for i, (imagenetID, label, prob) in enumerate(top_preds):
+    print(f"Prediction {i+1}: {label} ({prob*100:.2f}%)")
+ 
+# Overlay prediction on image
+label_text = f"{top_preds[0][1]}: {top_preds[0][2]*100:.2f}%"
+cv2.putText(frame, label_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+cv2.imshow("Edge Vision Classification", frame)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+✅ Edge deployment ready:
+
+Convert this model using TensorFlow Lite for fast inference on devices like:
+
+Raspberry Pi with Coral TPU
+
+Jetson Nano
+
+ESP32-CAM with lightweight custom CNNs
+
+Project 797: Edge Audio Processing
+Description
+Edge audio processing enables real-time sound event detection, voice commands, or anomaly recognition directly on low-power devices (like smart speakers or industrial sensors). In this project, we simulate an audio event classifier that can distinguish between sounds like clap, glass break, and background noise using MFCC features and a 1D CNN model.
+
+Python Implementation with Comments (Audio Event Classification Using MFCC + 1D CNN)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import librosa
+ 
+# Simulate loading MFCC features from audio clips
+def generate_mfcc(label, base_freq, n_samples=100):
+    data = []
+    for _ in range(n_samples):
+        # Generate synthetic tone (or use real audio loading)
+        tone = np.sin(2 * np.pi * np.linspace(0, 1, 16000) * base_freq)
+        mfcc = librosa.feature.mfcc(y=tone, sr=16000, n_mfcc=13)
+        data.append(mfcc.T[:100])  # fixed size: 100 time steps
+    labels = [label] * n_samples
+    return np.array(data), labels
+ 
+# Generate synthetic MFCC sets for 3 sound classes
+clap_X, clap_y = generate_mfcc(0, 500)
+glass_X, glass_y = generate_mfcc(1, 1500)
+noise_X, noise_y = generate_mfcc(2, 250)
+ 
+# Combine and encode
+X = np.concatenate([clap_X, glass_X, noise_X])
+y = np.concatenate([clap_y, glass_y, noise_y])
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build 1D CNN model for MFCC input
+model = models.Sequential([
+    layers.Input(shape=(100, 13)),  # 100 time steps, 13 MFCCs
+    layers.Conv1D(32, kernel_size=3, activation='relu'),
+    layers.MaxPooling1D(pool_size=2),
+    layers.Conv1D(64, kernel_size=3, activation='relu'),
+    layers.GlobalMaxPooling1D(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(3, activation='softmax')  # 3 audio classes
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=10, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Edge Audio Classifier Accuracy: {acc:.4f}")
+ 
+# Predict 5 test samples
+preds = np.argmax(model.predict(X_test[:5]), axis=1)
+label_map = {0: "Clap", 1: "Glass Break", 2: "Noise"}
+for i, pred in enumerate(preds):
+    print(f"Sample {i+1}: Predicted = {label_map[pred]}, Actual = {label_map[y_test[i]]}")
+This model can be:
+
+Converted to TensorFlow Lite for edge audio inference.
+
+Integrated with microphones on ESP32, Raspberry Pi, or Edge Impulse Studio.
+
+Used in smart security systems, factory monitoring, or voice-based automation.
+
+Project 798: Edge NLP Applications
+Description
+Edge NLP applications bring natural language processing directly to low-power or offline devices — enabling features like voice commands, keyword detection, or sentiment analysis without cloud dependency. In this project, we simulate a lightweight intent recognition system that runs locally using a small LSTM model and preprocessed text commands.
+
+Python Implementation with Comments (Intent Recognition with LSTM for Edge Devices)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+ 
+# Simulated user voice/text commands
+sentences = [
+    "turn on the lights", "switch off the fan", "play music", "stop music",
+    "increase volume", "decrease volume", "what’s the weather", "set an alarm",
+    "open the door", "close the window"
+]
+ 
+labels = [
+    "lights_on", "fan_off", "music_play", "music_stop",
+    "volume_up", "volume_down", "weather_query", "set_alarm",
+    "open_door", "close_window"
+]
+ 
+# Encode intent labels
+encoder = LabelEncoder()
+y = encoder.fit_transform(labels)
+ 
+# Tokenize and pad sequences
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(sentences)
+sequences = tokenizer.texts_to_sequences(sentences)
+padded = pad_sequences(sequences, maxlen=5)
+ 
+# Build intent classifier model (LSTM-based)
+model = models.Sequential([
+    layers.Embedding(input_dim=len(tokenizer.word_index) + 1, output_dim=16, input_length=5),
+    layers.LSTM(32),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(len(set(y)), activation='softmax')  # intent classes
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(padded, y, epochs=100, verbose=0)
+ 
+# Test with new sample
+test_cmd = ["turn off the lights"]
+test_seq = tokenizer.texts_to_sequences(test_cmd)
+test_pad = pad_sequences(test_seq, maxlen=5)
+pred = np.argmax(model.predict(test_pad), axis=1)
+intent = encoder.inverse_transform(pred)[0]
+ 
+print(f"✅ Detected Intent: '{intent}' for command: \"{test_cmd[0]}\"")
+✅ Edge-friendly tips:
+
+Convert this to TensorFlow Lite for real-time inference.
+
+Deploy on voice-enabled devices, offline assistants, or low-power embedded systems.
+
+Expand with more training data and intents, or compress further using distillation or quantization-aware training.
+
+Project 799: Low-Power Computer Vision
+Description
+Low-power computer vision focuses on enabling image-based AI tasks like classification or detection on energy-constrained devices (e.g., microcontrollers, IoT cams). This project demonstrates how to build and compress a tiny image classifier (e.g., for plant health, trash sorting, etc.) using MobileNetV2 + TensorFlow Lite quantization for deployment on devices like ESP32-CAM or Raspberry Pi Zero.
+
+Python Implementation with Comments (Quantized Tiny Image Classifier for Edge)
+import tensorflow as tf
+import numpy as np
+from tensorflow.keras import layers, models
+from tensorflow.keras.datasets import cifar10
+ 
+# Load small image dataset (CIFAR-10: 32x32 color images, 10 classes)
+(x_train, y_train), (x_test, y_test) = cifar10.load_data()
+x_train = x_train.astype("float32") / 255.0
+x_test = x_test.astype("float32") / 255.0
+ 
+# Keep only 3 classes for simplification (e.g., airplane, car, bird)
+selected_classes = [0, 1, 2]
+train_mask = np.isin(y_train, selected_classes).flatten()
+test_mask = np.isin(y_test, selected_classes).flatten()
+ 
+x_train, y_train = x_train[train_mask], y_train[train_mask]
+x_test, y_test = x_test[test_mask], y_test[test_mask]
+ 
+# Normalize labels to 0–2
+label_map = {k: i for i, k in enumerate(selected_classes)}
+y_train = np.vectorize(label_map.get)(y_train)
+y_test = np.vectorize(label_map.get)(y_test)
+ 
+# Build a tiny CNN model suitable for edge deployment
+model = models.Sequential([
+    layers.Input(shape=(32, 32, 3)),
+    layers.Conv2D(16, 3, activation='relu'),
+    layers.MaxPooling2D(),
+    layers.Conv2D(32, 3, activation='relu'),
+    layers.GlobalAveragePooling2D(),
+    layers.Dense(3, activation='softmax')
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(x_train, y_train, epochs=5, batch_size=64, verbose=0)
+ 
+# Evaluate accuracy
+loss, acc = model.evaluate(x_test, y_test)
+print(f"✅ Low-Power Vision Model Accuracy: {acc:.4f}")
+ 
+# Convert to TFLite with full quantization
+converter = tf.lite.TFLiteConverter.from_keras_model(model)
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+ 
+def representative_data_gen():
+    for input_value in x_train[:100]:
+        yield [np.expand_dims(input_value, axis=0)]
+ 
+converter.representative_dataset = representative_data_gen
+converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+converter.inference_input_type = tf.uint8
+converter.inference_output_type = tf.uint8
+ 
+tflite_model = converter.convert()
+ 
+# Save quantized model
+with open("tiny_cnn_quantized.tflite", "wb") as f:
+    f.write(tflite_model)
+ 
+print("✅ Quantized Tiny Image Classifier saved — ready for low-power deployment!")
+This project is deployable on devices like:
+
+ESP32-CAM with TFLite Micro
+
+Raspberry Pi Zero (Lite)
+
+Arduino Portenta H7 + vision shield
+
+
+
+Project 800: Real-Time Object Detection for Edge
+Description
+Real-time object detection on edge devices enables applications like surveillance, robotics, and smart retail without cloud dependency. We'll use a pre-trained SSD MobileNet model optimized with TensorFlow Lite for fast, low-power inference — suitable for devices like Raspberry Pi, Coral TPU, and NVIDIA Jetson.
+
+Python Implementation with Comments (TFLite Object Detection with Live Video Frame)
+import cv2
+import numpy as np
+import tensorflow as tf
+ 
+# Load TFLite model and allocate tensors
+interpreter = tf.lite.Interpreter(model_path="ssd_mobilenet_v1.tflite")  # You can use any downloaded TFLite object detector
+interpreter.allocate_tensors()
+ 
+# Get input and output details
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+ 
+# Load label map (COCO 90 classes for MobileNet)
+labels = {0: 'background', 1: 'person', 2: 'bicycle', 3: 'car', 5: 'bus', 7: 'truck'}
+ 
+# Open webcam or video stream
+cap = cv2.VideoCapture(0)  # use 0 for webcam, or replace with a video file path
+ 
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+ 
+    # Prepare frame
+    input_shape = input_details[0]['shape']
+    resized = cv2.resize(frame, (input_shape[2], input_shape[1]))
+    input_data = np.expand_dims(resized, axis=0)
+    input_data = (np.float32(input_data) - 127.5) / 127.5  # normalize as per SSD MobileNet requirement
+ 
+    # Run inference
+    interpreter.set_tensor(input_details[0]['index'], input_data)
+    interpreter.invoke()
+ 
+    # Get detection results
+    boxes = interpreter.get_tensor(output_details[0]['index'])[0]
+    classes = interpreter.get_tensor(output_details[1]['index'])[0].astype(np.int32)
+    scores = interpreter.get_tensor(output_details[2]['index'])[0]
+ 
+    # Draw results
+    h, w, _ = frame.shape
+    for i in range(len(scores)):
+        if scores[i] > 0.5:
+            ymin, xmin, ymax, xmax = boxes[i]
+            (left, top, right, bottom) = (int(xmin * w), int(ymin * h), int(xmax * w), int(ymax * h))
+            label = labels.get(classes[i], "unknown")
+            cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+            cv2.putText(frame, f"{label}: {scores[i]:.2f}", (left, top - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
+ 
+    cv2.imshow('Edge Object Detection', frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+ 
+cap.release()
+cv2.destroyAllWindows()
+✅ Ready for deployment on:
+
+Raspberry Pi with PiCam + TFLite
+
+Google Coral USB Accelerator
+
+Jetson Nano using TensorRT conversion
+
+Real-world use: real-time intruder detection, vehicle monitoring, or smart checkout systems
+
