@@ -1,0 +1,3640 @@
+
+Project 641: Reinforcement Learning for Robotic Control
+Description:
+Reinforcement learning (RL) for robotic control involves teaching robots to perform tasks by interacting with their environment and learning from the feedback received (rewards or penalties). The goal is to train the robot to make optimal decisions, such as adjusting its position, velocity, or other parameters to perform specific tasks like grasping, moving, or navigating. In this project, we will apply RL techniques to train a robot to perform control tasks, using Q-learning or Deep Q-Networks (DQN) for learning from interactions with the environment.
+
+🧪 Python Implementation (RL for Robotic Control using DQN)
+import gym
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define the Q-network for robotic control
+class RoboticControlQNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(RoboticControlQNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: Q-values for each action (control command)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)  # Output: Q-values for each action
+ 
+# 2. Define the RL agent for robotic control
+class RoboticControlRLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(state)
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(state)
+        next_q_values = self.model(next_state)
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Initialize the environment and RL agent for robotic control
+env = gym.make('FetchReach-v1')  # Example robotic control task (Fetch robot reaching task)
+model = RoboticControlQNetwork(input_size=env.observation_space.shape[0], output_size=env.action_space.shape[0])
+agent = RoboticControlRLAgent(model)
+ 
+# 4. Train the agent using DQN for robotic control
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+        next_state, reward, done, _, _ = env.step(action)
+ 
+        # Update the agent using DQN
+        loss = agent.update(torch.tensor(state, dtype=torch.float32).unsqueeze(0), action, reward, torch.tensor(next_state, dtype=torch.float32).unsqueeze(0), done)
+        total_reward += reward
+        state = next_state
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 5. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+    next_state, reward, done, _, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after DQN training for Robotic Control: {total_reward}")
+Project 642: Imitation Learning for Robotics
+Description:
+Imitation learning (IL) allows robots to learn tasks by observing human demonstrations. Unlike traditional RL where agents explore the environment to learn, imitation learning relies on a set of examples (demonstrations) from an expert, and the robot learns to mimic the actions performed by the expert. This is particularly useful for robotic control tasks, where direct exploration may not be feasible or efficient. In this project, we will use behavioral cloning (a common imitation learning approach) to train a robot to perform tasks by mimicking human demonstrations.
+
+🧪 Python Implementation (Imitation Learning for Robotics using Behavioral Cloning)
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+import gym
+ 
+# 1. Define the neural network model for behavioral cloning (Imitation Learning)
+class ImitationLearningModel(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(ImitationLearningModel, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: predicted action
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)  # Output: predicted action
+ 
+# 2. Define the Imitation Learning agent
+class ImitationLearningAgent:
+    def __init__(self, model, learning_rate=0.001):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.criterion = nn.MSELoss()  # Loss function for behavioral cloning
+ 
+    def train(self, states, actions):
+        # Training the model on human demonstrations
+        self.model.train()
+        self.optimizer.zero_grad()
+        predictions = self.model(states)  # Predicted actions from the model
+        loss = self.criterion(predictions, actions)  # Loss between predicted and actual actions
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
+ 
+    def predict(self, state):
+        # Predict the action to take based on the trained model
+        self.model.eval()
+        with torch.no_grad():
+            return self.model(state)
+ 
+# 3. Initialize the environment and Imitation Learning agent
+env = gym.make('FetchReach-v1')  # Example environment for robotic task (Fetch robot reaching task)
+model = ImitationLearningModel(input_size=env.observation_space.shape[0], output_size=env.action_space.shape[0])
+agent = ImitationLearningAgent(model)
+ 
+# 4. Collect demonstrations (human-provided data for training)
+# For simplicity, we'll assume the demonstration data is pre-collected
+# Example: Human-provided states and actions
+# states = list of states observed from the human demonstration
+# actions = list of actions taken by the human expert
+ 
+states = np.random.rand(100, env.observation_space.shape[0])  # Simulated human demonstration states
+actions = np.random.rand(100, env.action_space.shape[0])  # Simulated human demonstration actions
+ 
+# Convert states and actions to PyTorch tensors
+states_tensor = torch.tensor(states, dtype=torch.float32)
+actions_tensor = torch.tensor(actions, dtype=torch.float32)
+ 
+# 5. Train the agent using imitation learning
+num_epochs = 50
+for epoch in range(num_epochs):
+    loss = agent.train(states_tensor, actions_tensor)
+    print(f"Epoch {epoch+1}/{num_epochs}, Loss: {loss:.4f}")
+ 
+# 6. Evaluate the agent after training (imitation learning)
+# Run the robot using the learned policy
+state = env.reset()
+done = False
+total_reward = 0
+ 
+while not done:
+    action = agent.predict(torch.tensor(state, dtype=torch.float32).unsqueeze(0))  # Predict action based on trained model
+    state, reward, done, _, _ = env.step(action.numpy()[0])
+    total_reward += reward
+ 
+print(f"Total reward after Imitation Learning: {total_reward}")
+Project 643: Inverse Kinematics Solver
+Description:
+Inverse kinematics (IK) is the mathematical process of determining the joint angles of a robot's arm or manipulator to achieve a desired end effector position (e.g., reaching a specific point in space). Solving inverse kinematics is a fundamental problem in robotics, particularly for robotic arms and manipulators. In this project, we will implement an inverse kinematics solver that calculates the joint angles for a robotic arm to reach a target position using a numerical or analytical approach.
+
+🧪 Python Implementation (Inverse Kinematics Solver)
+import numpy as np
+ 
+# 1. Define the robot arm with 2 joints
+# The robot arm consists of two links with lengths l1 and l2
+l1 = 1.0  # Length of first link
+l2 = 1.0  # Length of second link
+ 
+# 2. Inverse kinematics solver function for a 2D robotic arm
+def inverse_kinematics(x, y):
+    """
+    Solves inverse kinematics for a 2-joint robotic arm in 2D.
+    :param x: Desired x-coordinate of the end effector
+    :param y: Desired y-coordinate of the end effector
+    :return: joint angles theta1, theta2 (in radians)
+    """
+ 
+    # Calculate the distance to the target position (x, y)
+    r = np.sqrt(x**2 + y**2)
+ 
+    # Check if the target is reachable
+    if r > (l1 + l2) or r < abs(l1 - l2):
+        raise ValueError("Target is out of reach")
+ 
+    # Use the law of cosines to calculate the angles
+    cos_theta2 = (r**2 - l1**2 - l2**2) / (-2 * l1 * l2)
+    theta2 = np.arccos(cos_theta2)
+ 
+    # Calculate the angle of the first joint (theta1)
+    k1 = l1 + l2 * cos_theta2
+    k2 = l2 * np.sin(theta2)
+    theta1 = np.arctan2(y, x) - np.arctan2(k2, k1)
+ 
+    return theta1, theta2
+ 
+# 3. Test the inverse kinematics solver
+target_x = 1.5  # Desired x-coordinate of the end effector
+target_y = 1.0  # Desired y-coordinate of the end effector
+ 
+# Solve the inverse kinematics to get joint angles
+try:
+    theta1, theta2 = inverse_kinematics(target_x, target_y)
+    print(f"Joint 1 Angle (theta1): {np.degrees(theta1):.2f}°")
+    print(f"Joint 2 Angle (theta2): {np.degrees(theta2):.2f}°")
+except ValueError as e:
+    print(e)
+Project 644: Path Planning Algorithms
+Description:
+Path planning is the process of determining a feasible route from a start point to a goal point while avoiding obstacles. In robotics, path planning algorithms are crucial for guiding robots through environments, whether they're indoor or outdoor, to achieve a task efficiently. In this project, we will implement a path planning algorithm such as *A (A-star)**, a widely used algorithm that finds the shortest path in a grid environment with obstacles.
+
+🧪 Python Implementation (Path Planning using A)*
+import heapq
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the A* algorithm for path planning
+class AStarPlanner:
+    def __init__(self, grid, start, goal):
+        self.grid = grid  # 2D grid environment (0 = free space, 1 = obstacle)
+        self.start = start
+        self.goal = goal
+        self.rows = len(grid)
+        self.cols = len(grid[0])
+ 
+    def heuristic(self, a, b):
+        # Manhattan distance heuristic
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+ 
+    def get_neighbors(self, node):
+        # Get 4-connected neighbors (up, down, left, right)
+        neighbors = []
+        for d in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            new_row, new_col = node[0] + d[0], node[1] + d[1]
+            if 0 <= new_row < self.rows and 0 <= new_col < self.cols and self.grid[new_row][new_col] == 0:
+                neighbors.append((new_row, new_col))
+        return neighbors
+ 
+    def plan(self):
+        # Initialize open and closed lists
+        open_list = []
+        closed_list = set()
+ 
+        # Push the start node into the open list with a priority of 0
+        heapq.heappush(open_list, (0, self.start))
+ 
+        # Store the g and f values for each node
+        g_values = {self.start: 0}
+        f_values = {self.start: self.heuristic(self.start, self.goal)}
+        
+        # Store the parent of each node for path reconstruction
+        came_from = {}
+ 
+        while open_list:
+            # Get the node with the lowest f value
+            _, current = heapq.heappop(open_list)
+ 
+            # If we reached the goal, reconstruct the path
+            if current == self.goal:
+                path = []
+                while current in came_from:
+                    path.append(current)
+                    current = came_from[current]
+                path.reverse()
+                return path
+ 
+            closed_list.add(current)
+ 
+            # Loop through neighbors
+            for neighbor in self.get_neighbors(current):
+                if neighbor in closed_list:
+                    continue
+ 
+                tentative_g_value = g_values[current] + 1  # Assuming each step costs 1
+ 
+                if neighbor not in g_values or tentative_g_value < g_values[neighbor]:
+                    came_from[neighbor] = current
+                    g_values[neighbor] = tentative_g_value
+                    f_values[neighbor] = tentative_g_value + self.heuristic(neighbor, self.goal)
+                    heapq.heappush(open_list, (f_values[neighbor], neighbor))
+ 
+        return []  # No path found
+ 
+# 2. Define the grid and obstacles
+grid = np.zeros((10, 10))  # 10x10 grid (0 = free, 1 = obstacle)
+grid[4][4] = grid[4][5] = grid[4][6] = 1  # Adding obstacles
+ 
+# 3. Set the start and goal positions
+start = (0, 0)
+goal = (9, 9)
+ 
+# 4. Create the A* planner and find the path
+planner = AStarPlanner(grid, start, goal)
+path = planner.plan()
+ 
+# 5. Visualize the grid and the path
+if path:
+    print(f"Path found: {path}")
+    # Display grid with the path
+    grid_with_path = np.copy(grid)
+    for p in path:
+        grid_with_path[p] = 2  # Mark the path with a 2
+    plt.imshow(grid_with_path, cmap='hot', interpolation='nearest')
+    plt.colorbar()
+    plt.show()
+else:
+    print("No path found.")
+Project 645: Obstacle Avoidance System
+Description:
+An obstacle avoidance system is a critical part of robotic navigation, where a robot must detect obstacles in its path and take appropriate action to avoid collisions. This system uses sensors, such as cameras or LiDAR, to perceive the environment and uses algorithms to make decisions about how to navigate safely. In this project, we will implement a simple obstacle avoidance system for a robot using a reactive control approach. The robot will detect obstacles in its environment and change its trajectory to avoid them.
+
+🧪 Python Implementation (Obstacle Avoidance System using Reactive Control)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the robot and environment
+class Robot:
+    def __init__(self, position, velocity=0.1):
+        self.position = np.array(position)  # Position (x, y)
+        self.velocity = velocity  # Robot velocity
+ 
+    def move(self, direction):
+        # Move the robot in a specific direction (angle in radians)
+        self.position += self.velocity * np.array([np.cos(direction), np.sin(direction)])
+ 
+# 2. Define the environment with obstacles
+class ObstacleAvoidanceEnv:
+    def __init__(self, robot, obstacles, goal):
+        self.robot = robot
+        self.obstacles = obstacles  # List of obstacles as (x, y) coordinates
+        self.goal = goal  # Goal position
+        self.robot_radius = 0.1  # Radius of the robot for collision detection
+ 
+    def detect_obstacle(self):
+        # Check if the robot is near any obstacle
+        for obstacle in self.obstacles:
+            if np.linalg.norm(self.robot.position - obstacle) < self.robot_radius:
+                return True
+        return False
+ 
+    def is_goal_reached(self):
+        # Check if the robot has reached the goal
+        return np.linalg.norm(self.robot.position - self.goal) < self.robot_radius
+ 
+    def move_robot(self, direction):
+        # Move the robot and check for collisions
+        self.robot.move(direction)
+        return self.detect_obstacle()
+ 
+# 3. Define the obstacle avoidance control logic
+def obstacle_avoidance(env):
+    # Simple reactive control: if an obstacle is detected, change direction
+    direction = 0  # Start moving towards the goal
+    while not env.is_goal_reached():
+        if env.detect_obstacle():
+            # If an obstacle is detected, change direction randomly
+            direction += np.pi / 4  # Turn 45 degrees to avoid the obstacle
+        else:
+            # Continue moving in the current direction towards the goal
+            direction = np.arctan2(env.goal[1] - env.robot.position[1], env.goal[0] - env.robot.position[0])
+        
+        # Move the robot
+        env.move_robot(direction)
+        plot_robot_and_obstacles(env)
+ 
+# 4. Plot the robot and obstacles
+def plot_robot_and_obstacles(env):
+    plt.clf()
+    plt.plot(env.goal[0], env.goal[1], 'go', label="Goal")
+    plt.plot(env.robot.position[0], env.robot.position[1], 'bo', label="Robot")
+    for obstacle in env.obstacles:
+        plt.plot(obstacle[0], obstacle[1], 'ro', label="Obstacle")
+    plt.xlim(-2, 2)
+    plt.ylim(-2, 2)
+    plt.legend()
+    plt.pause(0.1)
+ 
+# 5. Initialize the robot, obstacles, and goal
+robot = Robot(position=[-1, -1])
+obstacles = [(0, 0), (0.5, 0.5), (-0.5, 0.5)]  # Example obstacles
+goal = [1, 1]  # Goal position
+ 
+# 6. Initialize the environment and run the obstacle avoidance system
+env = ObstacleAvoidanceEnv(robot, obstacles, goal)
+plt.figure()
+obstacle_avoidance(env)
+plt.show()
+Project 646: Motion Planning for Robots
+Description:
+Motion planning is the process of determining a feasible path for a robot to follow in order to move from a start position to a goal position while avoiding obstacles. This is a fundamental task in robotics, especially for mobile robots. In this project, we will implement a motion planning algorithm such as Rapidly-exploring Random Trees (RRT) to plan a path for a robot in a 2D environment. The robot will navigate through a simple grid-based environment with obstacles, finding a path to its goal.
+
+🧪 Python Implementation (Motion Planning using RRT)
+import numpy as np
+import matplotlib.pyplot as plt
+import random
+ 
+# 1. Define the RRT algorithm for motion planning
+class RRT:
+    def __init__(self, start, goal, obstacles, bounds, max_iter=1000, step_size=0.1):
+        self.start = np.array(start)
+        self.goal = np.array(goal)
+        self.obstacles = obstacles
+        self.bounds = bounds
+        self.max_iter = max_iter
+        self.step_size = step_size
+        self.tree = [self.start]  # Initialize tree with the start position
+ 
+    def distance(self, p1, p2):
+        return np.linalg.norm(p1 - p2)
+ 
+    def nearest_node(self, node):
+        # Find the nearest node in the tree to the given node
+        return min(self.tree, key=lambda n: self.distance(n, node))
+ 
+    def is_collision_free(self, p1, p2):
+        # Check if the line segment between p1 and p2 intersects any obstacle
+        for obs in self.obstacles:
+            if self.distance(p1, obs) < self.step_size or self.distance(p2, obs) < self.step_size:
+                return False
+        return True
+ 
+    def step_towards(self, p1, p2):
+        # Move from p1 towards p2 by a step size
+        direction = (p2 - p1) / self.distance(p1, p2)
+        return p1 + self.step_size * direction
+ 
+    def plan(self):
+        for _ in range(self.max_iter):
+            random_node = np.array([random.uniform(self.bounds[0], self.bounds[2]),
+                                    random.uniform(self.bounds[1], self.bounds[3])])
+            nearest = self.nearest_node(random_node)
+            new_node = self.step_towards(nearest, random_node)
+            if self.is_collision_free(nearest, new_node):
+                self.tree.append(new_node)
+                if self.distance(new_node, self.goal) < self.step_size:
+                    return self.reconstruct_path(new_node)
+        return []
+ 
+    def reconstruct_path(self, node):
+        # Reconstruct the path from the goal to the start
+        path = [node]
+        while not np.array_equal(path[-1], self.start):
+            nearest = self.nearest_node(path[-1])
+            path.append(nearest)
+        path.reverse()
+        return path
+ 
+# 2. Define the environment for motion planning
+obstacles = [(0.5, 0.5), (1.5, 1.5), (2, 1)]  # Example obstacles
+start = (0, 0)  # Start position
+goal = (2, 2)  # Goal position
+bounds = [0, 0, 3, 3]  # Bounds for the environment (x_min, y_min, x_max, y_max)
+ 
+# 3. Initialize the RRT planner and plan the motion
+planner = RRT(start=start, goal=goal, obstacles=obstacles, bounds=bounds)
+path = planner.plan()
+ 
+# 4. Plot the environment and the planned path
+plt.figure(figsize=(6, 6))
+for obs in obstacles:
+    plt.scatter(obs[0], obs[1], color='red', s=100, label="Obstacle")
+plt.scatter(start[0], start[1], color='green', s=100, label="Start")
+plt.scatter(goal[0], goal[1], color='blue', s=100, label="Goal")
+ 
+if path:
+    path = np.array(path)
+    plt.plot(path[:, 0], path[:, 1], color='purple', lw=2, label="Path")
+ 
+plt.xlim(bounds[0], bounds[2])
+plt.ylim(bounds[1], bounds[3])
+plt.legend()
+plt.title("RRT Path Planning")
+plt.grid(True)
+plt.show()
+Project 647: Simultaneous Localization and Mapping (SLAM)
+Description:
+Simultaneous Localization and Mapping (SLAM) is a technique used by robots to build a map of an unknown environment while simultaneously keeping track of its own position within that environment. This is essential for tasks such as autonomous navigation. In this project, we will implement a simple SLAM algorithm that estimates the robot's trajectory and the environment's map. We will use Extended Kalman Filter (EKF) for localization and mapping, which is a widely used method for SLAM in robotics.
+
+🧪 Python Implementation (SLAM using Extended Kalman Filter)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the robot motion model
+def motion_model(state, control_input, dt):
+    """
+    Motion model: Predict the new state of the robot.
+    :param state: Current state (x, y, theta)
+    :param control_input: Control input (linear velocity, angular velocity)
+    :param dt: Time step
+    :return: New state after applying control
+    """
+    x, y, theta = state
+    v, w = control_input
+    dx = v * np.cos(theta) * dt
+    dy = v * np.sin(theta) * dt
+    dtheta = w * dt
+    return np.array([x + dx, y + dy, theta + dtheta])
+ 
+# 2. Define the process noise model
+def process_noise(state, control_input, dt):
+    """
+    Process noise model: Add noise to the control inputs.
+    :param state: Current state (x, y, theta)
+    :param control_input: Control input (linear velocity, angular velocity)
+    :param dt: Time step
+    :return: Process noise covariance matrix
+    """
+    v, w = control_input
+    Q = np.diag([0.1*v**2, 0.1*w**2])  # Simple noise model for velocity and angular velocity
+    return Q
+ 
+# 3. Define the measurement model (landmark observations)
+def measurement_model(state, landmark):
+    """
+    Measurement model: Predict the measurement (distance and angle to a landmark).
+    :param state: Current state (x, y, theta)
+    :param landmark: Landmark position (lx, ly)
+    :return: Measurement (distance, angle)
+    """
+    x, y, theta = state
+    lx, ly = landmark
+    dx = lx - x
+    dy = ly - y
+    r = np.sqrt(dx**2 + dy**2)
+    alpha = np.arctan2(dy, dx) - theta
+    return np.array([r, alpha])
+ 
+# 4. Define the observation noise model
+def observation_noise():
+    """
+    Observation noise model: Add noise to the measurements.
+    :return: Observation noise covariance matrix
+    """
+    R = np.diag([0.1, 0.05])  # Noise in distance and angle measurements
+    return R
+ 
+# 5. Extended Kalman Filter for SLAM
+class EKF_SLAM:
+    def __init__(self, initial_state, landmarks, dt=1.0):
+        self.state = initial_state  # Initial state (x, y, theta)
+        self.covariance = np.eye(3) * 0.1  # Initial covariance matrix
+        self.landmarks = landmarks  # List of landmarks
+        self.dt = dt  # Time step
+        self.history = []  # To store the robot's trajectory
+ 
+    def predict(self, control_input):
+        """
+        Predict the next state of the robot using the motion model.
+        :param control_input: Control input (v, w)
+        """
+        self.state = motion_model(self.state, control_input, self.dt)  # Update state
+        Q = process_noise(self.state, control_input, self.dt)  # Process noise
+        self.covariance = self.covariance + Q  # Update covariance
+ 
+    def update(self, measurement, landmark_idx):
+        """
+        Update the state based on the measurement and landmark observation.
+        :param measurement: Actual measurement (distance, angle)
+        :param landmark_idx: The index of the observed landmark
+        """
+        # Calculate the expected measurement
+        predicted_measurement = measurement_model(self.state, self.landmarks[landmark_idx])
+        H = np.array([[-(self.state[0] - self.landmarks[landmark_idx][0]) / predicted_measurement[0], 
+                       -(self.state[1] - self.landmarks[landmark_idx][1]) / predicted_measurement[0], 0],
+                      [self.state[1] - self.landmarks[landmark_idx][1], 
+                       -(self.state[0] - self.landmarks[landmark_idx][0]), -predicted_measurement[0]]]) / predicted_measurement[0]
+        R = observation_noise()  # Observation noise
+ 
+        # Kalman Gain
+        S = np.dot(np.dot(H, self.covariance), H.T) + R  # Innovation covariance
+        K = np.dot(np.dot(self.covariance, H.T), np.linalg.inv(S))  # Kalman gain
+ 
+        # Update state and covariance
+        y = measurement - predicted_measurement  # Innovation (measurement residual)
+        self.state = self.state + np.dot(K, y)  # Updated state
+        self.covariance = self.covariance - np.dot(np.dot(K, H), self.covariance)  # Updated covariance
+ 
+        self.history.append(self.state[:2])  # Store robot's position for plotting
+ 
+# 6. Initialize EKF_SLAM with a robot, landmarks, and initial state
+initial_state = np.array([0, 0, 0])  # Start position (x, y, theta)
+landmarks = [(3, 3), (6, 1), (8, 8)]  # Landmarks positions
+ekf_slam = EKF_SLAM(initial_state, landmarks)
+ 
+# 7. Simulate the robot's motion and SLAM process
+num_steps = 50
+for step in range(num_steps):
+    # Simulated control inputs (linear velocity, angular velocity)
+    control_input = np.array([0.2, 0.1])  # Move forward and rotate slightly
+ 
+    # Predict the next state
+    ekf_slam.predict(control_input)
+ 
+    # Simulate measurement of a random landmark
+    landmark_idx = np.random.choice(len(landmarks))  # Randomly choose a landmark
+    measurement = measurement_model(ekf_slam.state, landmarks[landmark_idx]) + np.random.randn(2) * 0.1  # Add noise to the measurement
+ 
+    # Update the state with the measurement
+    ekf_slam.update(measurement, landmark_idx)
+ 
+# 8. Plot the results of the SLAM process
+trajectory = np.array(ekf_slam.history)
+landmarks = np.array(landmarks)
+ 
+plt.figure(figsize=(8, 8))
+plt.plot(trajectory[:, 0], trajectory[:, 1], label="Robot Trajectory", color="blue")
+plt.scatter(landmarks[:, 0], landmarks[:, 1], color="red", marker="x", label="Landmarks")
+plt.title("Simultaneous Localization and Mapping (SLAM) with EKF")
+plt.xlabel("X Position")
+plt.ylabel("Y Position")
+plt.legend()
+plt.grid(True)
+plt.show()
+Project 648: Visual Odometry Implementation
+Description:
+Visual odometry (VO) is the process of estimating the motion of a camera (or robot) by analyzing the sequence of images it captures. This technique helps determine the position and orientation of the robot over time without relying on external sensors like GPS. In this project, we will implement a simple visual odometry system using feature matching between consecutive images to estimate the robot's motion. We will use techniques such as Feature Detection and Optical Flow to track motion.
+
+🧪 Python Implementation (Visual Odometry using Feature Matching and Optical Flow)
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Load two consecutive images (simulating two frames of a video)
+image1 = cv2.imread('frame1.png', cv2.IMREAD_GRAYSCALE)  # Replace with actual image paths
+image2 = cv2.imread('frame2.png', cv2.IMREAD_GRAYSCALE)  # Replace with actual image paths
+ 
+# 2. Feature detection (using ORB - Oriented FAST and Rotated BRIEF)
+orb = cv2.ORB_create()
+kp1, des1 = orb.detectAndCompute(image1, None)
+kp2, des2 = orb.detectAndCompute(image2, None)
+ 
+# 3. Match features using Brute Force Matcher
+bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+matches = bf.match(des1, des2)
+ 
+# 4. Sort the matches based on distance (best matches come first)
+matches = sorted(matches, key = lambda x:x.distance)
+ 
+# 5. Visualize the feature matches between the two images
+img_matches = cv2.drawMatches(image1, kp1, image2, kp2, matches[:10], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+plt.figure(figsize=(10, 10))
+plt.imshow(img_matches)
+plt.title("Feature Matches Between Consecutive Frames")
+plt.show()
+ 
+# 6. Compute Essential Matrix (using RANSAC to remove outliers)
+pts1 = np.float32([kp1[m.queryIdx].pt for m in matches[:100]]).reshape(-1, 1, 2)
+pts2 = np.float32([kp2[m.trainIdx].pt for m in matches[:100]]).reshape(-1, 1, 2)
+E, mask = cv2.findEssentialMat(pts1, pts2, method=cv2.RANSAC, prob=0.999, threshold=1.0)
+ 
+# 7. Recover the camera motion (rotation and translation) from the Essential matrix
+_, R, t, mask = cv2.recoverPose(E, pts1, pts2)
+ 
+# 8. Show the estimated camera motion (rotation matrix and translation vector)
+print("Estimated Rotation Matrix:\n", R)
+print("Estimated Translation Vector:\n", t)
+ 
+# 9. Visualize the camera motion (optional, e.g., plotting camera trajectory)
+# Assuming we can track the camera's trajectory using the translation vector
+ 
+# Initialize a trajectory plot
+trajectory = np.zeros((100, 3))  # Placeholder for camera's estimated position
+trajectory[0] = np.array([0, 0, 0])  # Start at origin
+ 
+# Simulate a simple 2D trajectory (this is just a basic example)
+for i in range(1, 100):
+    trajectory[i] = trajectory[i - 1] + t.flatten()  # Update position based on translation
+ 
+# Plot the trajectory
+plt.figure(figsize=(8, 8))
+plt.plot(trajectory[:, 0], trajectory[:, 1], label="Estimated Camera Path")
+plt.scatter(trajectory[:, 0], trajectory[:, 1], color='red', s=2)
+plt.title("Estimated Camera Path using Visual Odometry")
+plt.xlabel("X Position")
+plt.ylabel("Y Position")
+plt.legend()
+plt.show()
+Project 649: Object Grasping System
+Description:
+An object grasping system allows a robot to identify and manipulate objects in its environment. The system typically involves perception (detecting the object and its position), planning (deciding where and how to grasp the object), and control (executing the grasp). In this project, we will simulate an object grasping system that uses a deep learning model for object detection and planning the best grasping points. The system will use the detected object’s position to move the robot’s gripper to grasp it.
+
+🧪 Python Implementation (Object Grasping System)
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.neighbors import NearestNeighbors
+ 
+# 1. Simulate an object in the environment (for simplicity, we will define the object in a 2D space)
+object_position = (3, 3)  # Example: Object position at (3, 3)
+gripper_position = (0, 0)  # Start the gripper at (0, 0)
+gripper_radius = 0.1  # Radius of the gripper (simulated)
+ 
+# 2. Define the environment
+class ObjectGraspingEnv:
+    def __init__(self, object_position, gripper_position):
+        self.object_position = object_position  # Object position
+        self.gripper_position = gripper_position  # Gripper position
+        self.gripper_radius = gripper_radius  # Gripper size
+ 
+    def detect_object(self):
+        # For simplicity, we assume the object is detected at the known position
+        return self.object_position
+ 
+    def calculate_grasp_position(self):
+        # Calculate the best position to grasp the object (assumed to be the object's position)
+        return self.object_position
+ 
+    def move_gripper(self, grasp_position):
+        # Move the gripper to the grasp position
+        self.gripper_position = grasp_position
+        return self.gripper_position
+ 
+    def check_grasp_success(self):
+        # Check if the gripper is close enough to the object to grasp it
+        distance = np.linalg.norm(np.array(self.gripper_position) - np.array(self.object_position))
+        if distance < self.gripper_radius:
+            return True
+        else:
+            return False
+ 
+# 3. Simulate the grasping process
+env = ObjectGraspingEnv(object_position, gripper_position)
+ 
+# Step 1: Detect object position
+detected_object = env.detect_object()
+print(f"Detected object position: {detected_object}")
+ 
+# Step 2: Calculate the grasp position (for simplicity, it's the same as the object position)
+grasp_position = env.calculate_grasp_position()
+print(f"Calculated grasp position: {grasp_position}")
+ 
+# Step 3: Move gripper to the grasp position
+gripper_position = env.move_gripper(grasp_position)
+print(f"Gripper moved to: {gripper_position}")
+ 
+# Step 4: Check if the grasp is successful
+if env.check_grasp_success():
+    print("Grasp successful!")
+else:
+    print("Grasp failed. Retry.")
+ 
+# 4. Visualize the environment and grasping process
+fig, ax = plt.subplots(figsize=(6, 6))
+plt.xlim(0, 5)
+plt.ylim(0, 5)
+ 
+# Plot the object and gripper
+ax.scatter(*object_position, color='red', s=100, label="Object", zorder=5)
+ax.scatter(*gripper_position, color='blue', s=100, label="Gripper", zorder=5)
+ 
+# Plot gripper's radius of action
+circle = plt.Circle(gripper_position, gripper_radius, color='blue', fill=False, linestyle='dashed', label="Gripper Radius")
+ax.add_artist(circle)
+ 
+# Plot labels
+ax.legend()
+ax.set_title("Object Grasping System")
+ax.set_xlabel("X Position")
+ax.set_ylabel("Y Position")
+ 
+plt.grid(True)
+plt.show()
+Project 650: Robot Vision Systems
+Description:
+Robot vision systems enable robots to perceive and understand their environment using cameras and sensors. These systems are essential for tasks such as object detection, scene recognition, and navigation. In this project, we will implement a simple robot vision system using OpenCV to detect and track objects in real-time. The system will include steps like image processing, feature detection, and object tracking.
+
+🧪 Python Implementation (Robot Vision System using OpenCV)
+import cv2
+import numpy as np
+ 
+# 1. Load the video or camera feed
+cap = cv2.VideoCapture(0)  # Use webcam as input (or replace with a video file path)
+ 
+# 2. Set up the object detection (using ORB feature detector for simplicity)
+orb = cv2.ORB_create()
+ 
+# 3. Initialize the tracking variables
+previous_keypoints = None
+previous_descriptors = None
+ 
+# 4. Start the video capture loop
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+    
+    # Convert the frame to grayscale (required for ORB)
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+ 
+    # Detect ORB keypoints and descriptors
+    keypoints, descriptors = orb.detectAndCompute(gray_frame, None)
+ 
+    # If it's the first frame, store the keypoints and descriptors
+    if previous_keypoints is None:
+        previous_keypoints = keypoints
+        previous_descriptors = descriptors
+        continue
+ 
+    # 5. Match features between the current frame and the previous frame
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    matches = bf.match(previous_descriptors, descriptors)
+    matches = sorted(matches, key=lambda x: x.distance)
+ 
+    # 6. Draw matches between the frames
+    result_frame = cv2.drawMatches(frame, previous_keypoints, frame, keypoints, matches[:10], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+ 
+    # Display the result
+    cv2.imshow("Robot Vision System - Object Detection and Tracking", result_frame)
+ 
+    # Update the previous frame keypoints and descriptors
+    previous_keypoints = keypoints
+    previous_descriptors = descriptors
+ 
+    # Break the loop if 'q' is pressed
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+ 
+# 7. Release the video capture and close windows
+cap.release()
+cv2.destroyAllWindows()
+Project 651: Visual Servoing Implementation
+Description:
+Visual servoing is a technique in robotics that uses visual feedback (from cameras) to control the motion of a robot. The robot adjusts its movements based on the position and orientation of objects in its visual field. In this project, we will implement a simple image-based visual servoing system that controls the position of a robot's end effector (e.g., a robotic arm) based on the image coordinates of an object in the camera's field of view.
+
+🧪 Python Implementation (Visual Servoing using Image-Based Feedback)
+import numpy as np
+import cv2
+ 
+# 1. Define the visual servoing system
+class VisualServoing:
+    def __init__(self, camera_matrix, dist_coeffs):
+        self.camera_matrix = camera_matrix  # Camera matrix for calibration
+        self.dist_coeffs = dist_coeffs  # Distortion coefficients
+        self.target_position = np.array([320, 240])  # Target position (center of the image)
+        self.kp = 0.01  # Proportional gain for visual servoing
+ 
+    def calculate_error(self, current_position):
+        """
+        Calculate the error between the current position and the target position.
+        :param current_position: Current position of the object in the image (x, y)
+        :return: Error vector (dx, dy)
+        """
+        return self.target_position - current_position
+ 
+    def control(self, error):
+        """
+        Apply proportional control to generate velocity command.
+        :param error: Error vector (dx, dy)
+        :return: Velocity command for the robot (e.g., linear velocity, angular velocity)
+        """
+        velocity_command = self.kp * error  # Simple proportional control
+        return velocity_command
+ 
+# 2. Initialize the visual servoing system
+camera_matrix = np.array([[500, 0, 320],
+                          [0, 500, 240],
+                          [0, 0, 1]])  # Simplified camera intrinsic matrix (focal length, principal point)
+dist_coeffs = np.zeros(4)  # Assuming no lens distortion
+ 
+servoing_system = VisualServoing(camera_matrix, dist_coeffs)
+ 
+# 3. Start video capture and perform visual servoing
+cap = cv2.VideoCapture(0)  # Use the webcam
+ 
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+ 
+    # 4. Detect an object in the image (for simplicity, using a simple color-based detection)
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    lower_color = np.array([30, 50, 50])  # Example color range for object (e.g., green)
+    upper_color = np.array([90, 255, 255])
+    mask = cv2.inRange(hsv, lower_color, upper_color)
+    moments = cv2.moments(mask)
+ 
+    # 5. Calculate the center of the object
+    if moments["m00"] != 0:
+        cx = int(moments["m10"] / moments["m00"])
+        cy = int(moments["m01"] / moments["m00"])
+        object_position = np.array([cx, cy])
+ 
+        # 6. Calculate the error in position and apply visual servoing control
+        error = servoing_system.calculate_error(object_position)
+        velocity_command = servoing_system.control(error)
+ 
+        # Display the velocity command
+        print(f"Velocity Command (dx, dy): {velocity_command}")
+ 
+        # Visualize the object and target position
+        cv2.circle(frame, (cx, cy), 10, (0, 255, 0), -1)  # Object center in green
+        cv2.circle(frame, (servoing_system.target_position[0], servoing_system.target_position[1]), 10, (0, 0, 255), -1)  # Target center in red
+ 
+    # 7. Display the frame with object detection and visualization
+    cv2.imshow("Visual Servoing - Object Detection", frame)
+ 
+    # 8. Exit condition
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+ 
+# 9. Release resources and close the window
+cap.release()
+cv2.destroyAllWindows()
+Project 652: Force Control for Robots
+Description:
+Force control in robotics is used to control the interaction forces between a robot and its environment, such as when a robot manipulates objects or performs tasks like assembly or tactile exploration. The goal is to ensure that the robot applies the correct amount of force, preventing damage to the object or environment while maintaining efficient task performance. In this project, we will implement a simple force control system where the robot adjusts its force based on feedback from force sensors.
+
+🧪 Python Implementation (Force Control for Robots)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the robot and force control system
+class ForceControlSystem:
+    def __init__(self, desired_force=5.0, max_force=10.0, kp=0.1, ki=0.05, kd=0.01):
+        """
+        Initialize the force control system.
+        :param desired_force: The desired force to apply (in Newtons).
+        :param max_force: The maximum allowable force.
+        :param kp, ki, kd: PID controller gains.
+        """
+        self.desired_force = desired_force
+        self.max_force = max_force
+        self.kp = kp  # Proportional gain
+        self.ki = ki  # Integral gain
+        self.kd = kd  # Derivative gain
+        self.prev_error = 0
+        self.integral = 0
+ 
+    def compute_control(self, measured_force, dt):
+        """
+        Compute the control signal using a PID controller.
+        :param measured_force: The measured force (in Newtons).
+        :param dt: The time step for the control loop.
+        :return: The control force to be applied.
+        """
+        error = self.desired_force - measured_force
+        self.integral += error * dt
+        derivative = (error - self.prev_error) / dt
+ 
+        # PID control
+        control_force = self.kp * error + self.ki * self.integral + self.kd * derivative
+        control_force = np.clip(control_force, 0, self.max_force)  # Ensure the force is within limits
+ 
+        self.prev_error = error
+        return control_force
+ 
+# 2. Simulate a robot interaction with an object
+class RobotInteraction:
+    def __init__(self):
+        self.measured_force = 0  # Initial force is 0
+        self.velocity = 0  # Initial velocity is 0
+        self.time_step = 0.1  # Time step for the simulation (in seconds)
+ 
+    def apply_force(self, control_force):
+        """
+        Apply the control force to the object and update the measured force.
+        :param control_force: The force to be applied to the object (in Newtons).
+        """
+        # Simulate the interaction: the force applied is proportional to the control force
+        self.measured_force = control_force
+        # Update velocity based on the force (simple model)
+        self.velocity = self.measured_force * 0.1  # Assume some mass for the object (arbitrary value)
+    
+    def get_measured_force(self):
+        return self.measured_force
+ 
+# 3. Initialize the force control system and robot interaction
+force_control_system = ForceControlSystem(desired_force=5.0)
+robot_interaction = RobotInteraction()
+ 
+# 4. Simulate the force control over time
+time = np.arange(0, 10, robot_interaction.time_step)
+force_history = []
+ 
+for t in time:
+    # Apply the control force based on the measured force
+    measured_force = robot_interaction.get_measured_force()
+    control_force = force_control_system.compute_control(measured_force, robot_interaction.time_step)
+    robot_interaction.apply_force(control_force)
+    
+    # Record the force for visualization
+    force_history.append(measured_force)
+ 
+# 5. Plot the force over time
+plt.figure(figsize=(10, 6))
+plt.plot(time, force_history, label="Measured Force", color='blue')
+plt.axhline(force_control_system.desired_force, color='red', linestyle='--', label="Desired Force")
+plt.xlabel('Time (s)')
+plt.ylabel('Force (N)')
+plt.title('Force Control for Robot Interaction')
+plt.legend()
+plt.grid(True)
+plt.show()
+Project 653: Compliance Control Implementation
+Description:
+Compliance control in robotics refers to adjusting the robot's stiffness or compliance in response to forces exerted on it. This allows the robot to adapt to its environment, especially in tasks involving delicate interactions, such as assembly or human-robot interaction. In this project, we will implement a simple compliance control system using position and force feedback. The robot will adjust its compliance to ensure that it applies the appropriate force to the environment.
+
+🧪 Python Implementation (Compliance Control for Robots)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Compliance Control System
+class ComplianceControlSystem:
+    def __init__(self, desired_position=0.0, desired_force=0.0, stiffness=10.0, damping=0.1):
+        """
+        Initialize the compliance control system.
+        :param desired_position: The desired position of the robot (in meters).
+        :param desired_force: The desired force to be applied (in Newtons).
+        :param stiffness: The stiffness of the robot (higher value means stiffer).
+        :param damping: The damping factor to avoid oscillations.
+        """
+        self.desired_position = desired_position
+        self.desired_force = desired_force
+        self.stiffness = stiffness
+        self.damping = damping
+        self.position = 0.0  # Initial position
+        self.velocity = 0.0  # Initial velocity
+        self.force = 0.0  # Initial force
+ 
+    def compute_control(self, current_position, current_velocity, current_force, dt):
+        """
+        Compute the control input based on position, velocity, and force feedback.
+        :param current_position: The current position of the robot.
+        :param current_velocity: The current velocity of the robot.
+        :param current_force: The current force applied by the robot.
+        :param dt: Time step for simulation.
+        :return: Control force and position updates.
+        """
+        # Compute the position error and force error
+        position_error = self.desired_position - current_position
+        force_error = self.desired_force - current_force
+ 
+        # Compute the control force based on compliance control
+        control_force = self.stiffness * position_error + self.damping * current_velocity + force_error
+ 
+        # Compute the position update (using simple dynamics for illustration)
+        self.position += current_velocity * dt
+        self.velocity += (control_force / 1.0) * dt  # Assume mass = 1 kg for simplicity
+        self.force = control_force
+ 
+        return self.position, self.velocity, self.force
+ 
+# 2. Initialize the compliance control system
+compliance_control = ComplianceControlSystem(desired_position=1.0, desired_force=5.0, stiffness=20.0, damping=0.5)
+ 
+# 3. Simulate the compliance control over time
+time = np.arange(0, 10, 0.1)  # Time from 0 to 10 seconds with a time step of 0.1s
+position_history = []
+force_history = []
+velocity_history = []
+ 
+current_position = 0.0
+current_velocity = 0.0
+current_force = 0.0
+ 
+for t in time:
+    current_position, current_velocity, current_force = compliance_control.compute_control(
+        current_position, current_velocity, current_force, 0.1)  # 0.1s time step
+    position_history.append(current_position)
+    force_history.append(current_force)
+    velocity_history.append(current_velocity)
+ 
+# 4. Plot the results of the compliance control system
+plt.figure(figsize=(10, 6))
+ 
+# Plot position over time
+plt.subplot(3, 1, 1)
+plt.plot(time, position_history, label="Position", color='blue')
+plt.axhline(compliance_control.desired_position, color='red', linestyle='--', label="Desired Position")
+plt.title('Position vs Time')
+plt.xlabel('Time (s)')
+plt.ylabel('Position (m)')
+plt.legend()
+ 
+# Plot velocity over time
+plt.subplot(3, 1, 2)
+plt.plot(time, velocity_history, label="Velocity", color='green')
+plt.title('Velocity vs Time')
+plt.xlabel('Time (s)')
+plt.ylabel('Velocity (m/s)')
+plt.legend()
+ 
+# Plot force over time
+plt.subplot(3, 1, 3)
+plt.plot(time, force_history, label="Force", color='orange')
+plt.axhline(compliance_control.desired_force, color='red', linestyle='--', label="Desired Force")
+plt.title('Force vs Time')
+plt.xlabel('Time (s)')
+plt.ylabel('Force (N)')
+plt.legend()
+ 
+plt.tight_layout()
+plt.show()
+Project 654: Model Predictive Control
+Description:
+Model Predictive Control (MPC) is an advanced control strategy that uses a model of the system to predict its future behavior and optimize the control inputs over a prediction horizon. In MPC, the control inputs are computed by solving an optimization problem at each time step to minimize a cost function, typically involving state and control input errors. This technique is widely used in robotics, autonomous vehicles, and process control. In this project, we will implement a simple Model Predictive Controller for a robotic system.
+
+🧪 Python Implementation (Model Predictive Control)
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import minimize
+ 
+# 1. Define the system model (simple linear system: x(t+1) = Ax(t) + Bu(t))
+A = np.array([[1, 1], [0, 1]])  # System dynamics (state transition matrix)
+B = np.array([[0.5], [1]])  # Control input matrix
+ 
+# 2. Define the Model Predictive Control class
+class MPC:
+    def __init__(self, N, Q, R, x0, u_max=1.0):
+        """
+        Initialize the MPC controller.
+        :param N: Prediction horizon
+        :param Q: State error cost matrix
+        :param R: Control input cost matrix
+        :param x0: Initial state
+        :param u_max: Maximum control input
+        """
+        self.N = N  # Prediction horizon
+        self.Q = Q  # State error cost matrix
+        self.R = R  # Control input cost matrix
+        self.x0 = x0  # Initial state
+        self.u_max = u_max  # Maximum control input
+        self.x = x0  # Current state
+        self.u = np.zeros((N, 1))  # Control inputs to optimize
+ 
+    def objective_function(self, u):
+        """
+        Objective function for MPC optimization.
+        :param u: Control inputs
+        :return: The cost function value
+        """
+        cost = 0
+        x = self.x0  # Reset state at the beginning of each optimization
+ 
+        # Calculate the cost over the prediction horizon
+        for k in range(self.N):
+            x = A @ x + B * u[k]  # Update state based on the model
+            cost += x.T @ self.Q @ x + u[k].T @ self.R @ u[k]  # Add state and control input costs
+ 
+        return cost
+ 
+    def solve(self):
+        """
+        Solve the optimization problem to compute the optimal control input.
+        """
+        # Optimize control inputs (u) over the prediction horizon
+        result = minimize(self.objective_function, np.zeros(self.N), bounds=[(-self.u_max, self.u_max)] * self.N)
+ 
+        if result.success:
+            self.u = result.x  # Update the control inputs
+        else:
+            print("Optimization failed.")
+        
+        # Apply the first control input and update the state
+        u_opt = self.u[0]
+        self.x = A @ self.x + B * u_opt
+        return u_opt, self.x
+ 
+# 3. Initialize the MPC controller
+N = 10  # Prediction horizon (steps)
+Q = np.diag([1, 1])  # State error cost matrix (penalize deviations in position and velocity)
+R = np.array([[0.1]])  # Control input cost matrix (penalize large control inputs)
+x0 = np.array([0, 0])  # Initial state (position = 0, velocity = 0)
+ 
+mpc = MPC(N, Q, R, x0)
+ 
+# 4. Simulate the robot with MPC control
+time = np.arange(0, 30, 1)  # Simulate for 30 time steps
+position_history = []
+velocity_history = []
+control_history = []
+ 
+for t in time:
+    # Solve the MPC optimization to get the control input
+    u_opt, state = mpc.solve()
+ 
+    # Store the results for plotting
+    position_history.append(state[0])
+    velocity_history.append(state[1])
+    control_history.append(u_opt)
+ 
+# 5. Plot the results of the MPC controller
+plt.figure(figsize=(10, 6))
+ 
+# Plot position vs time
+plt.subplot(3, 1, 1)
+plt.plot(time, position_history, label="Position", color='blue')
+plt.title('Position vs Time (MPC Control)')
+plt.xlabel('Time (s)')
+plt.ylabel('Position (m)')
+plt.legend()
+ 
+# Plot velocity vs time
+plt.subplot(3, 1, 2)
+plt.plot(time, velocity_history, label="Velocity", color='green')
+plt.title('Velocity vs Time (MPC Control)')
+plt.xlabel('Time (s)')
+plt.ylabel('Velocity (m/s)')
+plt.legend()
+ 
+# Plot control input vs time
+plt.subplot(3, 1, 3)
+plt.plot(time, control_history, label="Control Input", color='orange')
+plt.title('Control Input vs Time (MPC Control)')
+plt.xlabel('Time (s)')
+plt.ylabel('Control Input (u)')
+plt.legend()
+ 
+plt.tight_layout()
+plt.show()
+Project 655: Adaptive Control Implementation
+Description:
+Adaptive control refers to control strategies that adjust the controller parameters in real-time based on changes in the system dynamics or environment. It is particularly useful in systems with uncertain or time-varying dynamics. In this project, we will implement a simple adaptive control system that adjusts its parameters based on feedback from the system. The controller will adapt its gains to stabilize the system and achieve the desired performance.
+
+🧪 Python Implementation (Adaptive Control for a Simple System)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the adaptive control system
+class AdaptiveControlSystem:
+    def __init__(self, desired_position=1.0, initial_gain=1.0, adaptation_rate=0.01):
+        """
+        Initialize the adaptive control system.
+        :param desired_position: Desired position of the robot (in meters).
+        :param initial_gain: Initial gain for the controller.
+        :param adaptation_rate: Rate at which the controller adapts its gain.
+        """
+        self.desired_position = desired_position
+        self.position = 0.0  # Initial position
+        self.velocity = 0.0  # Initial velocity
+        self.gain = initial_gain  # Controller gain
+        self.adaptation_rate = adaptation_rate  # Adaptation rate for the gain
+        self.history = []  # Store history of positions and velocities
+ 
+    def compute_control(self, current_position, current_velocity, dt):
+        """
+        Compute the control input using adaptive control.
+        :param current_position: Current position of the robot.
+        :param current_velocity: Current velocity of the robot.
+        :param dt: Time step for the control loop.
+        :return: Control force and position updates.
+        """
+        # Compute the position error
+        position_error = self.desired_position - current_position
+ 
+        # Adaptive control: adjust gain based on the error
+        self.gain += self.adaptation_rate * position_error  # Increase gain when error is large
+ 
+        # Compute control force based on the position error and current velocity
+        control_force = self.gain * position_error - 0.1 * current_velocity  # PD controller for adaptive control
+ 
+        # Update position and velocity (simple model)
+        self.position += current_velocity * dt
+        self.velocity += control_force * dt  # Assume mass = 1 for simplicity
+ 
+        return self.position, self.velocity, control_force
+ 
+# 2. Initialize the adaptive control system
+adaptive_control = AdaptiveControlSystem(desired_position=1.0, initial_gain=1.0, adaptation_rate=0.02)
+ 
+# 3. Simulate the adaptive control over time
+time = np.arange(0, 10, 0.1)  # Simulate for 10 seconds with a time step of 0.1s
+position_history = []
+velocity_history = []
+control_history = []
+gain_history = []
+ 
+current_position = 0.0
+current_velocity = 0.0
+ 
+for t in time:
+    # Compute the control force and update the system
+    current_position, current_velocity, control_force = adaptive_control.compute_control(
+        current_position, current_velocity, 0.1)  # 0.1s time step
+    position_history.append(current_position)
+    velocity_history.append(current_velocity)
+    control_history.append(control_force)
+    gain_history.append(adaptive_control.gain)
+ 
+# 4. Plot the results of the adaptive control system
+plt.figure(figsize=(10, 6))
+ 
+# Plot position vs time
+plt.subplot(3, 1, 1)
+plt.plot(time, position_history, label="Position", color='blue')
+plt.title('Position vs Time (Adaptive Control)')
+plt.xlabel('Time (s)')
+plt.ylabel('Position (m)')
+plt.legend()
+ 
+# Plot velocity vs time
+plt.subplot(3, 1, 2)
+plt.plot(time, velocity_history, label="Velocity", color='green')
+plt.title('Velocity vs Time (Adaptive Control)')
+plt.xlabel('Time (s)')
+plt.ylabel('Velocity (m/s)')
+plt.legend()
+ 
+# Plot control force vs time
+plt.subplot(3, 1, 3)
+plt.plot(time, control_history, label="Control Force", color='orange')
+plt.title('Control Force vs Time (Adaptive Control)')
+plt.xlabel('Time (s)')
+plt.ylabel('Control Force (N)')
+plt.legend()
+ 
+plt.tight_layout()
+plt.show()
+Project 656: Robust Control Systems
+Description:
+Robust control focuses on designing control systems that can handle uncertainties in the system dynamics or disturbances in the environment without sacrificing performance. In this project, we will implement a robust control system for a robotic system that ensures the robot remains stable and performs optimally even with modeling errors or external disturbances. We will use a simple H∞ control method, which aims to minimize the worst-case performance of the system, making it robust to uncertainties.
+
+🧪 Python Implementation (Robust Control using H∞ Method)
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.linalg import inv
+ 
+# 1. Define the system dynamics (A, B matrices for a simple mass-spring-damper system)
+A = np.array([[0, 1], [-2, -0.5]])  # System dynamics matrix
+B = np.array([[0], [1]])  # Control input matrix
+C = np.array([1, 0])  # Output matrix (position)
+ 
+# 2. Define the H∞ control design parameters
+Q = np.eye(2)  # State cost matrix (penalizing the state)
+R = np.array([[1]])  # Control input cost matrix (penalizing control efforts)
+P = np.eye(2)  # Placeholder for the solution to the Riccati equation
+Gamma = 1.0  # Weighting factor for robustness
+ 
+# 3. Define the H∞ control algorithm
+def h_infinity_control(A, B, C, Q, R, P, Gamma):
+    """
+    A simple implementation of H∞ control design.
+    :param A: System dynamics matrix
+    :param B: Control input matrix
+    :param C: Output matrix
+    :param Q: State cost matrix
+    :param R: Control input cost matrix
+    :param P: Solution to the Riccati equation (initial guess)
+    :param Gamma: Robustness weighting factor
+    :return: Gain matrix K for the controller
+    """
+    # Solve the Riccati equation (simple approximation here for demonstration)
+    P_new = inv(A.T @ P @ A + Q + Gamma * B @ inv(R) @ B.T)
+    K = inv(R + B.T @ P_new @ B) @ B.T @ P_new @ A  # Calculate the feedback gain K
+ 
+    return K, P_new
+ 
+# 4. Implement the closed-loop system with H∞ control
+class RobustControlSystem:
+    def __init__(self, A, B, C, K, desired_position=1.0):
+        self.A = A
+        self.B = B
+        self.C = C
+        self.K = K
+        self.position = 0.0  # Initial position
+        self.velocity = 0.0  # Initial velocity
+        self.desired_position = desired_position  # Desired position
+        self.state = np.array([self.position, self.velocity])
+ 
+    def apply_control(self, dt):
+        """
+        Apply the H∞ control law to the system.
+        :param dt: Time step for simulation
+        """
+        # Compute the control input using the state feedback
+        control_input = -self.K @ self.state
+        # Simulate the dynamics of the system
+        self.state = self.state + np.array([self.velocity, -2 * self.position - 0.5 * self.velocity + control_input]) * dt
+        self.position, self.velocity = self.state
+ 
+# 5. Initialize the H∞ controller
+K, P = h_infinity_control(A, B, C, Q, R, P, Gamma)
+ 
+# 6. Simulate the robot with robust control over time
+time = np.arange(0, 10, 0.1)  # Simulate for 10 seconds with a time step of 0.1s
+position_history = []
+velocity_history = []
+ 
+# Initialize the robust control system
+robust_control = RobustControlSystem(A, B, C, K)
+ 
+for t in time:
+    # Apply the H∞ control and update the system state
+    robust_control.apply_control(dt=0.1)  # 0.1s time step
+    position_history.append(robust_control.position)
+    velocity_history.append(robust_control.velocity)
+ 
+# 7. Plot the results of the robust control system
+plt.figure(figsize=(10, 6))
+ 
+# Plot position vs time
+plt.subplot(2, 1, 1)
+plt.plot(time, position_history, label="Position", color='blue')
+plt.title('Position vs Time (Robust Control)')
+plt.xlabel('Time (s)')
+plt.ylabel('Position (m)')
+plt.legend()
+ 
+# Plot velocity vs time
+plt.subplot(2, 1, 2)
+plt.plot(time, velocity_history, label="Velocity", color='green')
+plt.title('Velocity vs Time (Robust Control)')
+plt.xlabel('Time (s)')
+plt.ylabel('Velocity (m/s)')
+plt.legend()
+ 
+plt.tight_layout()
+plt.show()
+Project 657: Nonlinear Control Systems
+Description:
+Nonlinear control systems deal with systems where the control law is not a linear function of the system’s states or control inputs. Many real-world systems, especially robotic systems, exhibit nonlinear behavior. In this project, we will implement a nonlinear control system for a simple robotic system. We will apply a backstepping control method, a popular approach for stabilizing nonlinear systems, to control the robot’s position and velocity.
+
+🧪 Python Implementation (Nonlinear Control using Backstepping)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the system dynamics (a simple second-order nonlinear system)
+def nonlinear_system(x, u):
+    """
+    Nonlinear system dynamics: x' = Ax + Bu + f(x)
+    :param x: State vector (position, velocity)
+    :param u: Control input (force)
+    :return: dx (derivative of state)
+    """
+    position, velocity = x
+    f = -0.1 * velocity**3  # Nonlinear damping term (example)
+    A = np.array([[0, 1], [0, -0.1]])  # System dynamics matrix (linear part)
+    B = np.array([0, 1])  # Control input matrix (force)
+    dx = A @ x + B * u + np.array([0, f])  # State derivative (position, velocity)
+    return dx
+ 
+# 2. Define the backstepping control law
+class NonlinearControl:
+    def __init__(self, desired_position=1.0, desired_velocity=0.0):
+        """
+        Initialize the nonlinear control system.
+        :param desired_position: Desired position of the robot.
+        :param desired_velocity: Desired velocity of the robot.
+        """
+        self.desired_position = desired_position
+        self.desired_velocity = desired_velocity
+        self.position = 0.0  # Initial position
+        self.velocity = 0.0  # Initial velocity
+        self.state = np.array([self.position, self.velocity])
+        self.alpha = 1.0  # Backstepping control gain for position
+        self.beta = 1.0  # Backstepping control gain for velocity
+ 
+    def backstepping_control(self, dt):
+        """
+        Apply the backstepping control law to the nonlinear system.
+        :param dt: Time step for simulation.
+        :return: Control input (force)
+        """
+        position, velocity = self.state
+        # Backstepping design
+        e1 = self.desired_position - position  # Position error
+        e2 = self.desired_velocity - velocity  # Velocity error
+ 
+        # Control law for position and velocity
+        v1 = self.alpha * e1 + self.beta * e2
+        u = self.alpha * v1 + self.beta * e2 + 0.1 * velocity**2  # Adding nonlinear term (example)
+        
+        # Apply the control input and update state using system dynamics
+        dx = nonlinear_system(self.state, u)
+        self.state = self.state + dx * dt  # Update state using Euler integration
+        return u, self.state
+ 
+# 3. Initialize the nonlinear control system
+control_system = NonlinearControl(desired_position=1.0, desired_velocity=0.0)
+ 
+# 4. Simulate the nonlinear control system over time
+time = np.arange(0, 10, 0.1)  # Simulate for 10 seconds with a time step of 0.1s
+position_history = []
+velocity_history = []
+control_history = []
+ 
+for t in time:
+    u, state = control_system.backstepping_control(dt=0.1)  # 0.1s time step
+    position_history.append(state[0])
+    velocity_history.append(state[1])
+    control_history.append(u)
+ 
+# 5. Plot the results of the nonlinear control system
+plt.figure(figsize=(10, 6))
+ 
+# Plot position vs time
+plt.subplot(3, 1, 1)
+plt.plot(time, position_history, label="Position", color='blue')
+plt.title('Position vs Time (Nonlinear Control)')
+plt.xlabel('Time (s)')
+plt.ylabel('Position (m)')
+plt.legend()
+ 
+# Plot velocity vs time
+plt.subplot(3, 1, 2)
+plt.plot(time, velocity_history, label="Velocity", color='green')
+plt.title('Velocity vs Time (Nonlinear Control)')
+plt.xlabel('Time (s)')
+plt.ylabel('Velocity (m/s)')
+plt.legend()
+ 
+# Plot control input vs time
+plt.subplot(3, 1, 3)
+plt.plot(time, control_history, label="Control Input", color='orange')
+plt.title('Control Input vs Time (Nonlinear Control)')
+plt.xlabel('Time (s)')
+plt.ylabel('Control Input (N)')
+plt.legend()
+ 
+plt.tight_layout()
+plt.show()
+Project 658: Optimal Control Implementation
+Description:
+Optimal control aims to find a control input that minimizes a cost function while satisfying the system's dynamics and constraints. It is widely used in applications where we want to optimize the performance of a system, such as energy efficiency, path planning, or economic cost. In this project, we will implement Optimal Control using the Linear Quadratic Regulator (LQR), a method used to solve optimal control problems with linear dynamics and quadratic cost functions.
+
+🧪 Python Implementation (Optimal Control using Linear Quadratic Regulator)
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.linalg import inv
+ 
+# 1. Define the system dynamics (A, B matrices for a linear system)
+A = np.array([[0, 1], [0, -0.5]])  # State transition matrix (position, velocity)
+B = np.array([[0], [1]])  # Control input matrix (force)
+ 
+# 2. Define the LQR controller parameters
+Q = np.array([[10, 0], [0, 1]])  # State cost matrix (penalizing position and velocity errors)
+R = np.array([[1]])  # Control input cost matrix (penalizing control effort)
+ 
+# 3. Define the LQR control law
+def lqr(A, B, Q, R):
+    """
+    Solves the LQR optimal control problem.
+    :param A: System dynamics matrix
+    :param B: Control input matrix
+    :param Q: State cost matrix
+    :param R: Control input cost matrix
+    :return: Optimal gain matrix K
+    """
+    P = np.linalg.solve(np.eye(A.shape[0]) * 1.0 + A.T @ P @ A + Q, R)  # Solve the Riccati equation
+    K = np.linalg.inv(R + B.T @ P @ B) @ B.T @ P @ A  # Compute the optimal feedback gain
+    return K
+ 
+# 4. Implement the LQR control for the system
+class OptimalControlSystem:
+    def __init__(self, A, B, Q, R, initial_state=[0, 0], target_state=[1, 0]):
+        self.A = A
+        self.B = B
+        self.Q = Q
+        self.R = R
+        self.state = np.array(initial_state)  # Initial state (position, velocity)
+        self.target_state = np.array(target_state)  # Target state (desired position, velocity)
+        self.K = lqr(A, B, Q, R)  # Compute the optimal gain matrix K
+        self.state_history = []  # Store history for plotting
+ 
+    def apply_control(self, dt):
+        """
+        Apply the LQR control law and update the system state.
+        :param dt: Time step for simulation.
+        :return: Updated state and control input.
+        """
+        # Compute the control input using LQR
+        control_input = -self.K @ (self.state - self.target_state)  # Control law: u = -K(x - x_target)
+        
+        # Update state based on system dynamics (dx = Ax + Bu)
+        self.state = self.state + (self.A @ self.state + self.B @ control_input) * dt
+        self.state_history.append(self.state[0])  # Store position for plotting
+        return self.state, control_input
+ 
+# 5. Initialize the optimal control system
+oc_system = OptimalControlSystem(A, B, Q, R, initial_state=[0, 0], target_state=[1, 0])
+ 
+# 6. Simulate the optimal control system over time
+time = np.arange(0, 10, 0.1)  # Simulate for 10 seconds with a time step of 0.1s
+position_history = []
+control_history = []
+ 
+for t in time:
+    state, control_input = oc_system.apply_control(dt=0.1)  # 0.1s time step
+    position_history.append(state[0])
+    control_history.append(control_input[0])
+ 
+# 7. Plot the results of the optimal control system
+plt.figure(figsize=(10, 6))
+ 
+# Plot position vs time
+plt.subplot(2, 1, 1)
+plt.plot(time, position_history, label="Position", color='blue')
+plt.title('Position vs Time (Optimal Control with LQR)')
+plt.xlabel('Time (s)')
+plt.ylabel('Position (m)')
+plt.legend()
+ 
+# Plot control input vs time
+plt.subplot(2, 1, 2)
+plt.plot(time, control_history, label="Control Input", color='green')
+plt.title('Control Input vs Time (Optimal Control with LQR)')
+plt.xlabel('Time (s)')
+plt.ylabel('Control Input (N)')
+plt.legend()
+ 
+plt.tight_layout()
+plt.show()
+Project 659: Learning from Demonstration
+Description:
+Learning from demonstration (LfD), also known as imitation learning, allows robots to learn tasks by observing demonstrations performed by humans or other robots. The robot learns the control policies from the demonstrations without requiring explicit programming. In this project, we will implement a simple learning from demonstration system where the robot learns a task by mimicking human-provided trajectory data. We will use a supervised learning approach (e.g., regression or classification) to model the mapping from states to actions.
+
+🧪 Python Implementation (Learning from Demonstration using Supervised Learning)
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+ 
+# 1. Simulate a simple robot task (e.g., moving to a target position)
+# Generate human demonstration data (states and actions)
+# States: (position)
+# Actions: (desired velocity)
+ 
+def generate_demonstration_data():
+    # Generate demonstration data (position and corresponding velocity)
+    positions = np.linspace(0, 10, 100)  # Simulate 100 positions from 0 to 10 meters
+    velocities = np.sin(positions)  # Simple trajectory: velocity is a sine function of position (just for illustration)
+    return positions, velocities
+ 
+# 2. Define the robot's learning algorithm (supervised regression)
+class LearningFromDemonstration:
+    def __init__(self):
+        self.model = LinearRegression()  # Using linear regression for simplicity (can be any regression model)
+ 
+    def train(self, states, actions):
+        """
+        Train the model using human-provided demonstration data.
+        :param states: Positions (states) from the demonstration
+        :param actions: Velocities (actions) from the demonstration
+        """
+        states = states.reshape(-1, 1)  # Reshape for regression (1 feature)
+        self.model.fit(states, actions)
+ 
+    def predict(self, state):
+        """
+        Predict the action (velocity) for a given state (position).
+        :param state: The state (position) for which to predict the action (velocity)
+        :return: Predicted velocity (action)
+        """
+        return self.model.predict(np.array([[state]]))
+ 
+# 3. Generate human demonstration data
+positions, velocities = generate_demonstration_data()
+ 
+# 4. Train the robot's model using the demonstration data
+robot = LearningFromDemonstration()
+robot.train(positions, velocities)
+ 
+# 5. Simulate the robot's behavior using the learned model
+predicted_velocities = [robot.predict(pos)[0] for pos in positions]
+ 
+# 6. Plot the results: Demonstration data vs learned model
+plt.figure(figsize=(10, 6))
+ 
+# Plot demonstration data (actual velocity vs position)
+plt.plot(positions, velocities, label="Demonstration Data (Actual)", color='blue')
+ 
+# Plot predicted velocities using the learned model
+plt.plot(positions, predicted_velocities, label="Learned Model (Predicted)", color='red', linestyle='--')
+ 
+plt.title("Learning from Demonstration - Position vs Velocity")
+plt.xlabel("Position (m)")
+plt.ylabel("Velocity (m/s)")
+plt.legend()
+plt.grid(True)
+plt.show()
+Project 660: Transfer Learning for Robotics
+Description:
+Transfer learning is a technique that leverages knowledge gained from one task to improve the performance on a related task. In robotics, transfer learning can be used to transfer knowledge from one robot or task to another, reducing the need for extensive retraining. In this project, we will apply transfer learning to a robotic system by training the robot to perform one task (e.g., grasping an object) and then transferring the learned model to a related task (e.g., picking up a different object). We will use a pre-trained model and fine-tune it for the new task.
+
+🧪 Python Implementation (Transfer Learning for Robotics using Pretrained Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+import matplotlib.pyplot as plt
+ 
+# 1. Load a pre-trained model (e.g., a simple CNN for object classification)
+# For simplicity, we will use a pretrained model on a generic task (e.g., image classification).
+# You can replace this with a real robotic task model, e.g., for grasping.
+ 
+base_model = keras.applications.MobileNetV2(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+ 
+# Freeze the layers of the base model to retain the learned features
+base_model.trainable = False
+ 
+# 2. Build the full model for transfer learning
+model = keras.Sequential([
+    base_model,
+    layers.GlobalAveragePooling2D(),
+    layers.Dense(1024, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # For simplicity, binary classification (grasp/no grasp)
+])
+ 
+# 3. Compile the model
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+ 
+# 4. Simulate training data (for illustration, we'll use random images and labels)
+# In a real-world scenario, you'd use images of objects and labels for the task (grasping or not grasping).
+num_samples = 1000
+X_train = np.random.rand(num_samples, 224, 224, 3)  # Random image data (1000 samples)
+y_train = np.random.randint(0, 2, num_samples)  # Random binary labels (0 or 1)
+ 
+# 5. Fine-tune the model on the new task (object grasping)
+model.fit(X_train, y_train, epochs=10, batch_size=32)
+ 
+# 6. Simulate transfer to a new robot task (e.g., grasping a new object)
+# In practice, the model would be transferred and fine-tuned on the new robot's data.
+ 
+X_test = np.random.rand(10, 224, 224, 3)  # Simulate new images of objects
+y_pred = model.predict(X_test)  # Predict the grasping outcome for the new task
+ 
+# 7. Visualize the results of transfer learning
+plt.figure(figsize=(8, 6))
+ 
+# Plot a sample of the predicted labels (grasp or no grasp)
+plt.bar(range(10), y_pred.flatten(), color='blue', alpha=0.7, label="Predicted Grasping Probabilities")
+plt.axhline(0.5, color='red', linestyle='--', label="Threshold (Grasp/No Grasp)")
+plt.xlabel('Sample Index')
+plt.ylabel('Predicted Grasping Probability')
+plt.title("Transfer Learning: Grasping Prediction for New Task")
+plt.legend()
+plt.show()
+Project 661: Multi-Robot Coordination
+Description:
+Multi-robot coordination involves multiple robots working together to accomplish a task, such as searching an area, transporting objects, or exploring an environment. The coordination can involve path planning, task assignment, and communication between robots. In this project, we will simulate a simple multi-robot system where robots coordinate to reach designated target locations without colliding with each other. We will implement a basic centralized coordination strategy, where a central controller assigns tasks and coordinates the movements of the robots.
+
+🧪 Python Implementation (Multi-Robot Coordination using Centralized Control)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Robot class
+class Robot:
+    def __init__(self, position, target):
+        self.position = np.array(position)  # Initial position
+        self.target = np.array(target)  # Target position
+        self.velocity = 0.1  # Robot speed
+ 
+    def move_towards_target(self):
+        direction = self.target - self.position
+        distance = np.linalg.norm(direction)
+        
+        # Normalize the direction and move the robot
+        if distance > 0:
+            direction = direction / distance
+            self.position += direction * self.velocity  # Move robot towards target
+ 
+# 2. Create the multi-robot coordination system
+class MultiRobotCoordination:
+    def __init__(self, num_robots, area_size=(10, 10)):
+        self.num_robots = num_robots
+        self.area_size = area_size  # Define the area for the robots to move
+        self.robots = []
+        self.targets = []
+ 
+        # Initialize robots and target positions
+        for i in range(num_robots):
+            robot_start = np.random.uniform(0, area_size[0], 2)  # Random start position within the area
+            robot_target = np.random.uniform(0, area_size[0], 2)  # Random target position within the area
+            robot = Robot(robot_start, robot_target)
+            self.robots.append(robot)
+            self.targets.append(robot_target)
+ 
+    def update(self):
+        # Update the robots' positions towards their targets
+        for robot in self.robots:
+            robot.move_towards_target()
+ 
+    def check_collisions(self):
+        # Check if any robots are too close to each other (collision avoidance)
+        for i in range(len(self.robots)):
+            for j in range(i + 1, len(self.robots)):
+                if np.linalg.norm(self.robots[i].position - self.robots[j].position) < 0.5:
+                    return True  # Collision detected
+        return False
+ 
+    def plot(self):
+        # Plot the robots and their targets
+        plt.figure(figsize=(8, 8))
+        for i in range(self.num_robots):
+            plt.scatter(self.robots[i].position[0], self.robots[i].position[1], color='blue', label=f"Robot {i+1}")
+            plt.scatter(self.targets[i][0], self.targets[i][1], color='red', marker='x', label=f"Target {i+1}")
+        plt.xlim(0, self.area_size[0])
+        plt.ylim(0, self.area_size[1])
+        plt.title("Multi-Robot Coordination")
+        plt.xlabel("X Position")
+        plt.ylabel("Y Position")
+        plt.grid(True)
+        plt.legend()
+        plt.show()
+ 
+# 3. Initialize the multi-robot system and simulate the coordination
+num_robots = 5  # Number of robots in the system
+coordination_system = MultiRobotCoordination(num_robots)
+ 
+# 4. Simulate the robots' movement and coordination
+num_steps = 100
+for step in range(num_steps):
+    if coordination_system.check_collisions():
+        print("Collision detected!")
+        break
+    coordination_system.update()
+ 
+    if step % 10 == 0:
+        coordination_system.plot()  # Plot the robots and their targets at every 10th step
+Project 662: Swarm Robotics Simulation
+Description:
+Swarm robotics is a field in which a large number of simple robots work together to complete a task through decentralized control. The robots typically follow simple rules and interact with each other, resulting in emergent behaviors. In this project, we will simulate a swarm of robots using basic rules of interaction, where robots will explore the environment and attempt to cover a target area while avoiding collisions. We will implement a simple flocking behavior where robots move in a coordinated way based on local interactions with their neighbors.
+
+🧪 Python Implementation (Swarm Robotics Simulation with Flocking Behavior)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Robot class with flocking behavior
+class Robot:
+    def __init__(self, position, velocity):
+        self.position = np.array(position)  # Initial position
+        self.velocity = np.array(velocity)  # Initial velocity
+ 
+    def update_position(self, dt):
+        # Update robot's position based on its velocity
+        self.position += self.velocity * dt
+ 
+    def apply_flocking(self, robots, perception_range=1.0):
+        """
+        Apply flocking behavior: Each robot adjusts its velocity based on its neighbors.
+        :param robots: List of all robots in the swarm
+        :param perception_range: Range within which robots can interact
+        """
+        alignment = np.zeros(2)
+        cohesion = np.zeros(2)
+        separation = np.zeros(2)
+        count = 0
+        
+        for robot in robots:
+            if np.linalg.norm(self.position - robot.position) < perception_range:
+                # Alignment: Move in the same direction as neighbors
+                alignment += robot.velocity
+ 
+                # Cohesion: Move towards the center of mass of neighbors
+                cohesion += robot.position
+ 
+                # Separation: Avoid collisions with neighbors
+                separation += self.position - robot.position
+ 
+                count += 1
+ 
+        if count > 0:
+            # Normalize vectors
+            alignment /= count
+            cohesion /= count
+            separation /= count
+ 
+            # Apply simple rules: Weighted sum of behaviors
+            self.velocity += 0.1 * alignment + 0.1 * cohesion + 0.2 * separation
+            self.velocity = self.velocity / np.linalg.norm(self.velocity)  # Normalize velocity
+ 
+# 2. Define the Swarm class
+class Swarm:
+    def __init__(self, num_robots, area_size=(10, 10), initial_velocity=(0.1, 0.1)):
+        self.num_robots = num_robots
+        self.robots = []
+        self.area_size = area_size
+ 
+        # Initialize robots with random positions and velocities
+        for _ in range(num_robots):
+            position = np.random.uniform(0, area_size[0], 2)
+            velocity = np.random.uniform(-0.1, 0.1, 2)
+            self.robots.append(Robot(position, velocity))
+ 
+    def update(self, dt):
+        # Update the position and velocity of each robot based on flocking behavior
+        for robot in self.robots:
+            robot.apply_flocking(self.robots)
+            robot.update_position(dt)
+ 
+    def plot(self):
+        # Plot the positions of the robots
+        plt.figure(figsize=(8, 8))
+        for robot in self.robots:
+            plt.scatter(robot.position[0], robot.position[1], color='blue')
+        plt.xlim(0, self.area_size[0])
+        plt.ylim(0, self.area_size[1])
+        plt.title("Swarm Robotics Simulation with Flocking Behavior")
+        plt.xlabel("X Position")
+        plt.ylabel("Y Position")
+        plt.grid(True)
+        plt.show()
+ 
+# 3. Initialize the swarm with 10 robots and simulate their behavior
+swarm = Swarm(num_robots=10)
+ 
+# 4. Simulate the swarm movement for 100 time steps
+for step in range(100):
+    swarm.update(dt=0.1)  # Update the swarm every 0.1 seconds
+    if step % 10 == 0:  # Plot every 10 steps
+        swarm.plot()
+Project 663: Human-Robot Interaction
+Description:
+Human-Robot Interaction (HRI) is an essential aspect of robotics where robots are designed to communicate, understand, and collaborate with humans. In this project, we will implement a simple human-robot interaction system where a robot can respond to basic voice commands using speech recognition and perform simple tasks like moving to a specific location or picking up an object. We will use speech recognition for command input and robot motion simulation for task execution.
+
+🧪 Python Implementation (Human-Robot Interaction using Speech Recognition)
+import speech_recognition as sr
+import numpy as np
+import matplotlib.pyplot as plt
+import time
+ 
+# 1. Define the robot class with basic motion capabilities
+class Robot:
+    def __init__(self, position=(0, 0)):
+        self.position = np.array(position)  # Initial position (x, y)
+ 
+    def move_to(self, target_position):
+        """
+        Move the robot towards the target position (simulate movement).
+        """
+        direction = target_position - self.position
+        distance = np.linalg.norm(direction)
+        
+        if distance > 0:
+            direction = direction / distance  # Normalize direction
+            self.position += direction * 0.1  # Move the robot step by step
+ 
+    def get_position(self):
+        return self.position
+ 
+# 2. Define the speech recognition system
+def listen_for_command():
+    """
+    Listen for a speech command from the user.
+    """
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("Listening for command...")
+        audio = recognizer.listen(source)
+        try:
+            command = recognizer.recognize_google(audio)
+            print(f"Command received: {command}")
+            return command.lower()
+        except sr.UnknownValueError:
+            print("Sorry, I did not understand the command.")
+            return None
+        except sr.RequestError:
+            print("Sorry, there was a problem with the speech recognition service.")
+            return None
+ 
+# 3. Define the task handler for human-robot interaction
+class HumanRobotInteraction:
+    def __init__(self, robot):
+        self.robot = robot
+ 
+    def process_command(self, command):
+        """
+        Process the command and perform the corresponding task.
+        :param command: Command received from the user
+        """
+        if 'move to' in command:
+            # Parse the target position from the command (assume "move to x, y")
+            parts = command.split('move to')[-1].strip()
+            target_position = tuple(map(float, parts.split(',')))
+            print(f"Moving to position: {target_position}")
+            self.robot.move_to(np.array(target_position))
+        else:
+            print("Command not recognized.")
+ 
+    def interact(self):
+        """
+        Start the interaction loop with the user.
+        """
+        while True:
+            command = listen_for_command()  # Listen for command from the user
+            if command:
+                self.process_command(command)  # Process the command
+ 
+            # Simulate robot movement and update position
+            position = self.robot.get_position()
+            print(f"Robot position: {position}")
+            time.sleep(1)
+ 
+            # Break the loop after a certain condition (e.g., a certain position is reached)
+            if np.linalg.norm(position - np.array([5, 5])) < 0.2:
+                print("Goal reached!")
+                break
+ 
+# 4. Initialize the robot and human-robot interaction system
+robot = Robot(position=(0, 0))
+hri_system = HumanRobotInteraction(robot)
+ 
+# 5. Start the human-robot interaction
+hri_system.interact()
+Project 664: Robot Task Planning
+Description:
+Task planning is the process of determining a sequence of actions that a robot must take to achieve a specific goal, considering the constraints of the environment and the robot's capabilities. In this project, we will implement a simple task planning system where a robot can plan a sequence of tasks (e.g., pick an object, move it to a destination) and execute them. We will use a basic search-based planning algorithm (e.g., Breadth-First Search) to plan a series of actions in a grid environment.
+
+🧪 Python Implementation (Robot Task Planning using BFS)
+import numpy as np
+import matplotlib.pyplot as plt
+from collections import deque
+ 
+# 1. Define the grid environment and robot task planning
+class RobotTaskPlanning:
+    def __init__(self, grid_size=(5, 5), start=(0, 0), goal=(4, 4)):
+        self.grid_size = grid_size
+        self.start = start
+        self.goal = goal
+        self.grid = np.zeros(grid_size)  # Empty grid (0 = free space, 1 = obstacle)
+        self.grid[2, 2] = 1  # Adding an obstacle at position (2, 2)
+        self.path = []
+ 
+    def valid_move(self, position):
+        """
+        Check if a move is valid (within bounds and not an obstacle).
+        :param position: Position to check (x, y)
+        :return: True if valid, False otherwise
+        """
+        x, y = position
+        return 0 <= x < self.grid_size[0] and 0 <= y < self.grid_size[1] and self.grid[x, y] == 0
+ 
+    def bfs(self):
+        """
+        Perform Breadth-First Search (BFS) to find the shortest path from start to goal.
+        :return: The path from start to goal as a list of coordinates
+        """
+        queue = deque([(self.start, [])])  # Queue of (current_position, path_to_here)
+        visited = set([self.start])
+ 
+        while queue:
+            current_pos, path = queue.popleft()
+ 
+            # If the goal is reached, return the path
+            if current_pos == self.goal:
+                return path + [current_pos]
+ 
+            # Check the 4 possible directions (up, down, left, right)
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                new_pos = (current_pos[0] + dx, current_pos[1] + dy)
+ 
+                if self.valid_move(new_pos) and new_pos not in visited:
+                    visited.add(new_pos)
+                    queue.append((new_pos, path + [current_pos]))
+ 
+        return []  # No path found
+ 
+    def execute_plan(self):
+        """
+        Execute the planned path, visualizing each step.
+        """
+        self.path = self.bfs()  # Get the planned path using BFS
+        if not self.path:
+            print("No path found.")
+            return
+ 
+        # Simulate the robot's movement along the path
+        print(f"Path found: {self.path}")
+        for step in self.path:
+            self.plot_grid(step)
+ 
+    def plot_grid(self, robot_position):
+        """
+        Visualize the grid and the robot's position on the grid.
+        """
+        plt.imshow(self.grid, cmap='gray', origin='upper')
+        plt.scatter(self.goal[1], self.goal[0], color='green', label="Goal", s=100)
+        plt.scatter(self.start[1], self.start[0], color='blue', label="Start", s=100)
+ 
+        # Plot the robot's position
+        plt.scatter(robot_position[1], robot_position[0], color='red', label="Robot", s=100)
+ 
+        plt.legend()
+        plt.title("Robot Task Planning - BFS")
+        plt.grid(True)
+        plt.show()
+ 
+# 2. Initialize the robot task planning system
+task_planner = RobotTaskPlanning(start=(0, 0), goal=(4, 4))
+ 
+# 3. Execute the task planning
+task_planner.execute_plan()
+Project 665: Manipulation Planning
+Description:
+Manipulation planning is the process of planning the movements of a robot’s arm (or gripper) to manipulate objects. The robot needs to determine how to grasp, move, and place objects in the environment. In this project, we will implement a simple manipulation planning system for a robotic arm that can plan and execute basic movements to grasp and place an object. The system will use a kinematic model for planning and controlling the robot's arm.
+
+🧪 Python Implementation (Manipulation Planning for a Robotic Arm)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Robot Arm class (2D manipulator for simplicity)
+class RobotArm:
+    def __init__(self, length1, length2, initial_angle1=0, initial_angle2=0):
+        self.length1 = length1  # Length of the first arm segment
+        self.length2 = length2  # Length of the second arm segment
+        self.angle1 = initial_angle1  # Initial angle of the first arm segment
+        self.angle2 = initial_angle2  # Initial angle of the second arm segment
+ 
+    def forward_kinematics(self):
+        """
+        Compute the end effector position (x, y) based on the arm's joint angles.
+        :return: (x, y) coordinates of the end effector
+        """
+        x = self.length1 * np.cos(self.angle1) + self.length2 * np.cos(self.angle1 + self.angle2)
+        y = self.length1 * np.sin(self.angle1) + self.length2 * np.sin(self.angle1 + self.angle2)
+        return np.array([x, y])
+ 
+    def inverse_kinematics(self, target_position):
+        """
+        Compute the joint angles needed to reach a target position using inverse kinematics.
+        :param target_position: The target (x, y) position for the end effector
+        :return: joint angles (angle1, angle2)
+        """
+        x, y = target_position
+        r = np.sqrt(x**2 + y**2)
+        d = (r**2 - self.length1**2 - self.length2**2) / (2 * self.length1 * self.length2)
+        angle2 = np.arccos(np.clip(d, -1.0, 1.0))  # Clamp value to avoid numerical errors
+        angle1 = np.arctan2(y, x) - np.arctan2(self.length2 * np.sin(angle2), self.length1 + self.length2 * np.cos(angle2))
+        return angle1, angle2
+ 
+# 2. Define the Manipulation Planner
+class ManipulationPlanner:
+    def __init__(self, robot_arm):
+        self.robot_arm = robot_arm
+ 
+    def plan_manipulation(self, target_position):
+        """
+        Plan the manipulation task to move the robot arm to the target position.
+        :param target_position: The target position (x, y) for the robot's end effector
+        :return: Joint angles for the robot arm to reach the target position
+        """
+        # Compute inverse kinematics to find the joint angles
+        angle1, angle2 = self.robot_arm.inverse_kinematics(target_position)
+        return angle1, angle2
+ 
+    def execute_plan(self, target_position):
+        """
+        Simulate the execution of the manipulation task.
+        :param target_position: The target position (x, y) for the end effector
+        """
+        # Plan the manipulation to move the arm to the target position
+        angle1, angle2 = self.plan_manipulation(target_position)
+ 
+        # Set the joint angles of the arm
+        self.robot_arm.angle1 = angle1
+        self.robot_arm.angle2 = angle2
+ 
+        # Get the end effector position after the movement
+        end_effector_position = self.robot_arm.forward_kinematics()
+ 
+        # Visualize the robot arm's movement
+        self.plot_arm(end_effector_position)
+ 
+    def plot_arm(self, end_effector_position):
+        """
+        Plot the robot arm and its end effector position.
+        :param end_effector_position: The position of the robot's end effector
+        """
+        fig, ax = plt.subplots(figsize=(6, 6))
+ 
+        # Robot arm base (origin)
+        ax.plot([0, self.robot_arm.length1 * np.cos(self.robot_arm.angle1)], 
+                [0, self.robot_arm.length1 * np.sin(self.robot_arm.angle1)], 
+                label='Link 1', color='blue', lw=2)
+ 
+        ax.plot([self.robot_arm.length1 * np.cos(self.robot_arm.angle1), 
+                 end_effector_position[0]], 
+                [self.robot_arm.length1 * np.sin(self.robot_arm.angle1), 
+                 end_effector_position[1]], 
+                label='Link 2', color='green', lw=2)
+ 
+        # Plot the target position and the end effector
+        ax.scatter(end_effector_position[0], end_effector_position[1], color='red', s=100, label='End Effector')
+        ax.scatter(self.robot_arm.length1 * np.cos(self.robot_arm.angle1), 
+                   self.robot_arm.length1 * np.sin(self.robot_arm.angle1), 
+                   color='yellow', s=100, label='Joint 1')
+ 
+        ax.scatter(0, 0, color='black', s=100, label='Base')
+ 
+        ax.set_xlim(-self.robot_arm.length1 - self.robot_arm.length2, 
+                    self.robot_arm.length1 + self.robot_arm.length2)
+        ax.set_ylim(-self.robot_arm.length1 - self.robot_arm.length2, 
+                    self.robot_arm.length1 + self.robot_arm.length2)
+ 
+        ax.set_aspect('equal', 'box')
+        ax.set_title("Robot Arm Manipulation")
+        ax.set_xlabel("X Position")
+        ax.set_ylabel("Y Position")
+        ax.legend()
+        plt.grid(True)
+        plt.show()
+ 
+# 3. Initialize the robot arm and manipulation planner
+robot_arm = RobotArm(length1=3, length2=2)
+planner = ManipulationPlanner(robot_arm)
+ 
+# 4. Define a target position and execute the plan
+target_position = np.array([4, 2])  # Target position for the robot's end effector
+planner.execute_plan(target_position)
+Project 666: Dexterous Manipulation
+Description:
+Dexterous manipulation involves performing tasks that require fine control over the robot’s gripper or hand, such as picking up small objects, adjusting their position, or performing complex actions. In this project, we will simulate dexterous manipulation using a robotic hand with multiple degrees of freedom (DOF). We will focus on simulating the robot's ability to adjust the grasp and manipulate objects with precision. The robot will use a basic inverse kinematics algorithm to adjust its hand's configuration for dexterous manipulation.
+
+🧪 Python Implementation (Dexterous Manipulation with a Robotic Hand)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Robot Hand class with dexterous manipulation capabilities
+class DexterousRobotHand:
+    def __init__(self, fingers_length=1.0, hand_length=2.0):
+        self.fingers_length = fingers_length  # Length of each finger
+        self.hand_length = hand_length  # Length of the palm
+        self.finger_angles = np.array([np.pi / 4, np.pi / 4, np.pi / 4])  # Initial angles of the three fingers
+ 
+    def forward_kinematics(self):
+        """
+        Compute the positions of the fingertips based on the finger angles.
+        :return: Coordinates of the fingertips
+        """
+        fingertips = []
+        x, y = self.hand_length, 0  # Palm center (assume it's at the origin)
+        
+        # Calculate positions of each fingertip based on angles and length
+        for angle in self.finger_angles:
+            x_finger = x + self.fingers_length * np.cos(angle)
+            y_finger = y + self.fingers_length * np.sin(angle)
+            fingertips.append(np.array([x_finger, y_finger]))
+ 
+        return np.array(fingertips)
+ 
+    def inverse_kinematics(self, target_positions):
+        """
+        Compute the finger angles to reach the target positions.
+        :param target_positions: Target positions for the fingertips
+        :return: Finger angles to reach the target
+        """
+        # For simplicity, we'll assume that the robot's hand adjusts to target fingertip positions directly.
+        angles = []
+        for target in target_positions:
+            # Calculate the angle to reach the target position (simple inverse kinematics)
+            angle = np.arctan2(target[1], target[0])  # Angle in the plane
+            angles.append(angle)
+ 
+        self.finger_angles = np.array(angles)  # Update the finger angles
+        return self.finger_angles
+ 
+# 2. Define the Dexterous Manipulation Planner
+class DexterousManipulationPlanner:
+    def __init__(self, robot_hand):
+        self.robot_hand = robot_hand
+ 
+    def plan_manipulation(self, target_positions):
+        """
+        Plan the manipulation task to move the hand to the target positions.
+        :param target_positions: Target positions for the fingertips
+        :return: Joint angles for the robot hand to reach the target positions
+        """
+        # Compute inverse kinematics to find the finger angles
+        angles = self.robot_hand.inverse_kinematics(target_positions)
+        return angles
+ 
+    def execute_plan(self, target_positions):
+        """
+        Simulate the execution of the manipulation task.
+        :param target_positions: Target positions for the fingertips
+        """
+        # Plan the manipulation to move the hand to the target positions
+        angles = self.plan_manipulation(target_positions)
+ 
+        # Get the positions of the fingertips after the manipulation
+        fingertips = self.robot_hand.forward_kinematics()
+ 
+        # Visualize the hand movement
+        self.plot_hand(fingertips)
+ 
+    def plot_hand(self, fingertips):
+        """
+        Visualize the hand and its fingertips.
+        :param fingertips: Positions of the fingertips
+        """
+        fig, ax = plt.subplots(figsize=(6, 6))
+ 
+        # Plot the palm of the hand
+        ax.plot([0, self.robot_hand.hand_length], [0, 0], label="Palm", color='blue', lw=4)
+ 
+        # Plot each finger
+        for finger in fingertips:
+            ax.plot([self.robot_hand.hand_length, finger[0]], [0, finger[1]], label="Finger", color='green', lw=2)
+ 
+        # Plot the fingertips
+        for finger in fingertips:
+            ax.scatter(finger[0], finger[1], color='red', s=100, label="Fingertip")
+ 
+        ax.set_xlim(-self.robot_hand.hand_length - self.robot_hand.fingers_length, 
+                    self.robot_hand.hand_length + self.robot_hand.fingers_length)
+        ax.set_ylim(-self.robot_hand.fingers_length, 
+                    self.robot_hand.fingers_length)
+        
+        ax.set_aspect('equal', 'box')
+        ax.set_title("Dexterous Manipulation - Robotic Hand")
+        ax.set_xlabel("X Position")
+        ax.set_ylabel("Y Position")
+        ax.legend()
+        plt.grid(True)
+        plt.show()
+ 
+# 3. Initialize the dexterous robot hand and manipulation planner
+robot_hand = DexterousRobotHand(fingers_length=1.0, hand_length=2.0)
+planner = DexterousManipulationPlanner(robot_hand)
+ 
+# 4. Define target positions for the fingertips (for example, move the hand to a new position)
+target_positions = np.array([[2, 2], [2.5, 2.5], [3, 3]])  # Target positions for the fingertips
+ 
+# 5. Execute the task planning and visualization
+planner.execute_plan(target_positions)
+Project 667: Soft Robotics Simulation
+Description:
+Soft robotics involves robots built from flexible materials, designed to handle unstructured environments and delicate tasks, such as picking up fragile objects or squeezing through tight spaces. Soft robots are often designed to mimic biological organisms, offering enhanced dexterity and adaptability. In this project, we will simulate a simple soft robotic gripper using a soft actuated model to demonstrate basic manipulation and grasping tasks. The simulation will focus on controlling the gripper to handle objects of various shapes and sizes.
+
+🧪 Python Implementation (Soft Robotics Simulation for Grasping)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Soft Robotic Gripper class
+class SoftRoboticGripper:
+    def __init__(self, finger_length=2.0, soft_material_stiffness=0.1):
+        self.finger_length = finger_length  # Length of each finger
+        self.soft_material_stiffness = soft_material_stiffness  # Flexibility of the gripper (soft material stiffness)
+        self.finger_angles = np.array([np.pi / 4, np.pi / 4])  # Initial angles of the fingers
+        self.target_position = None  # Target position to grasp an object
+ 
+    def forward_kinematics(self):
+        """
+        Compute the positions of the fingertips based on the finger angles.
+        :return: Coordinates of the fingertips
+        """
+        fingertips = []
+        for angle in self.finger_angles:
+            x_finger = self.finger_length * np.cos(angle)
+            y_finger = self.finger_length * np.sin(angle)
+            fingertips.append(np.array([x_finger, y_finger]))
+        return np.array(fingertips)
+ 
+    def set_target(self, position):
+        """
+        Set the target position for the gripper to grasp.
+        :param position: Target position for the gripper
+        """
+        self.target_position = np.array(position)
+ 
+    def adapt_grip(self):
+        """
+        Adapt the gripper's angles to suit the shape of the object to be grasped.
+        :return: Adjusted finger angles to fit the object
+        """
+        if self.target_position is not None:
+            distance = np.linalg.norm(self.target_position)
+            # Adjust finger angles based on the distance to the object
+            self.finger_angles = np.array([np.pi / 4 + self.soft_material_stiffness * distance,
+                                           np.pi / 4 - self.soft_material_stiffness * distance])
+        return self.finger_angles
+ 
+    def simulate_grasp(self):
+        """
+        Simulate the grasping process by adapting the gripper's fingers.
+        """
+        if self.target_position is not None:
+            # Adapt the gripper to the target position
+            self.adapt_grip()
+            fingertips = self.forward_kinematics()
+            self.plot_gripper(fingertips)
+ 
+    def plot_gripper(self, fingertips):
+        """
+        Plot the soft robotic gripper and the object being grasped.
+        :param fingertips: Positions of the fingertips
+        """
+        fig, ax = plt.subplots(figsize=(6, 6))
+ 
+        # Plot the gripper's fingers
+        ax.plot([0, fingertips[0][0]], [0, fingertips[0][1]], label="Finger 1", color='blue', lw=2)
+        ax.plot([0, fingertips[1][0]], [0, fingertips[1][1]], label="Finger 2", color='green', lw=2)
+ 
+        # Plot the object to be grasped (target position)
+        ax.scatter(self.target_position[0], self.target_position[1], color='red', s=100, label="Object")
+ 
+        ax.set_xlim(-self.finger_length - 1, self.finger_length + 1)
+        ax.set_ylim(-self.finger_length - 1, self.finger_length + 1)
+ 
+        ax.set_aspect('equal', 'box')
+        ax.set_title("Soft Robotic Gripper - Grasping Simulation")
+        ax.set_xlabel("X Position")
+        ax.set_ylabel("Y Position")
+        ax.legend()
+        plt.grid(True)
+        plt.show()
+ 
+# 2. Initialize the soft robotic gripper and set the target position
+soft_gripper = SoftRoboticGripper(finger_length=2.0, soft_material_stiffness=0.1)
+ 
+# Set the target position (position of the object to be grasped)
+target_position = np.array([2.5, 3.0])  # Example target position for grasping
+soft_gripper.set_target(target_position)
+ 
+# 3. Simulate the grasping process
+soft_gripper.simulate_grasp()
+Project 668: Legged Robot Locomotion
+Description:
+Legged robot locomotion involves creating algorithms that allow robots with legs to walk or move efficiently. Unlike wheeled robots, legged robots face the challenge of maintaining stability and adapting to different terrain. In this project, we will simulate a quadruped robot (four-legged robot) locomotion system. The robot will use basic control strategies to move forward, and we will implement a simple gait generation method to control its legs.
+
+🧪 Python Implementation (Legged Robot Locomotion)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Quadruped Robot class
+class QuadrupedRobot:
+    def __init__(self, leg_length=1.0, stride_length=2.0):
+        self.leg_length = leg_length  # Length of each leg
+        self.stride_length = stride_length  # Length of the stride (distance per step)
+        self.position = np.array([0, 0])  # Initial position of the robot (x, y)
+        self.orientation = 0  # Initial orientation (in radians)
+        self.gait_phase = 0  # Phase of the gait (for controlling leg movements)
+ 
+    def move_forward(self):
+        """
+        Simulate forward movement by updating the position.
+        """
+        # Update position based on stride length and orientation
+        self.position += np.array([self.stride_length * np.cos(self.orientation),
+                                   self.stride_length * np.sin(self.orientation)])
+ 
+    def update_orientation(self):
+        """
+        Update the orientation of the robot based on the gait phase.
+        """
+        # Simple gait control: change orientation at each phase (for simplicity)
+        self.orientation += np.pi / 4  # Adjust orientation (robot turns after each step)
+        if self.orientation > 2 * np.pi:
+            self.orientation -= 2 * np.pi  # Keep orientation within [0, 2*pi]
+ 
+    def generate_gait(self):
+        """
+        Simulate a gait generation for the quadruped robot.
+        """
+        # Adjust gait phase and update robot movement
+        self.gait_phase += 1
+        if self.gait_phase % 2 == 0:  # Alternate leg movements (simple gait pattern)
+            self.move_forward()
+        self.update_orientation()
+ 
+    def plot(self):
+        """
+        Visualize the robot's movement on a 2D plane.
+        """
+        plt.figure(figsize=(6, 6))
+        plt.scatter(self.position[0], self.position[1], color='blue', s=100, label="Robot Position")
+        plt.quiver(self.position[0], self.position[1], np.cos(self.orientation), np.sin(self.orientation), 
+                   angles='xy', scale_units='xy', scale=0.1, color='red', label="Robot Orientation")
+        plt.xlim(-5, 5)
+        plt.ylim(-5, 5)
+        plt.title("Legged Robot Locomotion")
+        plt.xlabel("X Position")
+        plt.ylabel("Y Position")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+ 
+# 2. Initialize the quadruped robot and simulate its movement
+robot = QuadrupedRobot(leg_length=1.0, stride_length=0.5)
+ 
+# 3. Simulate the robot moving forward for 20 steps
+for step in range(20):
+    robot.generate_gait()
+    robot.plot()
+Project 669: Flying Robot Control
+Description:
+Flying robot control refers to the design and implementation of control systems for unmanned aerial vehicles (UAVs) or drones. These systems enable the drone to fly stably and perform tasks like navigation, obstacle avoidance, and dynamic path following. In this project, we will simulate the control of a simple quadrotor drone using PID control for position control (x, y, z) and basic stabilization. The drone will attempt to reach a target position in 3D space, considering dynamics such as acceleration and velocity.
+
+🧪 Python Implementation (Flying Robot Control using PID Control)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Drone class with PID control
+class FlyingRobot:
+    def __init__(self, initial_position=np.array([0.0, 0.0, 0.0]), target_position=np.array([5.0, 5.0, 5.0])):
+        self.position = initial_position  # Drone's initial position (x, y, z)
+        self.target_position = target_position  # Target position to reach
+        self.velocity = np.array([0.0, 0.0, 0.0])  # Initial velocity (x, y, z)
+        
+        # PID controller gains
+        self.kp = np.array([1.0, 1.0, 1.0])  # Proportional gain
+        self.ki = np.array([0.1, 0.1, 0.1])  # Integral gain
+        self.kd = np.array([0.5, 0.5, 0.5])  # Derivative gain
+        
+        # For the PID control
+        self.error_integral = np.array([0.0, 0.0, 0.0])  # Integral of the error
+        self.previous_error = np.array([0.0, 0.0, 0.0])  # Previous error for derivative term
+ 
+    def pid_control(self):
+        """
+        Compute the control signal using PID control.
+        :return: Control signal for drone (desired acceleration in x, y, z)
+        """
+        # Calculate the error (difference between target and current position)
+        error = self.target_position - self.position
+        self.error_integral += error  # Integrate the error over time
+        error_derivative = error - self.previous_error  # Derivative of the error
+        
+        # PID control law
+        control_signal = (self.kp * error + self.ki * self.error_integral + self.kd * error_derivative)
+        
+        # Update the previous error for the next iteration
+        self.previous_error = error
+        
+        return control_signal
+ 
+    def update_position(self, dt):
+        """
+        Update the drone's position and velocity using PID control.
+        :param dt: Time step for simulation
+        """
+        control_signal = self.pid_control()
+        
+        # Update the velocity and position (using simple dynamics: v = u * dt, x = x + v * dt)
+        self.velocity += control_signal * dt
+        self.position += self.velocity * dt
+ 
+    def plot(self):
+        """
+        Visualize the drone's position on a 3D plot.
+        """
+        fig = plt.figure(figsize=(10, 7))
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(self.position[0], self.position[1], self.position[2], color='blue', s=100, label="Drone Position")
+        ax.scatter(self.target_position[0], self.target_position[1], self.target_position[2], color='red', s=100, label="Target Position")
+        
+        ax.set_xlim([0, 10])
+        ax.set_ylim([0, 10])
+        ax.set_zlim([0, 10])
+        
+        ax.set_xlabel('X Position')
+        ax.set_ylabel('Y Position')
+        ax.set_zlabel('Z Position')
+        ax.set_title("Flying Robot Control")
+        ax.legend()
+        plt.show()
+ 
+# 2. Initialize the drone and simulate its movement
+drone = FlyingRobot(initial_position=np.array([0.0, 0.0, 0.0]), target_position=np.array([5.0, 5.0, 5.0]))
+ 
+# 3. Simulate the drone movement for 100 steps
+time_steps = 100
+for step in range(time_steps):
+    drone.update_position(dt=0.1)  # 0.1s time step
+    if step % 10 == 0:  # Plot every 10 steps
+        drone.plot()
+Project 670: Underwater Robot Control
+Description:
+Underwater robots, also known as autonomous underwater vehicles (AUVs), are designed to operate in underwater environments. These robots are used for various tasks such as exploration, mapping, and monitoring. Due to the complex and dynamic nature of underwater environments (e.g., currents, obstacles), controlling these robots can be challenging. In this project, we will simulate an underwater robot control system using a basic PID controller for depth and position control in a 2D plane (x, y, z). We will focus on maintaining the robot at a constant depth and moving it to a target position while considering forces like gravity and buoyancy.
+
+🧪 Python Implementation (Underwater Robot Control using PID)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Underwater Robot class
+class UnderwaterRobot:
+    def __init__(self, initial_position=np.array([0.0, 0.0, 0.0]), target_position=np.array([5.0, 5.0, 0.0])):
+        self.position = initial_position  # Initial position (x, y, z)
+        self.target_position = target_position  # Target position (x, y, z)
+        self.velocity = np.array([0.0, 0.0, 0.0])  # Initial velocity (x, y, z)
+        
+        # PID controller gains
+        self.kp = np.array([1.0, 1.0, 1.0])  # Proportional gain
+        self.ki = np.array([0.1, 0.1, 0.1])  # Integral gain
+        self.kd = np.array([0.5, 0.5, 0.5])  # Derivative gain
+        
+        # For the PID control
+        self.error_integral = np.array([0.0, 0.0, 0.0])  # Integral of the error
+        self.previous_error = np.array([0.0, 0.0, 0.0])  # Previous error for derivative term
+ 
+    def pid_control(self):
+        """
+        Compute the control signal using PID control.
+        :return: Control signal for underwater robot (desired acceleration in x, y, z)
+        """
+        # Calculate the error (difference between target and current position)
+        error = self.target_position - self.position
+        self.error_integral += error  # Integrate the error over time
+        error_derivative = error - self.previous_error  # Derivative of the error
+        
+        # PID control law
+        control_signal = (self.kp * error + self.ki * self.error_integral + self.kd * error_derivative)
+        
+        # Update the previous error for the next iteration
+        self.previous_error = error
+        
+        return control_signal
+ 
+    def update_position(self, dt):
+        """
+        Update the robot's position and velocity using PID control.
+        :param dt: Time step for simulation
+        """
+        control_signal = self.pid_control()
+        
+        # Update the velocity and position (using simple dynamics: v = u * dt, x = x + v * dt)
+        self.velocity += control_signal * dt
+        self.position += self.velocity * dt
+ 
+    def plot(self):
+        """
+        Visualize the underwater robot's position in 3D space.
+        """
+        fig = plt.figure(figsize=(10, 7))
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(self.position[0], self.position[1], self.position[2], color='blue', s=100, label="Robot Position")
+        ax.scatter(self.target_position[0], self.target_position[1], self.target_position[2], color='red', s=100, label="Target Position")
+        
+        ax.set_xlim([0, 10])
+        ax.set_ylim([0, 10])
+        ax.set_zlim([0, 10])
+        
+        ax.set_xlabel('X Position')
+        ax.set_ylabel('Y Position')
+        ax.set_zlabel('Z Position')
+        ax.set_title("Underwater Robot Control")
+        ax.legend()
+        plt.show()
+ 
+# 2. Initialize the underwater robot and simulate its movement
+robot = UnderwaterRobot(initial_position=np.array([0.0, 0.0, 0.0]), target_position=np.array([5.0, 5.0, 0.0]))
+ 
+# 3. Simulate the robot movement for 100 steps
+time_steps = 100
+for step in range(time_steps):
+    robot.update_position(dt=0.1)  # 0.1s time step
+    if step % 10 == 0:  # Plot every 10 steps
+        robot.plot()
+Project 671: Mobile Robot Navigation
+Description:
+Mobile robot navigation involves planning and controlling the movement of a robot in an environment to reach a goal while avoiding obstacles. The robot must be able to localize itself within the environment, plan a path to the goal, and control its motion to avoid collisions. In this project, we will simulate a mobile robot navigation system using A path planning* for navigation and PID control for movement. The robot will navigate through a grid with obstacles and move towards a goal while avoiding collisions.
+
+🧪 Python Implementation (Mobile Robot Navigation with A and PID Control)*
+import numpy as np
+import matplotlib.pyplot as plt
+import heapq
+ 
+# 1. Define the A* path planning class
+class AStarPathPlanner:
+    def __init__(self, grid, start, goal):
+        self.grid = grid
+        self.start = start
+        self.goal = goal
+        self.rows = len(grid)
+        self.cols = len(grid[0])
+ 
+    def heuristic(self, node):
+        """
+        Heuristic function: Manhattan distance
+        :param node: Current node (x, y)
+        :return: Manhattan distance to the goal
+        """
+        return abs(node[0] - self.goal[0]) + abs(node[1] - self.goal[1])
+ 
+    def get_neighbors(self, node):
+        """
+        Get valid neighbors for the current node.
+        :param node: Current node (x, y)
+        :return: List of valid neighbors
+        """
+        neighbors = []
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            nx, ny = node[0] + dx, node[1] + dy
+            if 0 <= nx < self.rows and 0 <= ny < self.cols and self.grid[nx][ny] == 0:
+                neighbors.append((nx, ny))
+        return neighbors
+ 
+    def plan_path(self):
+        """
+        Plan a path from the start to the goal using A* algorithm.
+        :return: List of nodes representing the planned path
+        """
+        open_list = []
+        heapq.heappush(open_list, (0 + self.heuristic(self.start), 0, self.start, None))  # f, g, node, parent
+        closed_list = set()
+        came_from = {}
+ 
+        while open_list:
+            _, g, current, parent = heapq.heappop(open_list)
+ 
+            if current == self.goal:
+                path = []
+                while current:
+                    path.append(current)
+                    current = came_from.get(current)
+                return path[::-1]  # Return reversed path
+ 
+            closed_list.add(current)
+            came_from[current] = parent
+ 
+            for neighbor in self.get_neighbors(current):
+                if neighbor not in closed_list:
+                    heapq.heappush(open_list, (g + 1 + self.heuristic(neighbor), g + 1, neighbor, current))
+ 
+        return []  # No path found
+ 
+# 2. Define the Mobile Robot class with PID control
+class MobileRobot:
+    def __init__(self, start_position=(0, 0), target_position=(5, 5), grid_size=(10, 10)):
+        self.position = np.array(start_position)  # Initial position (x, y)
+        self.target_position = np.array(target_position)  # Target position (x, y)
+        self.velocity = np.array([0.0, 0.0])  # Initial velocity (x, y)
+        self.grid_size = grid_size
+        self.path = []  # Path planned by A* planner
+        self.current_goal_index = 0  # Index of the current goal on the path
+ 
+        # PID controller gains
+        self.kp = np.array([1.0, 1.0])  # Proportional gain
+        self.ki = np.array([0.1, 0.1])  # Integral gain
+        self.kd = np.array([0.5, 0.5])  # Derivative gain
+        
+        self.error_integral = np.array([0.0, 0.0])  # Integral of the error
+        self.previous_error = np.array([0.0, 0.0])  # Previous error for derivative term
+ 
+    def pid_control(self):
+        """
+        Compute the control signal using PID control.
+        :return: Control signal for robot movement
+        """
+        # Calculate the error (difference between target and current position)
+        error = self.target_position - self.position
+        self.error_integral += error  # Integrate the error over time
+        error_derivative = error - self.previous_error  # Derivative of the error
+        
+        # PID control law
+        control_signal = (self.kp * error + self.ki * self.error_integral + self.kd * error_derivative)
+        
+        # Update the previous error for the next iteration
+        self.previous_error = error
+        
+        return control_signal
+ 
+    def update_position(self, dt):
+        """
+        Update the robot's position and velocity using PID control.
+        :param dt: Time step for simulation
+        """
+        control_signal = self.pid_control()
+        
+        # Update the velocity and position (using simple dynamics: v = u * dt, x = x + v * dt)
+        self.velocity += control_signal * dt
+        self.position += self.velocity * dt
+ 
+    def set_target_position(self, target_position):
+        """
+        Set the target position for the robot and plan the path using A*.
+        :param target_position: New target position
+        """
+        self.target_position = np.array(target_position)
+        planner = AStarPathPlanner(grid=self.grid, start=self.position, goal=self.target_position)
+        self.path = planner.plan_path()
+        self.current_goal_index = 0
+ 
+    def plot(self):
+        """
+        Visualize the robot's movement on a 2D grid.
+        """
+        plt.figure(figsize=(8, 8))
+        plt.plot(self.position[0], self.position[1], 'bo', label="Robot Position")
+        plt.plot(self.target_position[0], self.target_position[1], 'ro', label="Target Position")
+ 
+        if self.path:
+            path_x, path_y = zip(*self.path)
+            plt.plot(path_x, path_y, 'g--', label="Planned Path")
+ 
+        plt.xlim(0, self.grid_size[0])
+        plt.ylim(0, self.grid_size[1])
+        plt.title("Mobile Robot Navigation with A* and PID")
+        plt.xlabel("X Position")
+        plt.ylabel("Y Position")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+ 
+# 3. Define the grid environment and set the initial position and target position
+grid = np.zeros((10, 10))  # 10x10 grid with no obstacles
+grid[3:7, 3:7] = 1  # Adding a simple obstacle (4x4 block in the middle)
+ 
+# 4. Initialize the mobile robot and simulate navigation
+robot = MobileRobot(start_position=(0, 0), target_position=(8, 8), grid_size=(10, 10))
+ 
+# 5. Plan the path using A* and move the robot towards the target
+for step in range(50):
+    if robot.path and robot.current_goal_index < len(robot.path):
+        robot.set_target_position(robot.path[robot.current_goal_index])
+        robot.update_position(dt=0.1)  # Move robot for 0.1s time step
+        robot.current_goal_index += 1
+        if step % 10 == 0:  # Plot every 10 steps
+            robot.plot()
+Project 672: Robot Localization System
+Description:
+Robot localization is the process of determining the robot's position and orientation in an environment. It is a critical component of mobile robotics, enabling robots to navigate and map their surroundings. In this project, we will implement a simple localization system using a particle filter. The particle filter will estimate the robot's position in a grid-based map by using sensor measurements (e.g., distance to obstacles) and motion data.
+
+🧪 Python Implementation (Robot Localization using Particle Filter)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Particle Filter class
+class ParticleFilter:
+    def __init__(self, map_size, num_particles, sensor_noise=0.1):
+        self.map_size = map_size
+        self.num_particles = num_particles
+        self.particles = np.random.rand(num_particles, 2) * map_size  # Initialize particles randomly
+        self.weights = np.ones(num_particles) / num_particles  # Initialize weights equally
+        self.sensor_noise = sensor_noise  # Sensor noise for measurement
+ 
+    def move_particles(self, velocity, dt):
+        """
+        Move the particles based on the robot's velocity and time step.
+        :param velocity: Velocity of the robot (assumed constant for simplicity)
+        :param dt: Time step for simulation
+        """
+        self.particles += velocity * dt + np.random.randn(self.num_particles, 2) * self.sensor_noise
+ 
+    def update_weights(self, measurement, measurement_noise):
+        """
+        Update the particle weights based on the sensor measurement.
+        :param measurement: Sensor measurement (e.g., distance to an obstacle)
+        :param measurement_noise: Noise associated with the sensor measurement
+        """
+        predicted_measurements = np.linalg.norm(self.particles - measurement, axis=1)
+        self.weights = np.exp(-0.5 * (predicted_measurements ** 2) / (measurement_noise ** 2))
+        self.weights /= np.sum(self.weights)  # Normalize weights
+ 
+    def resample_particles(self):
+        """
+        Resample particles based on their weights to focus on high-probability particles.
+        """
+        indices = np.random.choice(range(self.num_particles), size=self.num_particles, p=self.weights)
+        self.particles = self.particles[indices]
+ 
+    def estimate_position(self):
+        """
+        Estimate the robot's position by calculating the weighted mean of the particles.
+        :return: Estimated position (x, y)
+        """
+        return np.average(self.particles, axis=0, weights=self.weights)
+ 
+    def plot_particles(self, estimated_position):
+        """
+        Visualize the particles and the estimated position.
+        :param estimated_position: Estimated position of the robot
+        """
+        plt.figure(figsize=(8, 8))
+        plt.scatter(self.particles[:, 0], self.particles[:, 1], color='blue', s=10, label="Particles")
+        plt.scatter(estimated_position[0], estimated_position[1], color='red', s=100, label="Estimated Position")
+        plt.xlim(0, self.map_size)
+        plt.ylim(0, self.map_size)
+        plt.title("Particle Filter - Robot Localization")
+        plt.xlabel("X Position")
+        plt.ylabel("Y Position")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+ 
+# 2. Initialize the particle filter
+map_size = 10  # 10x10 grid map
+num_particles = 1000  # Number of particles to use in the filter
+pf = ParticleFilter(map_size, num_particles)
+ 
+# 3. Simulate robot movement and localization
+robot_position = np.array([5.0, 5.0])  # True robot position (unknown to particle filter)
+velocity = np.array([0.1, 0.1])  # Constant velocity in the x and y directions
+sensor_noise = 0.1  # Sensor noise for the particle filter
+time_steps = 50
+ 
+for step in range(time_steps):
+    # Simulate true robot movement
+    robot_position += velocity  # Move robot
+    robot_position = np.clip(robot_position, 0, map_size)  # Keep robot inside map bounds
+ 
+    # Simulate sensor measurement (distance from robot to origin, with noise)
+    measurement = np.array([robot_position[0], robot_position[1]]) + np.random.randn(2) * sensor_noise
+ 
+    # Move particles and update weights based on measurement
+    pf.move_particles(velocity, 0.1)  # Move particles based on velocity
+    pf.update_weights(measurement, sensor_noise)  # Update weights based on measurement
+    pf.resample_particles()  # Resample particles to focus on high-probability locations
+ 
+    # Estimate the robot's position
+    estimated_position = pf.estimate_position()
+ 
+    # Plot the particles and estimated position
+    if step % 10 == 0:  # Plot every 10 steps
+        pf.plot_particles(estimated_position)
+Project 673: Robot Mapping System
+Description:
+A robot mapping system is essential for robots to understand their environment and create a map based on sensory data. The process of Simultaneous Localization and Mapping (SLAM) involves building a map while simultaneously determining the robot's position on that map. In this project, we will implement a basic 2D mapping system where a robot collects sensor data (e.g., distance measurements) and uses it to build a map of its surroundings. The robot will use a simple grid-based representation of the environment and move around while updating the map.
+
+🧪 Python Implementation (Robot Mapping System using Sensor Data)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Robot Mapping System class
+class RobotMappingSystem:
+    def __init__(self, grid_size=(10, 10), robot_position=(5, 5), sensor_range=3.0):
+        self.grid_size = grid_size  # Size of the map (grid size)
+        self.robot_position = np.array(robot_position)  # Initial robot position
+        self.sensor_range = sensor_range  # Range of the robot's sensor
+        self.map = np.zeros(grid_size)  # Empty map (0 = free space, 1 = obstacle)
+        self.history = []  # Store history of robot positions
+ 
+    def get_sensor_data(self):
+        """
+        Simulate sensor data by detecting obstacles within the sensor range.
+        In this case, we'll assume the robot can detect objects in a circular region around it.
+        :return: List of obstacle positions detected within the sensor range
+        """
+        obstacles = []
+        for x in range(self.grid_size[0]):
+            for y in range(self.grid_size[1]):
+                distance = np.linalg.norm(np.array([x, y]) - self.robot_position)
+                if distance <= self.sensor_range:
+                    # Mark obstacles in the map within the sensor range
+                    obstacles.append((x, y))
+        return obstacles
+ 
+    def update_map(self):
+        """
+        Update the map based on the sensor data.
+        Mark all positions within the sensor range as obstacles (1).
+        """
+        obstacles = self.get_sensor_data()
+        for x, y in obstacles:
+            self.map[x, y] = 1  # Mark the obstacle position
+ 
+    def move_robot(self, direction):
+        """
+        Move the robot in the specified direction.
+        :param direction: Direction vector for movement (dx, dy)
+        """
+        self.robot_position += direction
+        # Ensure the robot stays within the grid bounds
+        self.robot_position = np.clip(self.robot_position, [0, 0], np.array(self.grid_size) - 1)
+ 
+    def plot_map(self):
+        """
+        Plot the current map, showing the robot's position and obstacles.
+        """
+        plt.figure(figsize=(8, 8))
+        plt.imshow(self.map, cmap='binary', origin='upper')
+        plt.scatter(self.robot_position[0], self.robot_position[1], color='blue', s=100, label="Robot Position")
+        plt.legend()
+        plt.title("Robot Mapping System")
+        plt.xlabel("X Position")
+        plt.ylabel("Y Position")
+        plt.grid(True)
+        plt.show()
+ 
+# 2. Initialize the robot mapping system
+robot_mapping = RobotMappingSystem(grid_size=(10, 10), robot_position=(5, 5), sensor_range=3.0)
+ 
+# 3. Simulate robot movement and map updates
+for step in range(20):
+    direction = np.random.choice([(1, 0), (-1, 0), (0, 1), (0, -1)])  # Random movement direction (up, down, left, right)
+    robot_mapping.move_robot(direction)  # Move robot
+    robot_mapping.update_map()  # Update the map based on sensor data
+    robot_mapping.plot_map()  # Plot the updated map after each movement
+Project 674: Robot Perception System
+Description:
+A robot perception system is responsible for processing sensory data and interpreting the environment, enabling the robot to understand and act accordingly. This can include tasks like object detection, obstacle avoidance, and environment mapping. In this project, we will implement a basic robot perception system that uses a sensor array (e.g., distance sensors or a camera) to detect objects and obstacles in its environment. The system will be capable of performing object detection and making decisions based on the perceived environment.
+
+🧪 Python Implementation (Robot Perception System using Sensor Data for Obstacle Avoidance)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Robot Perception System class
+class RobotPerceptionSystem:
+    def __init__(self, grid_size=(10, 10), robot_position=(5, 5), sensor_range=3.0):
+        self.grid_size = grid_size  # Size of the environment grid
+        self.robot_position = np.array(robot_position)  # Initial position of the robot
+        self.sensor_range = sensor_range  # Range of the robot's sensor
+        self.map = np.zeros(grid_size)  # Empty environment map (0 = free space, 1 = obstacle)
+        self.history = []  # To store history of positions for visualization
+ 
+    def generate_random_obstacles(self, num_obstacles=5):
+        """
+        Randomly generate obstacles within the environment (map).
+        :param num_obstacles: Number of obstacles to generate
+        """
+        for _ in range(num_obstacles):
+            x, y = np.random.randint(0, self.grid_size[0]), np.random.randint(0, self.grid_size[1])
+            self.map[x, y] = 1  # Mark an obstacle on the map
+ 
+    def get_sensor_data(self):
+        """
+        Simulate sensor data by detecting obstacles within the sensor range.
+        :return: List of obstacle positions detected within the sensor range
+        """
+        detected_obstacles = []
+        for x in range(self.grid_size[0]):
+            for y in range(self.grid_size[1]):
+                distance = np.linalg.norm(np.array([x, y]) - self.robot_position)
+                if distance <= self.sensor_range and self.map[x, y] == 1:
+                    detected_obstacles.append((x, y))  # Detected obstacle
+        return detected_obstacles
+ 
+    def plot_perception(self, detected_obstacles):
+        """
+        Visualize the robot's perception of the environment, including obstacles.
+        :param detected_obstacles: List of detected obstacles within the sensor range
+        """
+        plt.figure(figsize=(8, 8))
+        plt.imshow(self.map, cmap='binary', origin='upper', extent=(0, self.grid_size[0], 0, self.grid_size[1]))
+        plt.scatter(self.robot_position[0], self.robot_position[1], color='blue', s=100, label="Robot Position")
+        
+        # Mark detected obstacles
+        if detected_obstacles:
+            for obs in detected_obstacles:
+                plt.scatter(obs[0], obs[1], color='red', s=100, label="Obstacle")
+ 
+        plt.legend()
+        plt.title("Robot Perception System")
+        plt.xlabel("X Position")
+        plt.ylabel("Y Position")
+        plt.grid(True)
+        plt.show()
+ 
+# 2. Initialize the robot perception system and generate obstacles
+robot_perception = RobotPerceptionSystem(grid_size=(10, 10), robot_position=(5, 5), sensor_range=3.0)
+robot_perception.generate_random_obstacles(num_obstacles=5)  # Generate 5 random obstacles
+ 
+# 3. Simulate the perception of the robot (detecting obstacles in the environment)
+detected_obstacles = robot_perception.get_sensor_data()  # Get sensor data (detected obstacles)
+ 
+# 4. Visualize the robot's perception of the environment
+robot_perception.plot_perception(detected_obstacles)
+Project 675: Robot Learning System
+Description:
+A robot learning system enables robots to improve their performance over time by learning from experience or demonstration. In this project, we will implement a simple learning system for a robot to adapt to an environment. We will use reinforcement learning (RL) to teach the robot how to navigate a grid environment and reach a target location while avoiding obstacles. The robot will use trial-and-error learning to improve its ability to navigate the environment.
+
+🧪 Python Implementation (Robot Learning System using Reinforcement Learning)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Robot Learning System class using Q-learning
+class RobotLearningSystem:
+    def __init__(self, grid_size=(5, 5), start_position=(0, 0), goal_position=(4, 4), num_episodes=1000, learning_rate=0.1, discount_factor=0.9, epsilon=0.1):
+        self.grid_size = grid_size  # Size of the grid environment
+        self.start_position = np.array(start_position)  # Initial position of the robot
+        self.goal_position = np.array(goal_position)  # Goal position
+        self.position = self.start_position  # Current position of the robot
+        self.num_episodes = num_episodes  # Number of training episodes
+        self.learning_rate = learning_rate  # Learning rate for Q-learning
+        self.discount_factor = discount_factor  # Discount factor for future rewards
+        self.epsilon = epsilon  # Exploration-exploitation tradeoff parameter
+        
+        # Initialize Q-table (action-value table)
+        self.q_table = np.zeros((grid_size[0], grid_size[1], 4))  # 4 actions: up, down, left, right
+ 
+    def get_possible_actions(self):
+        """
+        Return a list of possible actions (up, down, left, right) for the robot at the current position.
+        """
+        actions = []
+        x, y = self.position
+        if x > 0: actions.append(0)  # Up
+        if x < self.grid_size[0] - 1: actions.append(1)  # Down
+        if y > 0: actions.append(2)  # Left
+        if y < self.grid_size[1] - 1: actions.append(3)  # Right
+        return actions
+ 
+    def take_action(self, action):
+        """
+        Perform the action and update the robot's position.
+        :param action: The action to perform (0 = up, 1 = down, 2 = left, 3 = right)
+        """
+        x, y = self.position
+        if action == 0:  # Up
+            self.position = np.array([x - 1, y])
+        elif action == 1:  # Down
+            self.position = np.array([x + 1, y])
+        elif action == 2:  # Left
+            self.position = np.array([x, y - 1])
+        elif action == 3:  # Right
+            self.position = np.array([x, y + 1])
+ 
+    def get_reward(self):
+        """
+        Calculate the reward based on the robot's current position.
+        """
+        if np.array_equal(self.position, self.goal_position):
+            return 10  # Reward for reaching the goal
+        else:
+            return -1  # Penalty for each step
+ 
+    def epsilon_greedy(self):
+        """
+        Select an action using the epsilon-greedy policy.
+        :return: The chosen action
+        """
+        if np.random.rand() < self.epsilon:
+            # Exploration: Choose a random action
+            possible_actions = self.get_possible_actions()
+            return np.random.choice(possible_actions)
+        else:
+            # Exploitation: Choose the action with the highest Q-value
+            x, y = self.position
+            return np.argmax(self.q_table[x, y])  # Return the action with the max Q-value
+ 
+    def update_q_table(self, action, reward, next_position):
+        """
+        Update the Q-table using the Q-learning update rule.
+        :param action: The action that was taken
+        :param reward: The reward received after taking the action
+        :param next_position: The new position after taking the action
+        """
+        x, y = self.position
+        next_x, next_y = next_position
+        best_next_action = np.argmax(self.q_table[next_x, next_y])  # Best action in the next state
+        # Q-learning update rule
+        self.q_table[x, y, action] = self.q_table[x, y, action] + self.learning_rate * (reward + self.discount_factor * self.q_table[next_x, next_y, best_next_action] - self.q_table[x, y, action])
+ 
+    def train(self):
+        """
+        Train the robot using Q-learning.
+        """
+        for episode in range(self.num_episodes):
+            self.position = self.start_position  # Reset the robot's position at the start of each episode
+            total_reward = 0
+ 
+            while not np.array_equal(self.position, self.goal_position):  # Until the robot reaches the goal
+                action = self.epsilon_greedy()  # Select an action
+                old_position = self.position.copy()
+                self.take_action(action)  # Take the action
+                reward = self.get_reward()  # Get the reward for the action
+                total_reward += reward
+                self.update_q_table(action, reward, self.position)  # Update the Q-table
+ 
+            if episode % 100 == 0:
+                print(f"Episode {episode}/{self.num_episodes} - Total Reward: {total_reward}")
+ 
+    def plot(self):
+        """
+        Visualize the robot's learning progress on the grid.
+        """
+        plt.figure(figsize=(8, 8))
+        plt.imshow(np.zeros(self.grid_size), cmap='gray', origin='upper')
+        plt.scatter(self.goal_position[1], self.goal_position[0], color='red', s=100, label="Goal")
+        plt.scatter(self.start_position[1], self.start_position[0], color='blue', s=100, label="Start")
+ 
+        # Plot the learned path (for simplicity, we show the robot's final position)
+        plt.scatter(self.position[1], self.position[0], color='green', s=100, label="Final Position")
+        plt.legend()
+        plt.title("Robot Learning System - Q-Learning")
+        plt.xlabel("X Position")
+        plt.ylabel("Y Position")
+        plt.grid(True)
+        plt.show()
+ 
+# 2. Initialize the robot learning system and train it
+robot_learning = RobotLearningSystem(grid_size=(5, 5), start_position=(0, 0), goal_position=(4, 4))
+robot_learning.train()  # Train the robot using Q-learning
+ 
+# 3. Plot the robot's final position after training
+robot_learning.plot()
+Project 676: Embodied AI Implementation
+Description:
+Embodied AI refers to systems where artificial intelligence is integrated into physical bodies, such as robots. These systems can interact with the environment and learn from their actions, making them different from traditional AI, which operates in abstract spaces. In this project, we will implement an embodied AI system for a simple robot that can learn tasks like navigation and object manipulation. The robot will use reinforcement learning (RL) to explore its environment and improve its performance based on feedback from its interactions with the world.
+
+🧪 Python Implementation (Embodied AI for Navigation and Object Manipulation)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Embodied AI class for the robot
+class EmbodiedAI:
+    def __init__(self, grid_size=(5, 5), start_position=(0, 0), target_position=(4, 4), num_episodes=1000, learning_rate=0.1, discount_factor=0.9, epsilon=0.1):
+        self.grid_size = grid_size  # Grid size for the environment
+        self.start_position = np.array(start_position)  # Starting position of the robot
+        self.target_position = np.array(target_position)  # Target position the robot needs to reach
+        self.position = self.start_position  # Current position of the robot
+        self.num_episodes = num_episodes  # Number of training episodes
+        self.learning_rate = learning_rate  # Learning rate for Q-learning
+        self.discount_factor = discount_factor  # Discount factor for future rewards
+        self.epsilon = epsilon  # Exploration-exploitation tradeoff parameter
+        
+        # Initialize Q-table (state-action values) for Q-learning
+        self.q_table = np.zeros((grid_size[0], grid_size[1], 4))  # 4 actions: up, down, left, right
+ 
+    def get_possible_actions(self):
+        """
+        Return a list of valid actions (up, down, left, right) based on the robot's current position.
+        """
+        actions = []
+        x, y = self.position
+        if x > 0: actions.append(0)  # Up
+        if x < self.grid_size[0] - 1: actions.append(1)  # Down
+        if y > 0: actions.append(2)  # Left
+        if y < self.grid_size[1] - 1: actions.append(3)  # Right
+        return actions
+ 
+    def take_action(self, action):
+        """
+        Perform the action and update the robot's position.
+        :param action: The action to perform (0 = up, 1 = down, 2 = left, 3 = right)
+        """
+        x, y = self.position
+        if action == 0:  # Up
+            self.position = np.array([x - 1, y])
+        elif action == 1:  # Down
+            self.position = np.array([x + 1, y])
+        elif action == 2:  # Left
+            self.position = np.array([x, y - 1])
+        elif action == 3:  # Right
+            self.position = np.array([x, y + 1])
+ 
+    def get_reward(self):
+        """
+        Calculate the reward based on the robot's current position.
+        """
+        if np.array_equal(self.position, self.target_position):
+            return 10  # Reward for reaching the goal
+        else:
+            return -1  # Penalty for each step
+ 
+    def epsilon_greedy(self):
+        """
+        Select an action using the epsilon-greedy policy.
+        :return: The chosen action
+        """
+        if np.random.rand() < self.epsilon:
+            # Exploration: Choose a random action
+            possible_actions = self.get_possible_actions()
+            return np.random.choice(possible_actions)
+        else:
+            # Exploitation: Choose the action with the highest Q-value
+            x, y = self.position
+            return np.argmax(self.q_table[x, y])  # Return the action with the max Q-value
+ 
+    def update_q_table(self, action, reward, next_position):
+        """
+        Update the Q-table using the Q-learning update rule.
+        :param action: The action that was taken
+        :param reward: The reward received after taking the action
+        :param next_position: The new position after taking the action
+        """
+        x, y = self.position
+        next_x, next_y = next_position
+        best_next_action = np.argmax(self.q_table[next_x, next_y])  # Best action in the next state
+        # Q-learning update rule
+        self.q_table[x, y, action] = self.q_table[x, y, action] + self.learning_rate * (reward + self.discount_factor * self.q_table[next_x, next_y, best_next_action] - self.q_table[x, y, action])
+ 
+    def train(self):
+        """
+        Train the robot using Q-learning.
+        """
+        for episode in range(self.num_episodes):
+            self.position = self.start_position  # Reset the robot's position at the start of each episode
+            total_reward = 0
+ 
+            while not np.array_equal(self.position, self.target_position):  # Until the robot reaches the goal
+                action = self.epsilon_greedy()  # Select an action
+                old_position = self.position.copy()
+                self.take_action(action)  # Take the action
+                reward = self.get_reward()  # Get the reward for the action
+                total_reward += reward
+                self.update_q_table(action, reward, self.position)  # Update the Q-table
+ 
+            if episode % 100 == 0:
+                print(f"Episode {episode}/{self.num_episodes} - Total Reward: {total_reward}")
+ 
+    def plot(self):
+        """
+        Visualize the robot's learning progress on the grid.
+        """
+        plt.figure(figsize=(8, 8))
+        plt.imshow(np.zeros(self.grid_size), cmap='gray', origin='upper')
+        plt.scatter(self.target_position[1], self.target_position[0], color='red', s=100, label="Goal")
+        plt.scatter(self.start_position[1], self.start_position[0], color='blue', s=100, label="Start")
+ 
+        # Plot the learned path (for simplicity, we show the robot's final position)
+        plt.scatter(self.position[1], self.position[0], color='green', s=100, label="Final Position")
+        plt.legend()
+        plt.title("Embodied AI - Robot Learning System (Q-Learning)")
+        plt.xlabel("X Position")
+        plt.ylabel("Y Position")
+        plt.grid(True)
+        plt.show()
+ 
+# 2. Initialize the embodied AI system and train the robot
+robot_learning = EmbodiedAI(grid_size=(5, 5), start_position=(0, 0), target_position=(4, 4))
+robot_learning.train()  # Train the robot using Q-learning
+ 
+# 3. Plot the robot's final position after training
+robot_learning.plot()
+Project 677: Digital Twin for Robotics
+Description:
+A digital twin is a virtual representation of a physical system, in this case, a robot, that mirrors its real-world counterpart in real time. Digital twins allow for simulations, testing, and optimization of robot behavior without physical hardware. In this project, we will implement a digital twin for a simple robot that simulates its behavior and environment. The digital twin will simulate the robot's position, sensor data, and movement, which can be used for testing and optimizing the robot's control algorithms in a virtual environment.
+
+🧪 Python Implementation (Digital Twin for Robotics)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Digital Twin class
+class DigitalTwinRobot:
+    def __init__(self, initial_position=(0, 0), target_position=(5, 5), map_size=(10, 10)):
+        self.position = np.array(initial_position)  # Robot's initial position
+        self.target_position = np.array(target_position)  # Goal position
+        self.velocity = np.array([0.1, 0.1])  # Robot's initial velocity
+        self.map_size = map_size  # Size of the map (grid)
+        self.sensor_noise = 0.1  # Simulated sensor noise for measurements
+        self.history = []  # Store the history of positions for visualization
+ 
+    def move(self):
+        """
+        Simulate robot movement based on its velocity.
+        """
+        self.position += self.velocity
+        # Ensure the robot stays within the bounds of the map
+        self.position = np.clip(self.position, [0, 0], np.array(self.map_size) - 1)
+ 
+    def get_sensor_data(self):
+        """
+        Simulate sensor data (distance from robot to target with added noise).
+        :return: Simulated sensor data with noise (distance to target)
+        """
+        distance_to_target = np.linalg.norm(self.target_position - self.position)
+        noisy_measurement = distance_to_target + np.random.randn() * self.sensor_noise
+        return noisy_measurement
+ 
+    def update(self):
+        """
+        Update the robot's state (position and sensor data).
+        """
+        self.move()  # Move the robot
+        sensor_data = self.get_sensor_data()  # Get sensor data (distance to target)
+        self.history.append(self.position.copy())  # Record the position
+        return sensor_data
+ 
+    def plot(self):
+        """
+        Visualize the robot's trajectory and the digital twin behavior.
+        """
+        history_array = np.array(self.history)
+        plt.figure(figsize=(8, 8))
+        plt.plot(history_array[:, 0], history_array[:, 1], label="Robot Path", color='blue')
+        plt.scatter(self.target_position[0], self.target_position[1], color='red', s=100, label="Target Position")
+        plt.scatter(self.position[0], self.position[1], color='green', s=100, label="Current Position")
+        plt.xlim(0, self.map_size[0])
+        plt.ylim(0, self.map_size[1])
+        plt.title("Digital Twin Robot Simulation")
+        plt.xlabel("X Position")
+        plt.ylabel("Y Position")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+ 
+# 2. Initialize the digital twin robot and simulate its movement
+digital_twin = DigitalTwinRobot(initial_position=(0, 0), target_position=(8, 8), map_size=(10, 10))
+ 
+# 3. Simulate the robot's movement and sensor updates over 50 steps
+for step in range(50):
+    sensor_data = digital_twin.update()  # Update the robot's position and get sensor data
+    if step % 10 == 0:  # Plot every 10 steps
+        digital_twin.plot()  # Plot the current position and trajectory
+
+
+Project 678: Robot Simulation Environment
+Description:
+A robot simulation environment is a virtual platform that mimics the physical world where robots can be tested, trained, and optimized. The simulation allows robots to interact with obstacles, perform tasks, and learn without the need for real-world hardware. In this project, we will create a basic robot simulation environment where a robot can navigate a grid world with obstacles. The robot will use a simple navigation algorithm to move towards a goal while avoiding obstacles.
+
+🧪 Python Implementation (Robot Simulation Environment)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Robot Simulation Environment class
+class RobotSimulationEnvironment:
+    def __init__(self, grid_size=(10, 10), start_position=(0, 0), goal_position=(9, 9), num_obstacles=10):
+        self.grid_size = grid_size  # Size of the environment grid
+        self.start_position = np.array(start_position)  # Initial robot position
+        self.goal_position = np.array(goal_position)  # Goal position
+        self.robot_position = self.start_position  # Robot's current position
+        self.num_obstacles = num_obstacles  # Number of obstacles in the environment
+        self.grid = np.zeros(grid_size)  # Empty grid (0 = free space, 1 = obstacle)
+        self.generate_obstacles()  # Generate obstacles in the grid
+        self.history = []  # To store the history of robot positions for visualization
+ 
+    def generate_obstacles(self):
+        """
+        Randomly generate obstacles in the grid.
+        """
+        for _ in range(self.num_obstacles):
+            x, y = np.random.randint(0, self.grid_size[0]), np.random.randint(0, self.grid_size[1])
+            # Avoid placing obstacles on the start or goal positions
+            if (x, y) != tuple(self.start_position) and (x, y) != tuple(self.goal_position):
+                self.grid[x, y] = 1  # Mark the position as an obstacle
+ 
+    def move_robot(self, direction):
+        """
+        Move the robot in the specified direction, considering obstacles and boundaries.
+        :param direction: Direction to move the robot (up, down, left, right)
+        """
+        x, y = self.robot_position
+        if direction == 'up' and x > 0 and self.grid[x - 1, y] != 1:
+            self.robot_position = np.array([x - 1, y])
+        elif direction == 'down' and x < self.grid_size[0] - 1 and self.grid[x + 1, y] != 1:
+            self.robot_position = np.array([x + 1, y])
+        elif direction == 'left' and y > 0 and self.grid[x, y - 1] != 1:
+            self.robot_position = np.array([x, y - 1])
+        elif direction == 'right' and y < self.grid_size[1] - 1 and self.grid[x, y + 1] != 1:
+            self.robot_position = np.array([x, y + 1])
+ 
+    def plot_environment(self):
+        """
+        Visualize the simulation environment, including obstacles and robot position.
+        """
+        plt.figure(figsize=(8, 8))
+        plt.imshow(self.grid, cmap='binary', origin='upper')  # Plot grid with obstacles
+        plt.scatter(self.goal_position[1], self.goal_position[0], color='green', s=100, label="Goal Position")
+        plt.scatter(self.robot_position[1], self.robot_position[0], color='blue', s=100, label="Robot Position")
+        plt.xlim(0, self.grid_size[0])
+        plt.ylim(0, self.grid_size[1])
+        plt.title("Robot Simulation Environment")
+        plt.xlabel("X Position")
+        plt.ylabel("Y Position")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+ 
+    def simulate_navigation(self):
+        """
+        Simulate robot navigation to reach the goal.
+        The robot will try to move toward the goal while avoiding obstacles.
+        """
+        directions = ['up', 'down', 'left', 'right']
+        
+        # Simulate robot movement until it reaches the goal
+        while not np.array_equal(self.robot_position, self.goal_position):
+            # Naive approach: Move towards the goal (simple strategy for demo purposes)
+            if self.robot_position[0] < self.goal_position[0]:
+                direction = 'down'
+            elif self.robot_position[0] > self.goal_position[0]:
+                direction = 'up'
+            elif self.robot_position[1] < self.goal_position[1]:
+                direction = 'right'
+            else:
+                direction = 'left'
+            
+            # Move the robot in the chosen direction
+            self.move_robot(direction)
+            self.history.append(self.robot_position.copy())  # Store the robot's position
+ 
+            # Plot the environment every 10 steps
+            if len(self.history) % 10 == 0:
+                self.plot_environment()
+ 
+# 2. Initialize the robot simulation environment
+robot_simulation = RobotSimulationEnvironment(grid_size=(10, 10), start_position=(0, 0), goal_position=(9, 9), num_obstacles=15)
+ 
+# 3. Simulate the robot navigation to reach the goal
+robot_simulation.simulate_navigation()
+Project 679: Sim-to-Real Transfer for Robotics
+Description:
+Sim-to-real transfer refers to the process of transferring a robot's learned behavior from a simulated environment to the real world. A key challenge in robotics is that models trained in simulation often do not perform well when deployed in real-world environments due to discrepancies between the simulation and reality (known as the reality gap). In this project, we will simulate a robot's movement in a controlled environment and then attempt to "transfer" this behavior to a real-world-like setup by applying simple adjustments to handle discrepancies, such as friction or noise.
+
+🧪 Python Implementation (Sim-to-Real Transfer Simulation for Robotics)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Robot class with Sim-to-Real Transfer capabilities
+class SimToRealRobot:
+    def __init__(self, grid_size=(10, 10), start_position=(0, 0), goal_position=(9, 9)):
+        self.grid_size = grid_size  # Size of the grid environment
+        self.position = np.array(start_position)  # Initial position of the robot
+        self.goal_position = np.array(goal_position)  # Goal position
+        self.velocity = np.array([0.1, 0.1])  # Initial velocity (x, y)
+        self.simulation_noise = 0.05  # Noise added to simulation behavior (sim-to-real gap)
+ 
+    def move_robot(self):
+        """
+        Move the robot towards the goal with some added noise for sim-to-real transfer.
+        Simulating the discrepancy between the simulated environment and real-world conditions.
+        """
+        direction = self.goal_position - self.position
+        distance = np.linalg.norm(direction)
+ 
+        if distance > 0:
+            # Normalize the direction vector
+            direction = direction / distance
+            noise = np.random.randn(2) * self.simulation_noise  # Simulate real-world noise
+            self.position += (direction * self.velocity + noise)  # Move robot with noise
+ 
+    def plot_environment(self):
+        """
+        Visualize the robot's position and the target position.
+        """
+        plt.figure(figsize=(8, 8))
+        plt.scatter(self.position[0], self.position[1], color='blue', s=100, label="Robot Position")
+        plt.scatter(self.goal_position[0], self.goal_position[1], color='red', s=100, label="Goal Position")
+        plt.xlim(0, self.grid_size[0])
+        plt.ylim(0, self.grid_size[1])
+        plt.title("Sim-to-Real Transfer: Robot Navigation")
+        plt.xlabel("X Position")
+        plt.ylabel("Y Position")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+ 
+    def simulate_navigation(self):
+        """
+        Simulate robot navigation with the Sim-to-Real Transfer approach.
+        The robot will attempt to navigate toward the goal while considering the real-world noise.
+        """
+        while np.linalg.norm(self.position - self.goal_position) > 0.1:  # Stop when close to goal
+            self.move_robot()
+            self.plot_environment()  # Visualize the robot's position during navigation
+ 
+# 2. Initialize the Sim-to-Real robot
+robot_sim_to_real = SimToRealRobot(grid_size=(10, 10), start_position=(0, 0), goal_position=(9, 9))
+ 
+# 3. Simulate the robot navigation with noise to mimic the real-world discrepancy
+robot_sim_to_real.simulate_navigation()
+Project 680: Safety-Critical Control Systems for Robotics
+Description:
+Safety-critical control systems are essential in robotics, particularly for systems that operate in environments where failures could result in significant harm, such as autonomous vehicles, industrial robots, or medical robots. In this project, we will implement a safety-critical control system for a robot that incorporates safety mechanisms, such as emergency stop or collision avoidance. The robot will move towards a target while continuously checking for safety constraints (e.g., obstacles or out-of-bound conditions) and applying safety measures when necessary.
+
+🧪 Python Implementation (Safety-Critical Control System for a Robot)
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Safety-Critical Robot class
+class SafetyCriticalRobot:
+    def __init__(self, grid_size=(10, 10), start_position=(0, 0), goal_position=(9, 9), safety_radius=1.0):
+        self.grid_size = grid_size  # Size of the grid environment
+        self.position = np.array(start_position)  # Initial robot position
+        self.goal_position = np.array(goal_position)  # Goal position
+        self.safety_radius = safety_radius  # Safety radius to avoid obstacles or boundaries
+        self.velocity = np.array([0.1, 0.1])  # Initial velocity (x, y)
+        self.obstacles = self.generate_obstacles()  # Generate obstacles
+        self.history = []  # To store the history of robot positions for visualization
+ 
+    def generate_obstacles(self):
+        """
+        Randomly generate obstacles within the grid that the robot must avoid.
+        :return: List of obstacle positions
+        """
+        obstacles = []
+        for _ in range(5):
+            x, y = np.random.randint(0, self.grid_size[0]), np.random.randint(0, self.grid_size[1])
+            obstacles.append(np.array([x, y]))
+        return obstacles
+ 
+    def check_safety(self):
+        """
+        Check if the robot is within a safety radius of any obstacles or boundaries.
+        :return: True if the robot is in a dangerous position, False otherwise
+        """
+        # Check proximity to obstacles
+        for obstacle in self.obstacles:
+            if np.linalg.norm(self.position - obstacle) < self.safety_radius:
+                return True  # Robot is too close to an obstacle
+ 
+        # Check proximity to grid boundaries
+        if np.any(self.position < 0) or np.any(self.position >= self.grid_size):
+            return True  # Robot is out of bounds
+ 
+        return False
+ 
+    def move(self):
+        """
+        Move the robot towards the goal with safety checks.
+        If the robot is too close to an obstacle or boundary, it stops or changes direction.
+        """
+        if self.check_safety():
+            print("Safety alert! Robot is too close to an obstacle or boundary. Stopping.")
+            return  # Stop if the robot is too close to an obstacle or out of bounds
+ 
+        # Simple movement towards the goal
+        direction = self.goal_position - self.position
+        distance = np.linalg.norm(direction)
+ 
+        if distance > 0:
+            # Normalize the direction vector
+            direction = direction / distance
+            self.position += direction * self.velocity  # Move robot
+ 
+    def plot_environment(self):
+        """
+        Visualize the environment, including obstacles, robot position, and goal.
+        """
+        plt.figure(figsize=(8, 8))
+        plt.scatter(self.goal_position[0], self.goal_position[1], color='red', s=100, label="Goal Position")
+        plt.scatter(self.position[0], self.position[1], color='blue', s=100, label="Robot Position")
+ 
+        # Plot obstacles
+        for obstacle in self.obstacles:
+            plt.scatter(obstacle[0], obstacle[1], color='black', s=100, label="Obstacle")
+ 
+        plt.xlim(0, self.grid_size[0])
+        plt.ylim(0, self.grid_size[1])
+        plt.title("Safety-Critical Robot Control System")
+        plt.xlabel("X Position")
+        plt.ylabel("Y Position")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+ 
+    def navigate(self):
+        """
+        Simulate the robot navigating the environment with safety constraints.
+        """
+        while np.linalg.norm(self.position - self.goal_position) > 0.1:  # Until the robot reaches the goal
+            self.move()  # Move the robot
+            self.plot_environment()  # Visualize the robot's movement
+ 
+# 2. Initialize the safety-critical robot
+robot_safety = SafetyCriticalRobot(grid_size=(10, 10), start_position=(0, 0), goal_position=(9, 9), safety_radius=1.0)
+ 
+# 3. Simulate the robot navigation with safety-critical control
+robot_safety.navigate()
