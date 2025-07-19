@@ -1,0 +1,4071 @@
+
+Project 601: Multi-agent Reinforcement Learning
+Description:
+Multi-agent reinforcement learning (MARL) deals with scenarios where multiple agents interact in a shared environment. These agents may cooperate, compete, or be independent. In this project, we will explore multi-agent reinforcement learning and build a basic simulation where multiple agents learn and interact using reinforcement learning algorithms.
+
+🧪 Python Implementation (Multi-agent Reinforcement Learning using OpenAI Gym)
+import gym
+import numpy as np
+import random
+ 
+# 1. Create a custom multi-agent environment using OpenAI Gym (e.g., multi-agent grid world)
+class MultiAgentGridWorld(gym.Env):
+    def __init__(self):
+        super(MultiAgentGridWorld, self).__init__()
+        self.grid_size = 5
+        self.num_agents = 2
+        self.action_space = gym.spaces.Discrete(4)  # 4 actions: up, down, left, right
+        self.observation_space = gym.spaces.Discrete(self.grid_size * self.grid_size)
+ 
+        self.agent_positions = [np.array([0, 0]), np.array([4, 4])]  # Initial positions for 2 agents
+        self.goal_position = np.array([2, 2])  # Goal position in the grid
+ 
+    def reset(self):
+        self.agent_positions = [np.array([0, 0]), np.array([4, 4])]  # Reset agents to initial positions
+        return self.agent_positions
+ 
+    def step(self, actions):
+        rewards = []
+        for i, action in enumerate(actions):
+            # Move agent based on the action
+            if action == 0:  # Up
+                self.agent_positions[i][1] += 1
+            elif action == 1:  # Down
+                self.agent_positions[i][1] -= 1
+            elif action == 2:  # Left
+                self.agent_positions[i][0] -= 1
+            elif action == 3:  # Right
+                self.agent_positions[i][0] += 1
+ 
+            # Clip positions to stay within grid bounds
+            self.agent_positions[i] = np.clip(self.agent_positions[i], 0, self.grid_size - 1)
+ 
+            # Reward if agent reaches the goal
+            if np.array_equal(self.agent_positions[i], self.goal_position):
+                rewards.append(1)  # Goal reached
+            else:
+                rewards.append(0)  # No reward for not reaching goal
+ 
+        done = all(np.array_equal(pos, self.goal_position) for pos in self.agent_positions)
+        return self.agent_positions, rewards, done, {}
+ 
+# 2. Create an environment
+env = MultiAgentGridWorld()
+ 
+# 3. Train multiple agents using Q-learning (for simplicity, we use a basic Q-learning algorithm for both agents)
+q_tables = [np.zeros((env.grid_size * env.grid_size, env.action_space.n)) for _ in range(env.num_agents)]
+ 
+# Hyperparameters
+alpha = 0.1  # Learning rate
+gamma = 0.9  # Discount factor
+epsilon = 0.1  # Exploration rate
+ 
+# 4. Training loop
+for episode in range(1000):
+    states = env.reset()  # Reset the environment
+    done = False
+    total_rewards = [0, 0]
+ 
+    while not done:
+        actions = []
+        for i in range(env.num_agents):
+            state = states[i][0] * env.grid_size + states[i][1]  # Convert (x, y) to state index
+            if random.uniform(0, 1) < epsilon:  # Exploration
+                action = env.action_space.sample()
+            else:  # Exploitation
+                action = np.argmax(q_tables[i][state])
+ 
+            actions.append(action)
+ 
+        next_states, rewards, done, _ = env.step(actions)
+ 
+        # Update Q-values using Q-learning formula
+        for i in range(env.num_agents):
+            state = states[i][0] * env.grid_size + states[i][1]
+            next_state = next_states[i][0] * env.grid_size + next_states[i][1]
+            q_tables[i][state, actions[i]] += alpha * (rewards[i] + gamma * np.max(q_tables[i][next_state]) - q_tables[i][state, actions[i]])
+ 
+        total_rewards = [total_rewards[i] + rewards[i] for i in range(env.num_agents)]
+        states = next_states
+ 
+    # Print episode info
+    if episode % 100 == 0:
+        print(f"Episode {episode}: Total Rewards for Agents: {total_rewards}")
+ 
+Project 602: Hierarchical Reinforcement Learning
+Description:
+Hierarchical reinforcement learning (HRL) involves breaking down a complex task into simpler sub-tasks or hierarchies. This approach is designed to solve tasks more efficiently by training agents to complete sub-tasks and then combine them to achieve the overall goal. In this project, we will implement HRL using a two-level architecture: one level for high-level decisions and another for low-level actions.
+
+🧪 Python Implementation (Hierarchical Reinforcement Learning using H-DQN)
+import torch
+import torch.nn as nn
+import numpy as np
+import random
+import gym
+ 
+# 1. Define a simple environment for HRL (e.g., CartPole)
+env = gym.make('CartPole-v1')
+ 
+# 2. High-level policy model (select sub-tasks)
+class HighLevelPolicy(nn.Module):
+    def __init__(self):
+        super(HighLevelPolicy, self).__init__()
+        self.fc1 = nn.Linear(4, 64)  # Input: CartPole state (4 dimensions)
+        self.fc2 = nn.Linear(64, 2)  # Output: 2 possible high-level tasks (e.g., move left or right)
+    
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+ 
+# 3. Low-level policy model (perform actions based on high-level task)
+class LowLevelPolicy(nn.Module):
+    def __init__(self):
+        super(LowLevelPolicy, self).__init__()
+        self.fc1 = nn.Linear(4, 64)  # Input: CartPole state (4 dimensions)
+        self.fc2 = nn.Linear(64, 2)  # Output: 2 possible low-level actions (left or right)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+ 
+# 4. Instantiate models
+high_level_policy = HighLevelPolicy()
+low_level_policy = LowLevelPolicy()
+ 
+# 5. Define optimizer and loss function
+optimizer_high = torch.optim.Adam(high_level_policy.parameters(), lr=0.001)
+optimizer_low = torch.optim.Adam(low_level_policy.parameters(), lr=0.001)
+criterion = nn.MSELoss()
+ 
+# 6. Training loop (HRL)
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()[0]  # Get the initial state from the environment
+    done = False
+    total_reward = 0
+ 
+    while not done:
+        # High-level decision making (select a sub-task)
+        high_level_action_probs = high_level_policy(torch.tensor(state, dtype=torch.float32))
+        high_level_action = torch.argmax(high_level_action_probs).item()
+ 
+        # Low-level decision making (based on high-level task)
+        low_level_action_probs = low_level_policy(torch.tensor(state, dtype=torch.float32))
+        low_level_action = torch.argmax(low_level_action_probs).item()
+ 
+        # Perform the action in the environment
+        next_state, reward, done, _, _ = env.step(low_level_action)
+ 
+        # Calculate the loss for both high-level and low-level policies
+        loss_high = criterion(high_level_action_probs, torch.tensor([high_level_action], dtype=torch.float32))
+        loss_low = criterion(low_level_action_probs, torch.tensor([low_level_action], dtype=torch.float32))
+ 
+        # Update the models
+        optimizer_high.zero_grad()
+        loss_high.backward()
+        optimizer_high.step()
+ 
+        optimizer_low.zero_grad()
+        loss_low.backward()
+        optimizer_low.step()
+ 
+        total_reward += reward
+        state = next_state
+ 
+    # Print out results every 100 episodes
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}")
+ 
+Project 603: Meta-reinforcement Learning
+Description:
+Meta-reinforcement learning (Meta-RL) is the task of learning how to learn. The idea is to train an agent that can adapt to new tasks or environments with minimal data by leveraging its previous experiences. In this project, we will implement a Meta-RL algorithm, such as MAML (Model-Agnostic Meta-Learning), that allows the agent to quickly adapt to new tasks.
+
+🧪 Python Implementation (Meta-reinforcement Learning using MAML)
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+import gym
+ 
+# 1. Define a simple neural network for the agent's policy
+class MLP(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(MLP, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)
+ 
+# 2. Define the MAML algorithm
+class MAML:
+    def __init__(self, model, lr=0.001, meta_lr=0.01, n_inner_steps=5):
+        self.model = model
+        self.lr = lr  # Inner loop learning rate
+        self.meta_lr = meta_lr  # Outer loop learning rate
+        self.n_inner_steps = n_inner_steps  # Number of gradient steps in the inner loop
+        self.optimizer = optim.Adam(model.parameters(), lr=meta_lr)
+ 
+    def adapt(self, task, num_steps=5):
+        # Adapt the model to a specific task using a few gradient steps
+        adapted_model = MLP(input_size=task.observation_space.shape[0], output_size=task.action_space.n)
+        adapted_model.load_state_dict(self.model.state_dict())
+        
+        optimizer = optim.Adam(adapted_model.parameters(), lr=self.lr)
+        
+        for _ in range(num_steps):
+            state = task.reset()
+            done = False
+            total_reward = 0
+            
+            while not done:
+                action = torch.argmax(adapted_model(torch.tensor(state, dtype=torch.float32)))
+                next_state, reward, done, _ = task.step(action.item())
+                total_reward += reward
+                
+                loss = -reward  # Maximize reward (simple approach)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                
+                state = next_state
+                
+        return adapted_model, total_reward
+ 
+    def meta_update(self, task, num_steps=5):
+        # Meta-update the model based on experiences from multiple tasks
+        total_loss = 0
+        
+        for _ in range(num_steps):
+            adapted_model, total_reward = self.adapt(task)
+            loss = -total_reward  # Negative reward as loss to maximize reward
+            total_loss += loss
+            
+        self.optimizer.zero_grad()
+        total_loss.backward()
+        self.optimizer.step()
+ 
+# 3. Define a simple environment for testing (e.g., CartPole)
+env = gym.make('CartPole-v1')
+ 
+# 4. Initialize the model and MAML algorithm
+model = MLP(input_size=env.observation_space.shape[0], output_size=env.action_space.n)
+maml = MAML(model)
+ 
+# 5. Train the model using MAML
+num_meta_epochs = 1000
+for epoch in range(num_meta_epochs):
+    task = env
+    maml.meta_update(task)
+    
+    if epoch % 100 == 0:
+        print(f"Meta-epoch {epoch} completed.")
+Project 604: Transfer Reinforcement Learning
+Description:
+Transfer reinforcement learning (TRL) involves transferring knowledge learned from one task (source task) to improve the learning process in a different but related task (target task). The goal is to help the agent generalize knowledge across tasks without starting from scratch each time. In this project, we will explore how to apply transfer learning in reinforcement learning using pre-trained policies or value functions to speed up the learning process in a new environment.
+
+🧪 Python Implementation (Transfer Reinforcement Learning using Q-Learning)
+import numpy as np
+import gym
+ 
+# 1. Define a simple Q-learning agent
+class QLearningAgent:
+    def __init__(self, action_space, learning_rate=0.1, discount_factor=0.99, exploration_rate=1.0, exploration_decay=0.995):
+        self.action_space = action_space
+        self.learning_rate = learning_rate
+        self.discount_factor = discount_factor
+        self.exploration_rate = exploration_rate
+        self.exploration_decay = exploration_decay
+        self.q_table = {}  # Q-table to store state-action values
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.exploration_rate:
+            return np.random.choice(self.action_space)
+        else:
+            return np.argmax(self.q_table.get(state, np.zeros(len(self.action_space))))
+ 
+    def update_q_value(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        best_next_action = np.argmax(self.q_table.get(next_state, np.zeros(len(self.action_space))))
+        current_q_value = self.q_table.get(state, np.zeros(len(self.action_space)))[action]
+        new_q_value = current_q_value + self.learning_rate * (reward + self.discount_factor * self.q_table.get(next_state, np.zeros(len(self.action_space)))[best_next_action] - current_q_value)
+ 
+        # Update Q-table
+        self.q_table.setdefault(state, np.zeros(len(self.action_space)))[action] = new_q_value
+ 
+        # Decay exploration rate
+        if done:
+            self.exploration_rate *= self.exploration_decay
+ 
+# 2. Transfer learning in Q-learning: Transfer Q-values from source task to target task
+def transfer_learning(source_agent, target_agent):
+    # Transfer Q-table from source agent to target agent
+    target_agent.q_table = source_agent.q_table.copy()
+ 
+# 3. Training process on source task (CartPole-v1)
+source_env = gym.make('CartPole-v1')
+source_agent = QLearningAgent(action_space=source_env.action_space.n)
+ 
+# Train the source agent
+for episode in range(1000):
+    state = source_env.reset()
+    done = False
+    total_reward = 0
+    
+    while not done:
+        action = source_agent.select_action(state)
+        next_state, reward, done, _ = source_env.step(action)
+        source_agent.update_q_value(state, action, reward, next_state, done)
+        state = next_state
+        total_reward += reward
+    
+    if episode % 100 == 0:
+        print(f"Source Task Episode {episode}, Total Reward: {total_reward}")
+ 
+# 4. Transfer the knowledge to a new task (MountainCar-v0)
+target_env = gym.make('MountainCar-v0')
+target_agent = QLearningAgent(action_space=target_env.action_space.n)
+ 
+# Transfer Q-values from source agent to target agent
+transfer_learning(source_agent, target_agent)
+ 
+# Train the target agent using transferred knowledge
+for episode in range(1000):
+    state = target_env.reset()
+    done = False
+    total_reward = 0
+    
+    while not done:
+        action = target_agent.select_action(state)
+        next_state, reward, done, _ = target_env.step(action)
+        target_agent.update_q_value(state, action, reward, next_state, done)
+        state = next_state
+        total_reward += reward
+    
+    if episode % 100 == 0:
+        print(f"Target Task Episode {episode}, Total Reward: {total_reward}")
+Project 605: Offline Reinforcement Learning
+Description:
+Offline reinforcement learning (also known as batch RL) is the process of learning from a fixed dataset of interactions with the environment, without any further interaction during the training process. This is particularly useful when online learning is costly or impractical. In this project, we will implement offline RL using a pre-collected dataset of state-action-reward transitions to train an agent.
+
+🧪 Python Implementation (Offline Reinforcement Learning using Q-Learning)
+import numpy as np
+import gym
+import random
+ 
+# 1. Define a simple Q-learning agent for offline reinforcement learning
+class OfflineQLearningAgent:
+    def __init__(self, action_space, learning_rate=0.1, discount_factor=0.99, exploration_rate=0.1):
+        self.action_space = action_space
+        self.learning_rate = learning_rate
+        self.discount_factor = discount_factor
+        self.exploration_rate = exploration_rate
+        self.q_table = {}
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection (offline, no exploration)
+        if np.random.rand() < self.exploration_rate:
+            return np.random.choice(self.action_space)
+        else:
+            return np.argmax(self.q_table.get(state, np.zeros(len(self.action_space))))
+ 
+    def update_q_value(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        best_next_action = np.argmax(self.q_table.get(next_state, np.zeros(len(self.action_space))))
+        current_q_value = self.q_table.get(state, np.zeros(len(self.action_space)))[action]
+        new_q_value = current_q_value + self.learning_rate * (reward + self.discount_factor * self.q_table.get(next_state, np.zeros(len(self.action_space)))[best_next_action] - current_q_value)
+ 
+        # Update Q-table
+        self.q_table.setdefault(state, np.zeros(len(self.action_space)))[action] = new_q_value
+ 
+# 2. Simulate offline data collection (generate a fixed dataset from interacting with the environment)
+env = gym.make('CartPole-v1')
+ 
+# Offline data collection (simulating the environment's interactions)
+offline_data = []
+for episode in range(100):  # Collect data for 100 episodes
+    state = env.reset()
+    done = False
+    while not done:
+        action = env.action_space.sample()  # Take a random action for exploration
+        next_state, reward, done, _ = env.step(action)
+        offline_data.append((state, action, reward, next_state, done))
+        state = next_state
+ 
+# 3. Create an offline RL agent
+offline_agent = OfflineQLearningAgent(action_space=env.action_space.n)
+ 
+# 4. Train the offline agent on the collected data (no interaction with the environment during training)
+for episode in range(100):  # Train for 100 episodes
+    random.shuffle(offline_data)  # Shuffle the offline data to avoid bias
+    total_reward = 0
+    for state, action, reward, next_state, done in offline_data:
+        offline_agent.update_q_value(state, action, reward, next_state, done)
+        total_reward += reward
+    
+    print(f"Offline RL Episode {episode + 1}, Total Reward: {total_reward}")
+ 
+# 5. Evaluate the performance of the offline agent (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = offline_agent.select_action(state)
+    next_state, reward, done, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward for the offline agent in evaluation: {total_reward}")
+Project 606: Imitation Learning from Demonstrations
+Description:
+Imitation learning (or learning from demonstrations) involves training an agent to mimic the behavior of an expert agent by observing its actions. Instead of learning solely from rewards, the agent learns by trying to replicate the actions of a demonstrator in a given environment. In this project, we will implement imitation learning where an agent learns from expert demonstrations.
+
+🧪 Python Implementation (Imitation Learning using Behavioral Cloning)
+import numpy as np
+import gym
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import matplotlib.pyplot as plt
+ 
+# 1. Define the behavioral cloning model (simple neural network)
+class BehavioralCloningModel(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(BehavioralCloningModel, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: Action space size
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)
+ 
+# 2. Define the imitation learning agent
+class ImitationLearningAgent:
+    def __init__(self, model, learning_rate=0.001):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.criterion = nn.CrossEntropyLoss()
+ 
+    def train(self, states, actions):
+        self.model.train()
+        self.optimizer.zero_grad()
+        # Forward pass
+        predictions = self.model(states)
+        # Compute loss
+        loss = self.criterion(predictions, actions)
+        # Backpropagation
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
+ 
+    def select_action(self, state):
+        self.model.eval()
+        with torch.no_grad():
+            action_probs = self.model(state)
+        action = torch.argmax(action_probs, dim=-1)
+        return action.item()
+ 
+# 3. Load the environment and the expert's demonstration
+env = gym.make('CartPole-v1')
+ 
+# Expert agent demonstrations (for simplicity, we'll use random actions)
+expert_data = []
+for episode in range(100):  # Collect data from 100 episodes
+    state = env.reset()
+    done = False
+    while not done:
+        action = env.action_space.sample()  # Expert's action (random in this case)
+        next_state, reward, done, _ = env.step(action)
+        expert_data.append((state, action))
+        state = next_state
+ 
+# Convert expert data to arrays
+expert_states = torch.tensor([data[0] for data in expert_data], dtype=torch.float32)
+expert_actions = torch.tensor([data[1] for data in expert_data], dtype=torch.long)
+ 
+# 4. Initialize the behavioral cloning model
+model = BehavioralCloningModel(input_size=env.observation_space.shape[0], output_size=env.action_space.n)
+agent = ImitationLearningAgent(model)
+ 
+# 5. Train the agent on expert data (behavioral cloning)
+num_epochs = 50
+for epoch in range(num_epochs):
+    loss = agent.train(expert_states, expert_actions)
+    print(f"Epoch {epoch + 1}, Loss: {loss}")
+ 
+# 6. Evaluate the trained agent (imitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(torch.tensor(state, dtype=torch.float32))
+    next_state, reward, done, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after imitation learning: {total_reward}")
+Project 607: Inverse Reinforcement Learning
+Description:
+Inverse Reinforcement Learning (IRL) involves inferring the reward function from observed behavior. Instead of learning the policy directly from the environment, an agent learns what reward function would make the observed behavior optimal. This is useful in applications where the reward function is hard to define but expert demonstrations are available. In this project, we will implement IRL using a simple framework to infer the reward function from expert trajectories.
+
+🧪 Python Implementation (Inverse Reinforcement Learning using Maximum Entropy IRL)
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import gym
+ 
+# 1. Define a simple MLP to represent the reward function
+class RewardModel(nn.Module):
+    def __init__(self, input_size):
+        super(RewardModel, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 1)  # Output a single scalar (reward)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        return self.fc2(x)
+ 
+# 2. Define the IRL agent
+class IRLAgent:
+    def __init__(self, reward_model, learning_rate=0.001):
+        self.reward_model = reward_model
+        self.optimizer = optim.Adam(reward_model.parameters(), lr=learning_rate)
+ 
+    def train(self, trajectories, expert_rewards):
+        self.reward_model.train()
+        total_loss = 0
+ 
+        # Process the expert trajectories and rewards
+        for trajectory, reward in zip(trajectories, expert_rewards):
+            states, actions = zip(*trajectory)
+            states = torch.tensor(states, dtype=torch.float32)
+ 
+            # Get reward prediction from the model
+            predicted_rewards = self.reward_model(states)
+            loss = ((predicted_rewards - reward) ** 2).mean()  # MSE loss
+            total_loss += loss.item()
+ 
+            # Backpropagation
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+ 
+        return total_loss
+ 
+# 3. Load the environment and expert demonstrations
+env = gym.make('CartPole-v1')
+ 
+# Expert agent demonstrations (random behavior for simplicity)
+expert_trajectories = []
+expert_rewards = []
+ 
+for episode in range(10):  # Collect data from 10 episodes
+    state = env.reset()
+    done = False
+    trajectory = []
+    total_reward = 0
+    while not done:
+        action = env.action_space.sample()  # Expert's random action
+        next_state, reward, done, _, _ = env.step(action)
+        trajectory.append((state, action))
+        total_reward += reward
+        state = next_state
+    expert_trajectories.append(trajectory)
+    expert_rewards.append(total_reward)
+ 
+# 4. Initialize the reward model and IRL agent
+reward_model = RewardModel(input_size=env.observation_space.shape[0])
+irl_agent = IRLAgent(reward_model)
+ 
+# 5. Train the IRL agent
+num_epochs = 100
+for epoch in range(num_epochs):
+    loss = irl_agent.train(expert_trajectories, expert_rewards)
+    print(f"Epoch {epoch+1}, Loss: {loss}")
+ 
+# 6. Evaluate the learned reward function
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    state_tensor = torch.tensor(state, dtype=torch.float32)
+    reward = reward_model(state_tensor).item()  # Get predicted reward
+    action = env.action_space.sample()  # Take random action (for simplicity)
+    next_state, _, done, _, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after IRL: {total_reward}")
+Project 608: Self-supervised Reinforcement Learning
+Description:
+Self-supervised reinforcement learning is a technique where the agent learns to predict parts of the environment’s state or action space as a supervisory signal, without explicit human-provided rewards or labeled data. Instead of relying entirely on external rewards, the agent can learn useful representations and skills from the environment through self-generated tasks, such as predicting the next state or the consequences of actions. In this project, we will implement self-supervised learning for reinforcement learning tasks.
+
+🧪 Python Implementation (Self-supervised Reinforcement Learning using Predictive Learning)
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+import gym
+ 
+# 1. Define a simple neural network model for self-supervised learning
+class PredictiveModel(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(PredictiveModel, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Predict the next state or future state
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)
+ 
+# 2. Define the self-supervised reinforcement learning agent
+class SelfSupervisedRLAgent:
+    def __init__(self, model, learning_rate=0.001):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.criterion = nn.MSELoss()
+ 
+    def train(self, states, next_states):
+        self.model.train()
+        self.optimizer.zero_grad()
+ 
+        # Predict the next state using the current state
+        predicted_next_state = self.model(states)
+ 
+        # Calculate the loss between the predicted next state and the actual next state
+        loss = self.criterion(predicted_next_state, next_states)
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
+ 
+    def predict_next_state(self, state):
+        self.model.eval()
+        with torch.no_grad():
+            return self.model(state)
+ 
+# 3. Load the environment
+env = gym.make('CartPole-v1')
+ 
+# 4. Initialize the predictive model and self-supervised RL agent
+model = PredictiveModel(input_size=env.observation_space.shape[0], output_size=env.observation_space.shape[0])
+agent = SelfSupervisedRLAgent(model)
+ 
+# 5. Collect data from the environment to simulate self-supervised learning
+num_episodes = 100
+for episode in range(num_episodes):
+    state = env.reset()
+    state = torch.tensor(state, dtype=torch.float32)
+    done = False
+    total_reward = 0
+    states = []
+    next_states = []
+ 
+    while not done:
+        # Simulate agent interaction with the environment
+        action = env.action_space.sample()  # Random action for exploration
+        next_state, reward, done, _, _ = env.step(action)
+ 
+        states.append(state)  # Store current state
+        next_states.append(torch.tensor(next_state, dtype=torch.float32))  # Store next state
+ 
+        state = torch.tensor(next_state, dtype=torch.float32)
+        total_reward += reward
+ 
+    # 6. Train the agent using self-supervised learning
+    states = torch.stack(states)
+    next_states = torch.stack(next_states)
+    loss = agent.train(states, next_states)
+ 
+    if episode % 10 == 0:
+        print(f"Episode {episode}, Loss: {loss:.4f}, Total Reward: {total_reward}")
+ 
+# 7. Evaluate the model's prediction
+state = env.reset()
+state = torch.tensor(state, dtype=torch.float32)
+predicted_next_state = agent.predict_next_state(state)
+ 
+print(f"Predicted next state: {predicted_next_state}")
+Project 609: Model-based Reinforcement Learning
+Description:
+Model-based reinforcement learning (MBRL) involves learning a model of the environment's dynamics (i.e., how the state evolves when actions are taken). Instead of relying solely on trial and error, the agent can plan ahead by using this learned model to predict future states and rewards. In this project, we will implement MBRL by learning a dynamics model of the environment and using it to plan actions.
+
+🧪 Python Implementation (Model-based Reinforcement Learning using a Learned Dynamics Model)
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+import gym
+ 
+# 1. Define a simple neural network model to predict the next state
+class DynamicsModel(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(DynamicsModel, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: Predicted next state
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)
+ 
+# 2. Define the model-based reinforcement learning agent
+class ModelBasedRLAgent:
+    def __init__(self, dynamics_model, learning_rate=0.001):
+        self.dynamics_model = dynamics_model
+        self.optimizer = optim.Adam(dynamics_model.parameters(), lr=learning_rate)
+        self.criterion = nn.MSELoss()
+ 
+    def train(self, states, next_states):
+        self.dynamics_model.train()
+        self.optimizer.zero_grad()
+ 
+        # Predict the next state using the learned dynamics model
+        predicted_next_state = self.dynamics_model(states)
+ 
+        # Calculate the loss between predicted next state and actual next state
+        loss = self.criterion(predicted_next_state, next_states)
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
+ 
+    def predict_next_state(self, state):
+        self.dynamics_model.eval()
+        with torch.no_grad():
+            return self.dynamics_model(state)
+ 
+# 3. Load the environment
+env = gym.make('CartPole-v1')
+ 
+# 4. Initialize the dynamics model and model-based RL agent
+model = DynamicsModel(input_size=env.observation_space.shape[0], output_size=env.observation_space.shape[0])
+agent = ModelBasedRLAgent(model)
+ 
+# 5. Collect data from the environment to simulate model-based learning
+num_episodes = 100
+for episode in range(num_episodes):
+    state = env.reset()
+    state = torch.tensor(state, dtype=torch.float32)
+    done = False
+    total_reward = 0
+    states = []
+    next_states = []
+ 
+    while not done:
+        # Simulate agent interaction with the environment
+        action = env.action_space.sample()  # Random action for exploration
+        next_state, reward, done, _, _ = env.step(action)
+ 
+        states.append(state)  # Store current state
+        next_states.append(torch.tensor(next_state, dtype=torch.float32))  # Store next state
+ 
+        state = torch.tensor(next_state, dtype=torch.float32)
+        total_reward += reward
+ 
+    # 6. Train the agent using the learned dynamics model
+    states = torch.stack(states)
+    next_states = torch.stack(next_states)
+    loss = agent.train(states, next_states)
+ 
+    if episode % 10 == 0:
+        print(f"Episode {episode}, Loss: {loss:.4f}, Total Reward: {total_reward}")
+ 
+# 7. Evaluate the model's ability to predict the next state
+state = env.reset()
+state = torch.tensor(state, dtype=torch.float32)
+predicted_next_state = agent.predict_next_state(state)
+ 
+print(f"Predicted next state: {predicted_next_state}")
+Project 610: Exploration Strategies in RL
+Description:
+Exploration strategies in reinforcement learning (RL) are techniques that help the agent explore the environment more effectively to discover optimal actions. Common exploration strategies include epsilon-greedy, Boltzmann exploration, and Thompson sampling. In this project, we will implement a basic exploration strategy like epsilon-greedy and discuss how it can be applied to improve learning efficiency in RL.
+
+🧪 Python Implementation (Exploration Strategies using Epsilon-Greedy)
+import gym
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+ 
+# 1. Define a simple Q-learning agent with epsilon-greedy exploration strategy
+class QLearningAgent:
+    def __init__(self, action_space, learning_rate=0.1, discount_factor=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.action_space = action_space
+        self.learning_rate = learning_rate
+        self.discount_factor = discount_factor
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.q_table = {}
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(self.action_space)
+        else:
+            return np.argmax(self.q_table.get(state, np.zeros(len(self.action_space))))
+ 
+    def update_q_value(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        best_next_action = np.argmax(self.q_table.get(next_state, np.zeros(len(self.action_space))))
+        current_q_value = self.q_table.get(state, np.zeros(len(self.action_space)))[action]
+        new_q_value = current_q_value + self.learning_rate * (reward + self.discount_factor * self.q_table.get(next_state, np.zeros(len(self.action_space)))[best_next_action] - current_q_value)
+ 
+        # Update Q-table
+        self.q_table.setdefault(state, np.zeros(len(self.action_space)))[action] = new_q_value
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+# 2. Initialize the environment and Q-learning agent
+env = gym.make('CartPole-v1')
+agent = QLearningAgent(action_space=env.action_space.n)
+ 
+# 3. Train the agent using epsilon-greedy exploration
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+ 
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done, _, _ = env.step(action)
+        agent.update_q_value(state, action, reward, next_state, done)
+        state = next_state
+        total_reward += reward
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}")
+ 
+# 4. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done, _, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after training (epsilon-greedy): {total_reward}")
+Project 611: Safe Reinforcement Learning
+Description:
+Safe reinforcement learning (Safe RL) ensures that the agent avoids harmful or undesirable behaviors during training, especially when interacting with real-world systems. The goal is to incorporate safety constraints into the learning process, ensuring the agent's actions do not violate certain safety conditions (e.g., staying within a safe range of values). In this project, we will implement safe RL using safety constraints and penalty-based reward shaping.
+
+🧪 Python Implementation (Safe Reinforcement Learning using Penalty-based Reward Shaping)
+import gym
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+ 
+# 1. Define a simple Q-learning agent with safety constraints
+class SafeQLearningAgent:
+    def __init__(self, action_space, learning_rate=0.1, discount_factor=0.99, epsilon=1.0, epsilon_decay=0.995, safety_threshold=0.2):
+        self.action_space = action_space
+        self.learning_rate = learning_rate
+        self.discount_factor = discount_factor
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.safety_threshold = safety_threshold
+        self.q_table = {}
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(self.action_space)
+        else:
+            return np.argmax(self.q_table.get(state, np.zeros(len(self.action_space))))
+ 
+    def update_q_value(self, state, action, reward, next_state, done):
+        # Safe reward shaping: Add penalty if the agent violates safety constraints
+        if abs(state[0]) > self.safety_threshold:  # Example constraint (position exceeds threshold)
+            reward -= 1  # Apply penalty for violating safety constraint
+ 
+        # Q-learning update rule
+        best_next_action = np.argmax(self.q_table.get(next_state, np.zeros(len(self.action_space))))
+        current_q_value = self.q_table.get(state, np.zeros(len(self.action_space)))[action]
+        new_q_value = current_q_value + self.learning_rate * (reward + self.discount_factor * self.q_table.get(next_state, np.zeros(len(self.action_space)))[best_next_action] - current_q_value)
+ 
+        # Update Q-table
+        self.q_table.setdefault(state, np.zeros(len(self.action_space)))[action] = new_q_value
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+# 2. Initialize the environment and Safe Q-learning agent
+env = gym.make('CartPole-v1')
+agent = SafeQLearningAgent(action_space=env.action_space.n)
+ 
+# 3. Train the agent using Safe Q-learning
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+ 
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done, _, _ = env.step(action)
+        agent.update_q_value(state, action, reward, next_state, done)
+        state = next_state
+        total_reward += reward
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}")
+ 
+# 4. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done, _, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Safe RL training: {total_reward}")
+Project 612: Constrained Reinforcement Learning
+Description:
+Constrained reinforcement learning (CRL) is a framework where the agent is tasked with not only maximizing the reward but also satisfying certain constraints or safety requirements during training. These constraints could be related to physical limits (e.g., staying within a specific range) or other safety factors. In this project, we will implement CRL where the agent learns to maximize rewards while respecting predefined constraints.
+
+🧪 Python Implementation (Constrained Reinforcement Learning using Reward Penalties)
+import gym
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+ 
+# 1. Define a simple Q-learning agent with constraints
+class ConstrainedQLearningAgent:
+    def __init__(self, action_space, learning_rate=0.1, discount_factor=0.99, epsilon=1.0, epsilon_decay=0.995, constraint_threshold=0.5):
+        self.action_space = action_space
+        self.learning_rate = learning_rate
+        self.discount_factor = discount_factor
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.constraint_threshold = constraint_threshold  # Define the constraint (e.g., max position)
+        self.q_table = {}
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(self.action_space)
+        else:
+            return np.argmax(self.q_table.get(state, np.zeros(len(self.action_space))))
+ 
+    def update_q_value(self, state, action, reward, next_state, done):
+        # Constrained reward shaping: Penalize if the agent violates the constraint
+        if abs(state[0]) > self.constraint_threshold:  # Example constraint (position exceeds threshold)
+            reward -= 2  # Penalize if constraint is violated
+ 
+        # Q-learning update rule
+        best_next_action = np.argmax(self.q_table.get(next_state, np.zeros(len(self.action_space))))
+        current_q_value = self.q_table.get(state, np.zeros(len(self.action_space)))[action]
+        new_q_value = current_q_value + self.learning_rate * (reward + self.discount_factor * self.q_table.get(next_state, np.zeros(len(self.action_space)))[best_next_action] - current_q_value)
+ 
+        # Update Q-table
+        self.q_table.setdefault(state, np.zeros(len(self.action_space)))[action] = new_q_value
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+# 2. Initialize the environment and Constrained Q-learning agent
+env = gym.make('CartPole-v1')
+agent = ConstrainedQLearningAgent(action_space=env.action_space.n)
+ 
+# 3. Train the agent using Constrained Q-learning
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+ 
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done, _, _ = env.step(action)
+        agent.update_q_value(state, action, reward, next_state, done)
+        state = next_state
+        total_reward += reward
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}")
+ 
+# 4. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done, _, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Constrained RL training: {total_reward}")
+Project 613: Risk-sensitive Reinforcement Learning
+Description:
+Risk-sensitive reinforcement learning (RL) involves optimizing the agent’s performance while accounting for potential risks or uncertainties in the environment. This approach is especially useful in high-risk scenarios, such as financial trading, robotics, or autonomous driving. In this project, we will introduce risk-sensitive objectives, where the agent minimizes the variance of its cumulative reward, balancing between exploration and exploitation based on risk preferences.
+
+🧪 Python Implementation (Risk-sensitive Reinforcement Learning using Risk-averse Q-Learning)
+import gym
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+ 
+# 1. Define a Q-learning agent with risk-sensitive objectives
+class RiskSensitiveQLearningAgent:
+    def __init__(self, action_space, learning_rate=0.1, discount_factor=0.99, epsilon=1.0, epsilon_decay=0.995, risk_factor=0.5):
+        self.action_space = action_space
+        self.learning_rate = learning_rate
+        self.discount_factor = discount_factor
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.risk_factor = risk_factor  # Risk sensitivity parameter
+        self.q_table = {}
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(self.action_space)
+        else:
+            return np.argmax(self.q_table.get(state, np.zeros(len(self.action_space))))
+ 
+    def update_q_value(self, state, action, reward, next_state, done):
+        # Risk-sensitive reward shaping: Minimize the variance of cumulative reward
+        current_q_value = self.q_table.get(state, np.zeros(len(self.action_space)))[action]
+        best_next_action = np.argmax(self.q_table.get(next_state, np.zeros(len(self.action_space))))
+ 
+        # Adjust reward based on risk factor (add penalty for high variance)
+        adjusted_reward = reward - self.risk_factor * np.var([reward, np.max(self.q_table.get(next_state, np.zeros(len(self.action_space))))])
+ 
+        # Q-learning update rule
+        new_q_value = current_q_value + self.learning_rate * (adjusted_reward + self.discount_factor * self.q_table.get(next_state, np.zeros(len(self.action_space)))[best_next_action] - current_q_value)
+ 
+        # Update Q-table
+        self.q_table.setdefault(state, np.zeros(len(self.action_space)))[action] = new_q_value
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+# 2. Initialize the environment and Risk-sensitive Q-learning agent
+env = gym.make('CartPole-v1')
+agent = RiskSensitiveQLearningAgent(action_space=env.action_space.n)
+ 
+# 3. Train the agent using risk-sensitive Q-learning
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+ 
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done, _, _ = env.step(action)
+        agent.update_q_value(state, action, reward, next_state, done)
+        state = next_state
+        total_reward += reward
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}")
+ 
+# 4. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done, _, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Risk-sensitive RL training: {total_reward}")
+Project 614: Distributional Reinforcement Learning
+Description:
+Distributional reinforcement learning (DRL) aims to model the distribution of returns (rewards) rather than just the expected return. By learning the full distribution of returns, the agent can make better decisions, especially in environments with high variability. In this project, we will implement distributional Q-learning, where the agent learns the entire distribution of returns for each action, rather than just the expected value.
+
+🧪 Python Implementation (Distributional Reinforcement Learning using C51)
+import gym
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+ 
+# 1. Define the distributional Q-learning model (C51 variant)
+class C51Model(nn.Module):
+    def __init__(self, input_size, output_size, n_atoms=51, v_min=-10, v_max=10):
+        super(C51Model, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size * n_atoms)  # For each action, we have n_atoms probabilities
+ 
+        self.n_atoms = n_atoms
+        self.v_min = v_min
+        self.v_max = v_max
+        self.support = torch.linspace(self.v_min, self.v_max, self.n_atoms)  # Discretized support for the value distribution
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = self.fc3(x).view(-1, len(x), self.n_atoms)  # Reshape to (batch_size, actions, atoms)
+        return x
+ 
+    def get_q_values(self, x):
+        probs = self.forward(x)
+        q_values = torch.sum(probs * self.support, dim=2)  # Compute expected value from distribution
+        return q_values
+ 
+# 2. Define the agent for distributional Q-learning
+class C51Agent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, n_atoms=51):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.n_atoms = n_atoms
+        self.criterion = nn.KLDivLoss(reduction='batchmean')  # Kullback-Leibler divergence for distribution matching
+ 
+    def update(self, states, actions, rewards, next_states, dones):
+        self.model.train()
+        batch_size = len(states)
+        next_probs = self.model(next_states)
+ 
+        # Compute target distribution (Bellman backup for distribution)
+        next_q_values = self.model.get_q_values(next_states)
+        next_action_values = next_q_values.max(1)[0].unsqueeze(1)  # Max Q-value for each next state
+        next_action_probabilities = (next_probs * next_action_values).sum(dim=2)
+ 
+        target = rewards + (self.gamma * next_action_probabilities * (1 - dones))
+        target_distribution = target.unsqueeze(1).expand_as(next_probs)  # Expand target distribution for each action
+ 
+        # Compute loss (KL divergence between predicted and target distributions)
+        loss = self.criterion(torch.log(next_probs), target_distribution)
+        
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        
+        return loss.item()
+ 
+# 3. Initialize the environment and agent
+env = gym.make('CartPole-v1')
+model = C51Model(input_size=env.observation_space.shape[0], output_size=env.action_space.n)
+agent = C51Agent(model)
+ 
+# 4. Train the agent with distributional Q-learning (C51)
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    states = []
+    actions = []
+    rewards = []
+    next_states = []
+    dones = []
+ 
+    while not done:
+        action_probs = model(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+        action = np.random.choice(env.action_space.n, p=action_probs.detach().numpy()[0])
+        next_state, reward, done, _ = env.step(action)
+ 
+        # Collect experience
+        states.append(state)
+        actions.append(action)
+        rewards.append(reward)
+        next_states.append(next_state)
+        dones.append(done)
+ 
+        state = next_state
+        total_reward += reward
+ 
+    # Update the model using the collected batch of experiences
+    loss = agent.update(states, actions, rewards, next_states, dones)
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss}")
+ 
+# 5. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action_probs = model(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+    action = np.argmax(action_probs.detach().numpy())
+    next_state, reward, done, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Distributional RL training: {total_reward}")
+Project 615: Evolutionary Reinforcement Learning
+Description:
+Evolutionary reinforcement learning (ERL) is inspired by biological evolution, where agents evolve through mechanisms such as mutation, crossover, and selection. In this project, we will implement evolutionary strategies for reinforcement learning, using an evolutionary algorithm to evolve policies that maximize rewards. This approach can be useful when dealing with complex environments where traditional RL methods might struggle.
+
+🧪 Python Implementation (Evolutionary Reinforcement Learning using Evolution Strategies)
+import gym
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+ 
+# 1. Define the policy network (a simple neural network for evolutionary strategies)
+class PolicyNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(PolicyNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: action probabilities
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return torch.softmax(self.fc3(x), dim=-1)  # Softmax for action probabilities
+ 
+# 2. Define the Evolutionary Reinforcement Learning agent using Evolution Strategies
+class EvolutionaryRLAgent:
+    def __init__(self, model, population_size=20, mutation_rate=0.1, learning_rate=0.01):
+        self.model = model
+        self.population_size = population_size
+        self.mutation_rate = mutation_rate
+        self.learning_rate = learning_rate
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+ 
+    def mutate(self, model):
+        # Mutate the weights of the model by adding small random noise
+        with torch.no_grad():
+            for param in model.parameters():
+                param.add_(self.mutation_rate * torch.randn_like(param))
+ 
+    def select_action(self, state):
+        # Sample an action from the policy's probability distribution
+        action_probs = self.model(torch.tensor(state, dtype=torch.float32))
+        action = np.random.choice(len(action_probs), p=action_probs.detach().numpy())
+        return action
+ 
+    def evaluate(self, env, num_episodes=10):
+        # Evaluate the model by running episodes and calculating the total reward
+        total_rewards = []
+        for _ in range(num_episodes):
+            state = env.reset()
+            done = False
+            total_reward = 0
+            while not done:
+                action = self.select_action(state)
+                next_state, reward, done, _, _ = env.step(action)
+                total_reward += reward
+                state = next_state
+            total_rewards.append(total_reward)
+        return np.mean(total_rewards)
+ 
+    def train(self, env, num_generations=100):
+        for generation in range(num_generations):
+            population_rewards = []
+            population_models = []
+            
+            # Generate population and evaluate each model
+            for _ in range(self.population_size):
+                clone_model = PolicyNetwork(input_size=env.observation_space.shape[0], output_size=env.action_space.n)
+                clone_model.load_state_dict(self.model.state_dict())  # Copy the model
+                self.mutate(clone_model)  # Mutate the model
+                
+                # Evaluate the model's performance on the environment
+                reward = self.evaluate(env)
+                population_rewards.append(reward)
+                population_models.append(clone_model)
+ 
+            # Select the best models based on their performance
+            best_models = np.argsort(population_rewards)[-int(self.population_size / 2):]  # Top 50% models
+ 
+            # Update the model with the best models from the population
+            self.model.load_state_dict(population_models[best_models[0]].state_dict())
+            print(f"Generation {generation + 1}, Best Reward: {population_rewards[best_models[0]]}")
+ 
+# 3. Initialize the environment and agent
+env = gym.make('CartPole-v1')
+model = PolicyNetwork(input_size=env.observation_space.shape[0], output_size=env.action_space.n)
+agent = EvolutionaryRLAgent(model)
+ 
+# 4. Train the agent using evolutionary reinforcement learning (evolution strategies)
+agent.train(env)
+Project 616: Neuroevolution for Reinforcement Learning
+Description:
+Neuroevolution refers to the process of evolving neural network architectures using evolutionary algorithms, where the parameters or structures of the network are optimized over generations. In the context of reinforcement learning (RL), neuroevolution can be used to evolve both the policy network and the structure of the neural network that governs the agent's actions. This project will implement neuroevolution for reinforcement learning by evolving the network weights of a reinforcement learning agent.
+
+🧪 Python Implementation (Neuroevolution for RL using Genetic Algorithms)
+import gym
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+ 
+# 1. Define the neural network model (for neuroevolution)
+class NeuralNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(NeuralNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return torch.softmax(self.fc3(x), dim=-1)  # Softmax for action probabilities
+ 
+# 2. Define the agent using genetic algorithms (neuroevolution)
+class NeuroevolutionAgent:
+    def __init__(self, model, population_size=20, mutation_rate=0.1, learning_rate=0.01):
+        self.model = model
+        self.population_size = population_size
+        self.mutation_rate = mutation_rate
+        self.learning_rate = learning_rate
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+ 
+    def mutate(self, model):
+        # Mutate the neural network by adding small random noise to its weights
+        with torch.no_grad():
+            for param in model.parameters():
+                param.add_(self.mutation_rate * torch.randn_like(param))
+ 
+    def select_action(self, state):
+        # Select an action based on the policy's probability distribution
+        action_probs = self.model(torch.tensor(state, dtype=torch.float32))
+        action = np.random.choice(len(action_probs), p=action_probs.detach().numpy())
+        return action
+ 
+    def evaluate(self, env, num_episodes=10):
+        # Evaluate the model by running it in the environment and calculating the average reward
+        total_rewards = []
+        for _ in range(num_episodes):
+            state = env.reset()
+            done = False
+            total_reward = 0
+            while not done:
+                action = self.select_action(state)
+                next_state, reward, done, _, _ = env.step(action)
+                total_reward += reward
+                state = next_state
+            total_rewards.append(total_reward)
+        return np.mean(total_rewards)
+ 
+    def train(self, env, num_generations=100):
+        for generation in range(num_generations):
+            population_rewards = []
+            population_models = []
+            
+            # Generate the population and evaluate each model
+            for _ in range(self.population_size):
+                clone_model = NeuralNetwork(input_size=env.observation_space.shape[0], output_size=env.action_space.n)
+                clone_model.load_state_dict(self.model.state_dict())  # Copy the model
+                self.mutate(clone_model)  # Apply mutation (neuroevolution)
+                
+                # Evaluate the model's performance
+                reward = self.evaluate(env)
+                population_rewards.append(reward)
+                population_models.append(clone_model)
+ 
+            # Select the top-performing models based on their reward
+            best_models = np.argsort(population_rewards)[-int(self.population_size / 2):]  # Top 50% models
+ 
+            # Update the model with the best models from the population
+            self.model.load_state_dict(population_models[best_models[0]].state_dict())
+            print(f"Generation {generation + 1}, Best Reward: {population_rewards[best_models[0]]}")
+ 
+# 3. Initialize the environment and agent
+env = gym.make('CartPole-v1')
+model = NeuralNetwork(input_size=env.observation_space.shape[0], output_size=env.action_space.n)
+agent = NeuroevolutionAgent(model)
+ 
+# 4. Train the agent using neuroevolution (genetic algorithm)
+agent.train(env)
+Project 617: Reinforcement Learning from Human Feedback
+Description:
+Reinforcement Learning from Human Feedback (RLHF) is a method where the agent learns not only from interactions with the environment but also from feedback provided by human evaluators. This feedback can guide the agent in achieving desired behavior, especially in tasks where predefined rewards are difficult to specify. In this project, we will implement a basic RLHF setup where the agent receives human feedback in the form of ratings or preferences to adjust its learning process.
+
+🧪 Python Implementation (Reinforcement Learning from Human Feedback)
+import gym
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+ 
+# 1. Define the policy network
+class PolicyNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(PolicyNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: action probabilities
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return torch.softmax(self.fc3(x), dim=-1)  # Softmax for action probabilities
+ 
+# 2. Define the RLHF agent
+class RLHFAgent:
+    def __init__(self, model, learning_rate=0.001, human_feedback_weight=0.5):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.human_feedback_weight = human_feedback_weight  # How much weight to give human feedback
+ 
+    def select_action(self, state):
+        # Select an action based on the policy's probability distribution
+        action_probs = self.model(torch.tensor(state, dtype=torch.float32))
+        action = np.random.choice(len(action_probs), p=action_probs.detach().numpy())
+        return action
+ 
+    def update(self, states, actions, rewards, human_feedback):
+        # Update the model using both rewards and human feedback
+        self.optimizer.zero_grad()
+        
+        # Combine the rewards and human feedback into a single signal
+        total_feedback = rewards + self.human_feedback_weight * human_feedback
+ 
+        # Compute loss based on combined feedback (cross-entropy)
+        action_probs = self.model(states)
+        log_probs = torch.log(action_probs.gather(1, actions.unsqueeze(1)))
+        loss = -torch.mean(log_probs * total_feedback)  # Maximize feedback
+ 
+        # Backpropagation
+        loss.backward()
+        self.optimizer.step()
+ 
+        return loss.item()
+ 
+    def get_human_feedback(self, trajectory):
+        # Simulate human feedback (in real-life scenarios, this could be feedback from a user)
+        return np.random.uniform(0, 1, size=len(trajectory))  # Random feedback for illustration
+ 
+# 3. Initialize the environment and RLHF agent
+env = gym.make('CartPole-v1')
+model = PolicyNetwork(input_size=env.observation_space.shape[0], output_size=env.action_space.n)
+agent = RLHFAgent(model)
+ 
+# 4. Train the agent using RLHF (Human feedback incorporated)
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    states = []
+    actions = []
+    rewards = []
+    trajectories = []
+ 
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done, _, _ = env.step(action)
+ 
+        # Collect trajectory (state-action-reward) for feedback
+        states.append(state)
+        actions.append(action)
+        rewards.append(reward)
+        trajectories.append((state, action, reward))
+ 
+        state = next_state
+        total_reward += reward
+ 
+    # Simulate human feedback for the trajectory
+    human_feedback = agent.get_human_feedback(trajectories)
+ 
+    # Update the model using RLHF
+    loss = agent.update(torch.tensor(states, dtype=torch.float32), torch.tensor(actions), torch.tensor(rewards, dtype=torch.float32), human_feedback)
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 5. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done, _, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after RLHF training: {total_reward}")
+Project 618: Multi-objective Reinforcement Learning
+Description:
+Multi-objective reinforcement learning (MORL) deals with problems where the agent needs to optimize multiple objectives simultaneously, which may conflict with each other. The challenge is to find a trade-off between these objectives. In this project, we will implement MORL where the agent optimizes two or more objectives, balancing the rewards for each objective.
+
+🧪 Python Implementation (Multi-objective Reinforcement Learning using Weighted Sum Approach)
+import gym
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+ 
+# 1. Define the policy network for multi-objective RL
+class MultiObjectivePolicyNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(MultiObjectivePolicyNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: action probabilities
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return torch.softmax(self.fc3(x), dim=-1)  # Softmax for action probabilities
+ 
+# 2. Define the agent for multi-objective reinforcement learning (using weighted sum of objectives)
+class MultiObjectiveRLAgent:
+    def __init__(self, model, learning_rate=0.001, objectives_weights=[0.5, 0.5]):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.objectives_weights = objectives_weights  # Weights for each objective
+ 
+    def select_action(self, state):
+        # Select an action based on the policy's probability distribution
+        action_probs = self.model(torch.tensor(state, dtype=torch.float32))
+        action = np.random.choice(len(action_probs), p=action_probs.detach().numpy())
+        return action
+ 
+    def update(self, states, actions, rewards, done):
+        # Update the model using the weighted sum of rewards from multiple objectives
+        self.optimizer.zero_grad()
+ 
+        # Compute the weighted sum of rewards from each objective
+        weighted_reward = sum(w * r for w, r in zip(self.objectives_weights, rewards))
+ 
+        # Compute loss (negative log-likelihood of the selected action)
+        action_probs = self.model(states)
+        log_probs = torch.log(action_probs.gather(1, actions.unsqueeze(1)))
+        loss = -torch.mean(log_probs * weighted_reward)  # Maximize weighted reward
+ 
+        # Backpropagation
+        loss.backward()
+        self.optimizer.step()
+ 
+        return loss.item()
+ 
+# 3. Initialize the environment and agent
+env = gym.make('CartPole-v1')
+model = MultiObjectivePolicyNetwork(input_size=env.observation_space.shape[0], output_size=env.action_space.n)
+agent = MultiObjectiveRLAgent(model)
+ 
+# 4. Train the agent using multi-objective reinforcement learning (weighted sum approach)
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = [0, 0]  # Two objectives
+    states = []
+    actions = []
+    rewards = []
+ 
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done, _, _ = env.step(action)
+ 
+        # Define two different reward objectives
+        # Objective 1: Total reward
+        # Objective 2: Stay within a certain position range
+        reward_objective_1 = reward
+        reward_objective_2 = 1 if abs(state[0]) < 0.1 else 0  # Reward for staying within position range
+ 
+        # Collect states, actions, and rewards
+        states.append(state)
+        actions.append(action)
+        rewards.append([reward_objective_1, reward_objective_2])
+ 
+        state = next_state
+        total_reward[0] += reward_objective_1
+        total_reward[1] += reward_objective_2
+ 
+    # Update the model using the weighted sum of rewards
+    loss = agent.update(torch.tensor(states, dtype=torch.float32), torch.tensor(actions), rewards, done)
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward (Objective 1, Objective 2): {total_reward}, Loss: {loss:.4f}")
+ 
+# 5. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = [0, 0]
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done, _, _ = env.step(action)
+    total_reward[0] += reward
+    total_reward[1] += 1 if abs(state[0]) < 0.1 else 0
+    state = next_state
+ 
+print(f"Total reward after Multi-objective RL training: {total_reward}")
+Project 619: Cooperative Multi-agent Reinforcement Learning
+Description:
+Cooperative multi-agent reinforcement learning (CMARL) focuses on scenarios where multiple agents work together to achieve a common goal. The agents share information and learn from each other’s experiences to maximize a joint reward function. In this project, we will implement cooperative multi-agent reinforcement learning, where agents interact in a shared environment, learning to cooperate for a collective objective.
+
+🧪 Python Implementation (Cooperative Multi-agent Reinforcement Learning using DQN)
+import gym
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+ 
+# 1. Define the neural network model for the agent (DQN for cooperative agents)
+class DQN(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(DQN, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: action probabilities
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)  # Linear output for Q-values
+ 
+# 2. Define the Cooperative Multi-agent Reinforcement Learning Agent
+class CooperativeMARLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(torch.tensor(state, dtype=torch.float32))
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(torch.tensor(state, dtype=torch.float32))
+        next_q_values = self.model(torch.tensor(next_state, dtype=torch.float32))
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Initialize the environment (Cooperative setting with multiple agents)
+env = gym.make('CartPole-v1')
+agent1 = CooperativeMARLAgent(DQN(input_size=env.observation_space.shape[0], output_size=env.action_space.n))
+agent2 = CooperativeMARLAgent(DQN(input_size=env.observation_space.shape[0], output_size=env.action_space.n))
+ 
+# 4. Train the agents in a cooperative environment
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        # Each agent selects its action
+        action1 = agent1.select_action(state)
+        action2 = agent2.select_action(state)
+ 
+        # Perform the joint actions (agents act simultaneously)
+        next_state, reward, done, _, _ = env.step([action1, action2])
+ 
+        # Each agent updates its Q-values based on the shared reward
+        total_reward += reward
+        loss1 = agent1.update(state, action1, reward, next_state, done)
+        loss2 = agent2.update(state, action2, reward, next_state, done)
+ 
+        state = next_state
+ 
+    # Print training progress every 100 episodes
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss1: {loss1:.4f}, Loss2: {loss2:.4f}")
+ 
+# 5. Evaluate the cooperative agents after training
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action1 = agent1.select_action(state)
+    action2 = agent2.select_action(state)
+    next_state, reward, done, _, _ = env.step([action1, action2])
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Cooperative RL training: {total_reward}")
+Project 620: Competitive Multi-agent Reinforcement Learning
+Description:
+Competitive multi-agent reinforcement learning (CMARL) deals with scenarios where multiple agents are trying to maximize their individual rewards in the same environment. Unlike cooperative multi-agent systems, agents in competitive settings may have conflicting objectives. In this project, we will implement competitive multi-agent reinforcement learning, where agents learn to adapt their policies to outperform their opponents.
+
+🧪 Python Implementation (Competitive Multi-agent Reinforcement Learning using DQN)
+import gym
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+ 
+# 1. Define the neural network model for competitive agents (DQN)
+class DQN(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(DQN, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: action probabilities
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)  # Linear output for Q-values
+ 
+# 2. Define the Competitive Multi-agent Reinforcement Learning agent
+class CompetitiveMARLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(torch.tensor(state, dtype=torch.float32))
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(torch.tensor(state, dtype=torch.float32))
+        next_q_values = self.model(torch.tensor(next_state, dtype=torch.float32))
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Initialize the environment (Competitive setting with multiple agents)
+env = gym.make('CartPole-v1')
+agent1 = CompetitiveMARLAgent(DQN(input_size=env.observation_space.shape[0], output_size=env.action_space.n))
+agent2 = CompetitiveMARLAgent(DQN(input_size=env.observation_space.shape[0], output_size=env.action_space.n))
+ 
+# 4. Train the agents in a competitive environment
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        # Each agent selects its action
+        action1 = agent1.select_action(state)
+        action2 = agent2.select_action(state)
+ 
+        # Perform the joint actions (agents act competitively)
+        next_state, reward, done, _, _ = env.step([action1, action2])
+ 
+        # Each agent updates its Q-values based on the reward from the environment
+        total_reward += reward
+        loss1 = agent1.update(state, action1, reward, next_state, done)
+        loss2 = agent2.update(state, action2, reward, next_state, done)
+ 
+        state = next_state
+ 
+    # Print training progress every 100 episodes
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss1: {loss1:.4f}, Loss2: {loss2:.4f}")
+ 
+# 5. Evaluate the competitive agents after training
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action1 = agent1.select_action(state)
+    action2 = agent2.select_action(state)
+    next_state, reward, done, _, _ = env.step([action1, action2])
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Competitive RL training: {total_reward}")
+Project 621: Mean Field Multi-agent Reinforcement Learning
+Description:
+Mean field multi-agent reinforcement learning (MF-MARL) is an approach where each agent in a multi-agent system approximates the effect of all other agents using a mean field—a simplified aggregate representation. This method reduces the complexity of large-scale multi-agent systems by allowing agents to consider the average behavior of others instead of explicitly interacting with every agent. In this project, we will implement mean field MARL, where each agent makes decisions based on the average impact of other agents in the environment.
+
+🧪 Python Implementation (Mean Field Multi-agent Reinforcement Learning)
+import gym
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+ 
+# 1. Define the neural network model for mean field multi-agent reinforcement learning
+class MeanFieldPolicyNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(MeanFieldPolicyNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: action probabilities
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return torch.softmax(self.fc3(x), dim=-1)  # Softmax for action probabilities
+ 
+# 2. Define the Mean Field MARL agent
+class MeanFieldMARLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Select an action based on the policy's probability distribution
+        action_probs = self.model(torch.tensor(state, dtype=torch.float32))
+        action = np.random.choice(len(action_probs), p=action_probs.detach().numpy())
+        return action
+ 
+    def update(self, state, action, reward, next_state, done, mean_field):
+        # Mean-field Q-learning update rule: Adjust reward using mean-field approximation
+        mean_field_reward = reward + mean_field  # Adjust reward using the average behavior of other agents
+ 
+        # Q-learning update rule
+        q_values = self.model(torch.tensor(state, dtype=torch.float32))
+        next_q_values = self.model(torch.tensor(next_state, dtype=torch.float32))
+        target = mean_field_reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Initialize the environment and Mean Field MARL agent
+env = gym.make('CartPole-v1')
+model = MeanFieldPolicyNetwork(input_size=env.observation_space.shape[0], output_size=env.action_space.n)
+agent = MeanFieldMARLAgent(model)
+ 
+# 4. Train the agent using Mean Field Multi-agent RL
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    mean_field = 0  # Mean field representation (average behavior of other agents)
+    states = []
+    actions = []
+    rewards = []
+ 
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done, _, _ = env.step(action)
+ 
+        # Update mean field as the average reward from other agents
+        mean_field = np.mean(rewards)  # Here, we use rewards as a simple proxy for other agents' actions
+ 
+        # Collect states, actions, and rewards
+        states.append(state)
+        actions.append(action)
+        rewards.append(reward)
+ 
+        state = next_state
+        total_reward += reward
+ 
+    # Update the model using the mean-field approximation of other agents
+    loss = agent.update(states, actions, rewards, next_state, done, mean_field)
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 5. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done, _, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Mean Field MARL training: {total_reward}")
+Project 622: Graph Reinforcement Learning
+Description:
+Graph reinforcement learning (Graph RL) involves applying reinforcement learning to environments represented as graphs. In graph-based environments, the state space can be represented as nodes and edges, and agents take actions that influence the structure or properties of the graph. This project will explore graph RL, where an agent learns to make decisions that affect the graph structure, such as node classification, link prediction, or graph traversal.
+
+🧪 Python Implementation (Graph Reinforcement Learning using Graph Neural Networks)
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+import networkx as nx
+ 
+# 1. Define a simple Graph Neural Network (GNN) model for Graph RL
+class GraphNeuralNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(GraphNeuralNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: action probabilities
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)  # Linear output for Q-values
+ 
+# 2. Define the Graph RL agent using the GNN model
+class GraphRLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Select an action based on the policy's probability distribution
+        action_probs = self.model(torch.tensor(state, dtype=torch.float32))
+        action = np.random.choice(len(action_probs), p=action_probs.detach().numpy())
+        return action
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(torch.tensor(state, dtype=torch.float32))
+        next_q_values = self.model(torch.tensor(next_state, dtype=torch.float32))
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Define a simple graph environment (graph-based environment for RL)
+class GraphEnv:
+    def __init__(self):
+        self.graph = nx.erdos_renyi_graph(10, 0.3)  # Random graph with 10 nodes and edge probability of 0.3
+        self.state = np.array([np.random.rand(3) for _ in range(len(self.graph.nodes))])  # Random node features
+        self.num_nodes = len(self.graph.nodes)
+    
+    def reset(self):
+        # Reset the environment and return the initial state
+        self.graph = nx.erdos_renyi_graph(10, 0.3)
+        self.state = np.array([np.random.rand(3) for _ in range(len(self.graph.nodes))])
+        return self.state
+ 
+    def step(self, action):
+        # Here we simulate an environment step based on the action taken
+        # Action: 0 = add an edge, 1 = remove an edge
+        if action == 0:
+            # Add an edge (for simplicity, randomly pick two nodes)
+            node1, node2 = np.random.choice(self.num_nodes, size=2, replace=False)
+            self.graph.add_edge(node1, node2)
+        elif action == 1:
+            # Remove an edge (for simplicity, randomly pick an edge)
+            edges = list(self.graph.edges)
+            if edges:
+                edge = np.random.choice(len(edges))
+                self.graph.remove_edge(*edges[edge])
+        
+        # Calculate reward (for example, based on the number of edges in the graph)
+        reward = len(self.graph.edges)  # Higher reward for more edges
+        
+        done = False  # Assume the environment doesn't end after each step
+        
+        return self.state, reward, done
+ 
+# 4. Initialize the graph environment and RL agent
+env = GraphEnv()
+model = GraphNeuralNetwork(input_size=3, output_size=2)  # 3 features per node, 2 possible actions (add or remove edge)
+agent = GraphRLAgent(model)
+ 
+# 5. Train the agent using Graph RL
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done = env.step(action)
+        total_reward += reward
+        
+        # Update the agent using the collected experience
+        loss = agent.update(state, action, reward, next_state, done)
+        state = next_state
+ 
+    # Print training progress every 100 episodes
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 6. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Graph RL training: {total_reward}")
+Project 623: Relational Reinforcement Learning
+Description:
+Relational reinforcement learning (Relational RL) extends traditional RL by incorporating relations between entities in the environment. In environments with multiple entities (e.g., agents, objects, or nodes), relationships between these entities can significantly impact decision-making. Relational RL uses relational models to understand the interactions between these entities and learns policies that consider these relationships. In this project, we will implement relational reinforcement learning, where the agent learns to make decisions based on the relational structure of the environment.
+
+🧪 Python Implementation (Relational Reinforcement Learning using Graph-based Models)
+import gym
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+import networkx as nx
+ 
+# 1. Define the neural network model for relational reinforcement learning
+class RelationalPolicyNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(RelationalPolicyNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: action probabilities
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return torch.softmax(self.fc3(x), dim=-1)  # Softmax for action probabilities
+ 
+# 2. Define the Relational Reinforcement Learning Agent
+class RelationalRLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Select an action based on the policy's probability distribution
+        action_probs = self.model(torch.tensor(state, dtype=torch.float32))
+        action = np.random.choice(len(action_probs), p=action_probs.detach().numpy())
+        return action
+ 
+    def update(self, state, action, reward, next_state, done, relational_features):
+        # Incorporate relational features (e.g., interaction between agents or objects)
+        reward += np.dot(relational_features, np.array([0.5, -0.5]))  # Example relation shaping
+ 
+        # Q-learning update rule
+        q_values = self.model(torch.tensor(state, dtype=torch.float32))
+        next_q_values = self.model(torch.tensor(next_state, dtype=torch.float32))
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Define a simple relational environment (graph-based)
+class RelationalGraphEnv:
+    def __init__(self):
+        self.graph = nx.erdos_renyi_graph(10, 0.3)  # Random graph with 10 nodes and edge probability of 0.3
+        self.state = np.array([np.random.rand(3) for _ in range(len(self.graph.nodes))])  # Random node features
+        self.num_nodes = len(self.graph.nodes)
+    
+    def reset(self):
+        # Reset the environment and return the initial state
+        self.graph = nx.erdos_renyi_graph(10, 0.3)
+        self.state = np.array([np.random.rand(3) for _ in range(len(self.graph.nodes))])
+        return self.state
+ 
+    def step(self, action):
+        # Simulate the environment step based on the action taken
+        if action == 0:
+            node1, node2 = np.random.choice(self.num_nodes, size=2, replace=False)
+            self.graph.add_edge(node1, node2)
+        elif action == 1:
+            edges = list(self.graph.edges)
+            if edges:
+                edge = np.random.choice(len(edges))
+                self.graph.remove_edge(*edges[edge])
+        
+        # Calculate reward (e.g., based on the number of edges in the graph)
+        reward = len(self.graph.edges)
+        
+        done = False  # Environment doesn't end in this simple case
+        
+        # Example of relational features: average node degree
+        relational_features = np.mean([deg for _, deg in self.graph.degree()])  # Average degree of nodes
+        
+        return self.state, reward, done, relational_features
+ 
+# 4. Initialize the environment and relational RL agent
+env = RelationalGraphEnv()
+model = RelationalPolicyNetwork(input_size=env.state.shape[1], output_size=2)  # 2 actions (add/remove edge)
+agent = RelationalRLAgent(model)
+ 
+# 5. Train the agent using Relational Reinforcement Learning
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    relational_features = []
+ 
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done, relation = env.step(action)
+ 
+        # Collect relational features
+        relational_features.append(relation)
+ 
+        # Update the agent using relational RL
+        loss = agent.update(state, action, reward, next_state, done, relational_features)
+ 
+        state = next_state
+        total_reward += reward
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 6. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Relational RL training: {total_reward}")
+Project 624: Attention Mechanisms in Reinforcement Learning
+Description:
+Attention mechanisms are techniques that allow models to focus on specific parts of the input data, selectively weighting the importance of different features. In reinforcement learning, attention mechanisms can help agents prioritize more relevant parts of the environment's state space. This project will implement attention mechanisms in reinforcement learning, where the agent uses attention to decide which aspects of the state are most critical for taking actions.
+
+🧪 Python Implementation (Reinforcement Learning with Attention Mechanisms)
+import gym
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define a simple neural network model with an attention mechanism
+class AttentionLayer(nn.Module):
+    def __init__(self, input_size):
+        super(AttentionLayer, self).__init__()
+        self.attention_weights = nn.Parameter(torch.randn(input_size))  # Learnable attention weights
+ 
+    def forward(self, x):
+        # Apply attention mechanism: weight the input features
+        attention_scores = torch.matmul(x, self.attention_weights)  # Compute attention scores
+        attention_probs = torch.softmax(attention_scores, dim=-1)  # Normalize to get probabilities
+        return torch.sum(x * attention_probs, dim=-1)  # Weighted sum of input features based on attention
+ 
+class AttentionPolicyNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(AttentionPolicyNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.attention = AttentionLayer(64)  # Attention applied to the hidden layer
+        self.fc2 = nn.Linear(64, output_size)  # Output: action probabilities
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = self.attention(x)  # Apply attention to the hidden layer
+        return torch.softmax(self.fc2(x), dim=-1)  # Output action probabilities
+ 
+# 2. Define the RL agent with an attention mechanism
+class AttentionRLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(torch.tensor(state, dtype=torch.float32))
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(torch.tensor(state, dtype=torch.float32))
+        next_q_values = self.model(torch.tensor(next_state, dtype=torch.float32))
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Initialize the environment and Attention RL agent
+env = gym.make('CartPole-v1')
+model = AttentionPolicyNetwork(input_size=env.observation_space.shape[0], output_size=env.action_space.n)
+agent = AttentionRLAgent(model)
+ 
+# 4. Train the agent using Reinforcement Learning with Attention Mechanism
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done, _, _ = env.step(action)
+ 
+        # Update the agent using the attention-based policy network
+        loss = agent.update(state, action, reward, next_state, done)
+        state = next_state
+        total_reward += reward
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 5. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done, _, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after RL with Attention training: {total_reward}")
+Project 625: Transformers for Reinforcement Learning
+Description:
+Transformers have become the architecture of choice for many sequence-based tasks in deep learning, and they can also be applied to reinforcement learning (RL). By using transformers, RL agents can model long-range dependencies in their states, actions, and rewards, allowing them to handle more complex decision-making problems. In this project, we will explore the use of transformers in RL, focusing on using transformer-based models to improve decision-making processes by capturing sequential patterns and long-term dependencies.
+
+🧪 Python Implementation (Transformers for Reinforcement Learning)
+import gym
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define the Transformer-based model for RL
+class TransformerPolicyNetwork(nn.Module):
+    def __init__(self, input_size, output_size, num_heads=4, num_layers=2):
+        super(TransformerPolicyNetwork, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        
+        # Transformer encoder layer
+        self.encoder_layer = nn.TransformerEncoderLayer(d_model=input_size, nhead=num_heads)
+        self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=num_layers)
+        
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, output_size)  # Output: action probabilities
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        
+        # Reshape input to (sequence_length, batch_size, feature_size) for transformer
+        x = x.unsqueeze(0)  # Adding batch dimension (1 batch here)
+        x = self.transformer_encoder(x)  # Apply transformer encoder
+        
+        x = x.squeeze(0)  # Remove batch dimension
+        return torch.softmax(self.fc2(x), dim=-1)  # Output action probabilities
+ 
+# 2. Define the RL agent using the Transformer-based model
+class TransformerRLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(torch.tensor(state, dtype=torch.float32))
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(torch.tensor(state, dtype=torch.float32))
+        next_q_values = self.model(torch.tensor(next_state, dtype=torch.float32))
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Initialize the environment and Transformer RL agent
+env = gym.make('CartPole-v1')
+model = TransformerPolicyNetwork(input_size=env.observation_space.shape[0], output_size=env.action_space.n)
+agent = TransformerRLAgent(model)
+ 
+# 4. Train the agent using Transformer-based RL
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done, _, _ = env.step(action)
+ 
+        # Update the agent using the transformer-based policy network
+        loss = agent.update(state, action, reward, next_state, done)
+        state = next_state
+        total_reward += reward
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 5. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done, _, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Transformer RL training: {total_reward}")
+Project 626: RL for Combinatorial Optimization
+Description:
+Reinforcement learning (RL) for combinatorial optimization focuses on solving combinatorial problems (e.g., traveling salesman problem, knapsack problem) using RL methods. In these problems, the goal is to find the optimal solution from a large set of discrete options. RL can be used to learn policies that guide the search process for optimal solutions in complex, high-dimensional spaces. In this project, we will apply RL to a combinatorial optimization problem, where an agent learns to optimize a combinatorial objective.
+
+🧪 Python Implementation (RL for Combinatorial Optimization using Policy Gradient)
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+ 
+# 1. Define a neural network model for RL in combinatorial optimization
+class CombinatorialOptimizationModel(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(CombinatorialOptimizationModel, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: action probabilities
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return torch.softmax(self.fc3(x), dim=-1)  # Softmax for action probabilities
+ 
+# 2. Define the RL agent for combinatorial optimization
+class CombinatorialOptimizationAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            action_probs = self.model(torch.tensor(state, dtype=torch.float32))
+            return torch.argmax(action_probs).item()  # Select action with the highest probability
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Policy gradient update rule
+        action_probs = self.model(torch.tensor(state, dtype=torch.float32))
+        log_prob = torch.log(action_probs[action])
+        loss = -log_prob * reward  # Maximize expected reward (policy gradient)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Define the combinatorial optimization environment (e.g., Knapsack Problem)
+class KnapsackEnv:
+    def __init__(self, values, weights, capacity):
+        self.values = values
+        self.weights = weights
+        self.capacity = capacity
+        self.num_items = len(values)
+        self.state = np.zeros(self.num_items)  # All items are initially not selected
+ 
+    def reset(self):
+        # Reset the environment
+        self.state = np.zeros(self.num_items)
+        return self.state
+ 
+    def step(self, action):
+        # Action: 0 = do not pick the item, 1 = pick the item
+        if self.state[action] == 1:
+            return self.state, 0, True  # Item already picked, no reward, done
+ 
+        self.state[action] = 1  # Mark item as picked
+        weight = np.sum(self.state * self.weights)
+        if weight > self.capacity:
+            self.state[action] = 0  # Undo pick if weight exceeds capacity
+            return self.state, -1, False  # Penalty for exceeding capacity
+ 
+        reward = np.sum(self.state * self.values)  # Reward is the total value of picked items
+        done = np.all(self.state)  # Done if all items are selected
+ 
+        return self.state, reward, done
+ 
+# 4. Initialize the environment and RL agent
+values = np.array([10, 40, 30, 50])  # Item values
+weights = np.array([5, 4, 6, 3])  # Item weights
+capacity = 10  # Knapsack capacity
+env = KnapsackEnv(values, weights, capacity)
+ 
+model = CombinatorialOptimizationModel(input_size=env.num_items, output_size=env.num_items)
+agent = CombinatorialOptimizationAgent(model)
+ 
+# 5. Train the agent using policy gradient for combinatorial optimization
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done = env.step(action)
+ 
+        # Update the agent using policy gradient
+        loss = agent.update(state, action, reward, next_state, done)
+        state = next_state
+        total_reward += reward
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 6. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after RL for Combinatorial Optimization training: {total_reward}")
+Project 627: RL for Continuous Control Problems
+Description:
+Reinforcement learning (RL) for continuous control problems involves optimizing an agent's behavior in environments where the action space is continuous (e.g., controlling the velocity, angle, or other parameters in robotics or simulations). The goal is to apply RL to tasks that involve fine-grained control, such as robotic arm manipulation, continuous locomotion, or self-driving cars. In this project, we will implement RL for a continuous control problem, using deep deterministic policy gradient (DDPG), a popular algorithm for continuous action spaces.
+
+🧪 Python Implementation (RL for Continuous Control using DDPG)
+import gym
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define the neural network model for the actor and critic
+class Actor(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(Actor, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: continuous action space
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return torch.tanh(self.fc3(x))  # Output actions within the continuous range (-1, 1)
+ 
+class Critic(nn.Module):
+    def __init__(self, input_size, action_size):
+        super(Critic, self).__init__()
+        self.fc1 = nn.Linear(input_size + action_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, 1)  # Output: Q-value for a given state-action pair
+ 
+    def forward(self, state, action):
+        x = torch.cat([state, action], dim=1)
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)
+ 
+# 2. Define the DDPG agent
+class DDPGAgent:
+    def __init__(self, actor, critic, actor_lr=0.001, critic_lr=0.002, gamma=0.99, tau=0.005):
+        self.actor = actor
+        self.critic = critic
+        self.target_actor = Actor(actor.input_size, actor.output_size)
+        self.target_critic = Critic(critic.input_size, critic.action_size)
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_lr)
+        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=critic_lr)
+        self.gamma = gamma
+        self.tau = tau  # Soft target updates
+ 
+        # Initialize target networks
+        self.target_actor.load_state_dict(self.actor.state_dict())
+        self.target_critic.load_state_dict(self.critic.state_dict())
+ 
+    def select_action(self, state):
+        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+        return self.actor(state).detach().numpy()[0]  # Continuous action
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Compute target Q-value
+        next_action = self.target_actor(torch.tensor(next_state, dtype=torch.float32).unsqueeze(0))
+        target_q_value = reward + (1 - done) * self.gamma * self.target_critic(next_state, next_action).detach()
+ 
+        # Critic loss
+        current_q_value = self.critic(state, action)
+        critic_loss = nn.MSELoss()(current_q_value, target_q_value)
+ 
+        # Update critic
+        self.critic_optimizer.zero_grad()
+        critic_loss.backward()
+        self.critic_optimizer.step()
+ 
+        # Actor loss (using the critic's Q-value)
+        actor_loss = -self.critic(state, self.actor(state)).mean()  # Maximize Q-value
+ 
+        # Update actor
+        self.actor_optimizer.zero_grad()
+        actor_loss.backward()
+        self.actor_optimizer.step()
+ 
+        # Soft target updates
+        self._soft_update(self.target_actor, self.actor)
+        self._soft_update(self.target_critic, self.critic)
+ 
+        return actor_loss.item(), critic_loss.item()
+ 
+    def _soft_update(self, target, source):
+        for target_param, source_param in zip(target.parameters(), source.parameters()):
+            target_param.data.copy_(self.tau * source_param.data + (1.0 - self.tau) * target_param.data)
+ 
+# 3. Initialize the environment and DDPG agent
+env = gym.make('Pendulum-v0')  # Continuous control problem: Pendulum swing-up
+actor = Actor(input_size=env.observation_space.shape[0], output_size=env.action_space.shape[0])
+critic = Critic(input_size=env.observation_space.shape[0], action_size=env.action_space.shape[0])
+agent = DDPGAgent(actor, critic)
+ 
+# 4. Train the agent using DDPG
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done, _ = env.step(action)
+ 
+        # Update the agent
+        actor_loss, critic_loss = agent.update(state, action, reward, next_state, done)
+        total_reward += reward
+        state = next_state
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Actor Loss: {actor_loss:.4f}, Critic Loss: {critic_loss:.4f}")
+ 
+# 5. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after DDPG training: {total_reward}")
+Project 628: RL for Robotic Manipulation
+Description:
+Reinforcement learning (RL) for robotic manipulation focuses on training robots to perform tasks that require interacting with the physical world, such as grasping objects, assembling parts, or moving items. This project will apply RL to robotic manipulation tasks, where the agent learns to control a robot's movements to optimize performance in tasks like object picking, placing, or other manipulation challenges.
+
+🧪 Python Implementation (RL for Robotic Manipulation using DDPG)
+import gym
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define the neural network model for the actor and critic (same as before)
+class Actor(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(Actor, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: continuous action space
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return torch.tanh(self.fc3(x))  # Output actions within the continuous range (-1, 1)
+ 
+class Critic(nn.Module):
+    def __init__(self, input_size, action_size):
+        super(Critic, self).__init__()
+        self.fc1 = nn.Linear(input_size + action_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, 1)  # Output: Q-value for a given state-action pair
+ 
+    def forward(self, state, action):
+        x = torch.cat([state, action], dim=1)
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)
+ 
+# 2. Define the DDPG agent (same as before)
+class DDPGAgent:
+    def __init__(self, actor, critic, actor_lr=0.001, critic_lr=0.002, gamma=0.99, tau=0.005):
+        self.actor = actor
+        self.critic = critic
+        self.target_actor = Actor(actor.input_size, actor.output_size)
+        self.target_critic = Critic(critic.input_size, critic.action_size)
+        self.actor_optimizer = optim.Adam(actor.parameters(), lr=actor_lr)
+        self.critic_optimizer = optim.Adam(critic.parameters(), lr=critic_lr)
+        self.gamma = gamma
+        self.tau = tau  # Soft target updates
+ 
+        # Initialize target networks
+        self.target_actor.load_state_dict(self.actor.state_dict())
+        self.target_critic.load_state_dict(self.critic.state_dict())
+ 
+    def select_action(self, state):
+        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+        return self.actor(state).detach().numpy()[0]  # Continuous action
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Compute target Q-value
+        next_action = self.target_actor(torch.tensor(next_state, dtype=torch.float32).unsqueeze(0))
+        target_q_value = reward + (1 - done) * self.gamma * self.target_critic(next_state, next_action).detach()
+ 
+        # Critic loss
+        current_q_value = self.critic(state, action)
+        critic_loss = nn.MSELoss()(current_q_value, target_q_value)
+ 
+        # Update critic
+        self.critic_optimizer.zero_grad()
+        critic_loss.backward()
+        self.critic_optimizer.step()
+ 
+        # Actor loss (using the critic's Q-value)
+        actor_loss = -self.critic(state, self.actor(state)).mean()  # Maximize Q-value
+ 
+        # Update actor
+        self.actor_optimizer.zero_grad()
+        actor_loss.backward()
+        self.actor_optimizer.step()
+ 
+        # Soft target updates
+        self._soft_update(self.target_actor, self.actor)
+        self._soft_update(self.target_critic, self.critic)
+ 
+        return actor_loss.item(), critic_loss.item()
+ 
+    def _soft_update(self, target, source):
+        for target_param, source_param in zip(target.parameters(), source.parameters()):
+            target_param.data.copy_(self.tau * source_param.data + (1.0 - self.tau) * target_param.data)
+ 
+# 3. Initialize the environment and DDPG agent (robotic manipulation task)
+env = gym.make('FetchPickAndPlace-v1')  # Example environment for robotic manipulation
+actor = Actor(input_size=env.observation_space.shape[0], output_size=env.action_space.shape[0])
+critic = Critic(input_size=env.observation_space.shape[0], action_size=env.action_space.shape[0])
+agent = DDPGAgent(actor, critic)
+ 
+# 4. Train the agent using DDPG for robotic manipulation
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done, _, _ = env.step(action)
+ 
+        # Update the agent using DDPG
+        actor_loss, critic_loss = agent.update(state, action, reward, next_state, done)
+        total_reward += reward
+        state = next_state
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Actor Loss: {actor_loss:.4f}, Critic Loss: {critic_loss:.4f}")
+ 
+# 5. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done, _, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after DDPG training for Robotic Manipulation: {total_reward}")
+Project 629: RL for Autonomous Navigation
+Description:
+Reinforcement learning (RL) for autonomous navigation involves teaching an agent to navigate a dynamic environment (e.g., a robot, drone, or self-driving car) to reach a target while avoiding obstacles. The agent learns a policy to decide how to act based on sensory inputs, optimizing its path to maximize rewards such as safety, efficiency, or reaching the goal in the shortest time. In this project, we will implement RL for autonomous navigation, using Deep Q-Learning (DQN) to navigate a simple environment.
+
+🧪 Python Implementation (RL for Autonomous Navigation using DQN)
+import gym
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define the Q-network (Deep Q-Network) for autonomous navigation
+class QNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(QNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: action probabilities (navigation actions)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)  # Output: Q-values for each action
+ 
+# 2. Define the DQN agent for autonomous navigation
+class DQNAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(torch.tensor(state, dtype=torch.float32))
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(torch.tensor(state, dtype=torch.float32))
+        next_q_values = self.model(torch.tensor(next_state, dtype=torch.float32))
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Initialize the environment and DQN agent
+env = gym.make('LunarLander-v2')  # Example environment for autonomous navigation (landing a spaceship)
+model = QNetwork(input_size=env.observation_space.shape[0], output_size=env.action_space.n)
+agent = DQNAgent(model)
+ 
+# 4. Train the agent using DQN for autonomous navigation
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done, _, _ = env.step(action)
+ 
+        # Update the agent using DQN
+        loss = agent.update(state, action, reward, next_state, done)
+        total_reward += reward
+        state = next_state
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 5. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done, _, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after DQN training for Autonomous Navigation: {total_reward}")
+Project 630: RL for Gaming AI
+Description:
+Reinforcement learning (RL) for gaming AI involves training an agent to play games using RL algorithms. The agent learns to maximize its score by exploring different strategies and adjusting its actions based on the rewards it receives. In this project, we will implement an RL agent to play a simple game environment, such as CartPole, using Deep Q-Learning (DQN), a popular algorithm for training agents in discrete action spaces.
+
+🧪 Python Implementation (RL for Gaming AI using DQN)
+import gym
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define the Q-network (Deep Q-Network) for gaming AI
+class QNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(QNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: action probabilities
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)  # Output: Q-values for each action
+ 
+# 2. Define the DQN agent for gaming AI
+class DQNAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(torch.tensor(state, dtype=torch.float32))
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(torch.tensor(state, dtype=torch.float32))
+        next_q_values = self.model(torch.tensor(next_state, dtype=torch.float32))
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Initialize the environment and DQN agent
+env = gym.make('CartPole-v1')  # Example gaming environment
+model = QNetwork(input_size=env.observation_space.shape[0], output_size=env.action_space.n)
+agent = DQNAgent(model)
+ 
+# 4. Train the agent using DQN for gaming AI
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done, _, _ = env.step(action)
+ 
+        # Update the agent using DQN
+        loss = agent.update(state, action, reward, next_state, done)
+        total_reward += reward
+        state = next_state
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 5. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done, _, _ = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after DQN training for Gaming AI: {total_reward}")
+Project 631: RL for Recommendation Systems
+Description:
+Reinforcement learning (RL) for recommendation systems involves using RL techniques to optimize the recommendation process by dynamically adjusting recommendations based on user feedback and interactions. In traditional recommendation systems, recommendations are made based on pre-collected data, but RL allows the system to learn and adapt in real-time, improving recommendations by considering long-term user satisfaction. In this project, we will use Q-learning to model a recommendation system that learns to recommend items based on user interactions and rewards.
+
+🧪 Python Implementation (RL for Recommendation Systems using Q-learning)
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+ 
+# 1. Define the Q-network for RL-based recommendation system
+class QNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(QNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: Q-values for each action (recommendation)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)  # Output: Q-values for each recommendation
+ 
+# 2. Define the RL agent for recommendation system
+class RLRecommendationAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(torch.tensor(state, dtype=torch.float32))
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(torch.tensor(state, dtype=torch.float32))
+        next_q_values = self.model(torch.tensor(next_state, dtype=torch.float32))
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Define the recommendation environment (simulated)
+class RecommendationEnv:
+    def __init__(self, num_users, num_items):
+        self.num_users = num_users
+        self.num_items = num_items
+        self.state = np.zeros(self.num_users)  # Simulate user interactions
+ 
+    def reset(self):
+        self.state = np.zeros(self.num_users)
+        return self.state
+ 
+    def step(self, action):
+        # Action: Recommend an item to the user
+        # For simplicity, assume reward is based on a random chance of satisfaction
+        reward = np.random.choice([1, 0], p=[0.7, 0.3])  # 70% chance of positive feedback
+        done = False  # In this simple environment, we never "end" the recommendation task
+        return self.state, reward, done
+ 
+# 4. Initialize the environment and RL agent for recommendation system
+num_users = 5
+num_items = 10
+env = RecommendationEnv(num_users=num_users, num_items=num_items)
+model = QNetwork(input_size=num_users, output_size=num_items)
+agent = RLRecommendationAgent(model)
+ 
+# 5. Train the agent using Q-learning for recommendation system
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(state)
+        next_state, reward, done = env.step(action)
+ 
+        # Update the agent using Q-learning
+        loss = agent.update(state, action, reward, next_state, done)
+        total_reward += reward
+        state = next_state
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 6. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(state)
+    next_state, reward, done = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Q-learning training for Recommendation System: {total_reward}")
+Project 632: RL for Natural Language Generation
+Description:
+Reinforcement learning (RL) for natural language generation (NLG) focuses on using RL to improve the quality of generated text by optimizing for long-term rewards rather than relying solely on supervised learning. RL allows models to be trained to generate text that aligns with specific goals, such as fluency, coherence, or relevance. In this project, we will use policy gradient methods to train a model to generate meaningful sentences based on a given reward function.
+
+🧪 Python Implementation (RL for Natural Language Generation using Policy Gradient)
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define a simple RNN-based generator model for text generation
+class TextGenerationModel(nn.Module):
+    def __init__(self, input_size, output_size, hidden_size=128):
+        super(TextGenerationModel, self).__init__()
+        self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, output_size)  # Output: next word probability
+ 
+    def forward(self, x):
+        out, _ = self.rnn(x)
+        return self.fc(out[:, -1, :])  # Predict the next word based on the last hidden state
+ 
+# 2. Define the RL agent for natural language generation using policy gradients
+class RLTextGenerationAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.criterion = nn.CrossEntropyLoss()
+ 
+    def select_action(self, state):
+        # Softmax to select next word based on the current state
+        action_probs = self.model(torch.tensor(state, dtype=torch.float32))
+        action = torch.multinomial(torch.softmax(action_probs, dim=-1), 1).item()
+        return action
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Calculate loss (policy gradient)
+        action_probs = self.model(torch.tensor(state, dtype=torch.float32))
+        log_prob = torch.log(torch.softmax(action_probs, dim=-1)[0, action])
+        loss = -log_prob * reward  # Policy gradient: maximize reward
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        return loss.item()
+ 
+# 3. Define a simple reward function for evaluating generated text
+def simple_reward_function(generated_text):
+    # Simple reward based on length of the generated text (longer is better)
+    return len(generated_text)
+ 
+# 4. Initialize the environment and RL agent for natural language generation
+input_size = 256  # Example size for word embeddings (dummy values)
+output_size = 256  # Size of vocabulary (dummy values)
+model = TextGenerationModel(input_size, output_size)
+agent = RLTextGenerationAgent(model)
+ 
+# 5. Train the agent using RL for natural language generation
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = np.random.rand(1, 10, input_size)  # Random state (e.g., a dummy initial sentence)
+    done = False
+    total_reward = 0
+    generated_text = []
+    
+    while not done:
+        action = agent.select_action(state)
+        next_state = np.random.rand(1, 10, input_size)  # Dummy next state (generated next word)
+        reward = simple_reward_function(generated_text)  # Compute reward (based on text length)
+        generated_text.append(action)  # Store generated word (for simplicity, use action as word)
+ 
+        # Update the agent using the reward
+        loss = agent.update(state, action, reward, next_state, done)
+        total_reward += reward
+        state = next_state
+ 
+        if len(generated_text) > 20:  # Stop when the text length reaches a certain threshold
+            done = True
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 6. Evaluate the agent after training (no exploration, only exploitation)
+state = np.random.rand(1, 10, input_size)  # Initial state (dummy input)
+done = False
+generated_text = []
+ 
+while not done:
+    action = agent.select_action(state)
+    next_state = np.random.rand(1, 10, input_size)
+    reward = simple_reward_function(generated_text)
+    generated_text.append(action)
+ 
+    if len(generated_text) > 20:
+        done = True
+ 
+print(f"Generated text (length-based reward): {generated_text}")
+Project 633: RL for Dialogue Policy Learning
+Description:
+Reinforcement learning (RL) for dialogue policy learning focuses on training agents to engage in conversations with users by learning optimal policies based on interaction rewards. The goal is to generate relevant, coherent, and helpful responses in dialogue systems. RL is particularly useful for dialogue policy learning because it allows the agent to improve its behavior over time by receiving feedback from users or simulated environments. In this project, we will apply RL to train a dialogue agent that learns how to interact with users to achieve predefined goals.
+
+🧪 Python Implementation (RL for Dialogue Policy Learning using Policy Gradient)
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define a simple RNN-based model for dialogue response generation
+class DialoguePolicyNetwork(nn.Module):
+    def __init__(self, input_size, output_size, hidden_size=128):
+        super(DialoguePolicyNetwork, self).__init__()
+        self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, output_size)  # Output: action (response) probabilities
+ 
+    def forward(self, x):
+        out, _ = self.rnn(x)
+        return self.fc(out[:, -1, :])  # Output action probabilities based on the last hidden state
+ 
+# 2. Define the RL agent for dialogue policy learning using policy gradient
+class RLDialogueAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.CrossEntropyLoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            action_probs = self.model(torch.tensor(state, dtype=torch.float32))
+            return torch.argmax(action_probs).item()  # Select action with the highest probability
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Calculate loss (policy gradient)
+        action_probs = self.model(torch.tensor(state, dtype=torch.float32))
+        log_prob = torch.log(torch.softmax(action_probs, dim=-1)[0, action])
+        loss = -log_prob * reward  # Policy gradient: maximize reward
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Define a simple reward function for evaluating generated responses
+def simple_dialogue_reward(response):
+    # Simple reward based on response length (longer and more relevant is better)
+    return len(response)
+ 
+# 4. Initialize the environment and RL agent for dialogue policy learning
+input_size = 256  # Example size for word embeddings (dummy values)
+output_size = 256  # Size of vocabulary (dummy values)
+model = DialoguePolicyNetwork(input_size, output_size)
+agent = RLDialogueAgent(model)
+ 
+# 5. Train the agent using RL for dialogue policy learning
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = np.random.rand(1, 10, input_size)  # Random state (e.g., initial dialogue context)
+    done = False
+    total_reward = 0
+    dialogue_history = []
+    
+    while not done:
+        action = agent.select_action(state)
+        next_state = np.random.rand(1, 10, input_size)  # Dummy next state (next response)
+        reward = simple_dialogue_reward(dialogue_history)  # Compute reward (based on dialogue length)
+        dialogue_history.append(action)  # Store generated response (for simplicity, use action as word)
+ 
+        # Update the agent using the reward
+        loss = agent.update(state, action, reward, next_state, done)
+        total_reward += reward
+        state = next_state
+ 
+        if len(dialogue_history) > 20:  # Stop after a certain number of responses
+            done = True
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 6. Evaluate the agent after training (no exploration, only exploitation)
+state = np.random.rand(1, 10, input_size)  # Initial state (dummy input)
+done = False
+dialogue_history = []
+ 
+while not done:
+    action = agent.select_action(state)
+    next_state = np.random.rand(1, 10, input_size)
+    reward = simple_dialogue_reward(dialogue_history)
+    dialogue_history.append(action)
+ 
+    if len(dialogue_history) > 20:
+        done = True
+ 
+print(f"Generated dialogue (length-based reward): {dialogue_history}")
+Project 634: RL for Computer Vision Tasks
+Description:
+Reinforcement learning (RL) for computer vision tasks focuses on applying RL techniques to solve vision-based problems such as image classification, object detection, and segmentation. In this project, we will integrate RL with computer vision tasks, where an agent learns to perform tasks like selecting regions of interest in an image or optimizing object detection models. We'll apply Deep Q-Learning (DQN) to a computer vision task to train an agent to interact with an image-based environment.
+
+🧪 Python Implementation (RL for Computer Vision Tasks using DQN)
+import gym
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+from torchvision import transforms
+from PIL import Image
+ 
+# 1. Define the Q-network (Deep Q-Network) for computer vision tasks
+class VisionQNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(VisionQNetwork, self).__init__()
+        self.conv1 = nn.Conv2d(input_size, 32, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+        self.fc1 = nn.Linear(64 * 8 * 8, 128)
+        self.fc2 = nn.Linear(128, output_size)  # Output: action probabilities (e.g., select region or class)
+ 
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.relu(self.conv2(x))
+        x = x.view(x.size(0), -1)  # Flatten the tensor
+        x = torch.relu(self.fc1(x))
+        return self.fc2(x)  # Output: Q-values for each action
+ 
+# 2. Define the RL agent for computer vision tasks
+class VisionRLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(state)
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(state)
+        next_q_values = self.model(next_state)
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Define a simple image-based environment (simulated for this task)
+class ImageEnv:
+    def __init__(self):
+        self.state = np.random.rand(3, 32, 32)  # Example: 32x32 image with 3 color channels
+        self.num_actions = 4  # Example: 4 possible actions (select region, classify, etc.)
+ 
+    def reset(self):
+        self.state = np.random.rand(3, 32, 32)  # Random state (image)
+        return self.state
+ 
+    def step(self, action):
+        # Simulate the environment step based on the action taken
+        # For simplicity, assume reward is based on random chance
+        reward = np.random.choice([1, 0], p=[0.7, 0.3])  # 70% chance of positive feedback
+        done = False  # In this simple environment, we never "end" the task
+        return self.state, reward, done
+ 
+# 4. Initialize the environment and RL agent for computer vision tasks
+env = ImageEnv()
+model = VisionQNetwork(input_size=3, output_size=env.num_actions)
+agent = VisionRLAgent(model)
+ 
+# 5. Train the agent using DQN for computer vision tasks
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+        next_state, reward, done = env.step(action)
+ 
+        # Update the agent using DQN
+        loss = agent.update(torch.tensor(state, dtype=torch.float32).unsqueeze(0), action, reward, torch.tensor(next_state, dtype=torch.float32).unsqueeze(0), done)
+        total_reward += reward
+        state = next_state
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 6. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+    next_state, reward, done = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after DQN training for Computer Vision Task: {total_reward}")
+Project 635: RL for Healthcare Decision Making
+Description:
+Reinforcement learning (RL) for healthcare decision making aims to optimize medical decision processes, such as treatment plans, patient management, or resource allocation, by training agents to make decisions that maximize patient outcomes over time. This project will apply RL to healthcare problems, where an agent learns a policy to maximize the effectiveness of treatment or resource utilization based on patient data. In this project, we will use Q-learning to model a healthcare decision-making task where the agent selects optimal treatment actions.
+
+🧪 Python Implementation (RL for Healthcare Decision Making using Q-Learning)
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define the Q-network for healthcare decision making
+class HealthcareQNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(HealthcareQNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: action probabilities (treatment choices)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)  # Output: Q-values for each treatment action
+ 
+# 2. Define the RL agent for healthcare decision making
+class HealthcareRLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(state)
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(state)
+        next_q_values = self.model(next_state)
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Define the healthcare environment (e.g., treatment decisions)
+class HealthcareEnv:
+    def __init__(self):
+        self.state = np.random.rand(5)  # Example: 5-dimensional state (e.g., patient features like age, severity, etc.)
+        self.num_actions = 3  # Example: 3 possible treatment actions (e.g., medication, surgery, therapy)
+ 
+    def reset(self):
+        self.state = np.random.rand(5)  # Random patient state
+        return self.state
+ 
+    def step(self, action):
+        # Simulate the environment step based on the action taken (e.g., treatment outcome)
+        # For simplicity, assume reward is based on random chance and action taken
+        reward = np.random.choice([1, 0], p=[0.7, 0.3])  # 70% chance of positive outcome
+        done = False  # In this simple environment, we don't have an end state
+        return self.state, reward, done
+ 
+# 4. Initialize the environment and RL agent for healthcare decision making
+env = HealthcareEnv()
+model = HealthcareQNetwork(input_size=env.state.shape[0], output_size=env.num_actions)
+agent = HealthcareRLAgent(model)
+ 
+# 5. Train the agent using Q-learning for healthcare decision making
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+        next_state, reward, done = env.step(action)
+ 
+        # Update the agent using Q-learning
+        loss = agent.update(torch.tensor(state, dtype=torch.float32).unsqueeze(0), action, reward, torch.tensor(next_state, dtype=torch.float32).unsqueeze(0), done)
+        total_reward += reward
+        state = next_state
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 6. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+    next_state, reward, done = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Q-learning training for Healthcare Decision Making: {total_reward}")
+Project 636: RL for Financial Trading
+Description:
+Reinforcement learning (RL) for financial trading involves training agents to make decisions in financial markets, such as buying, selling, or holding assets, to maximize profits. The goal is to apply RL algorithms to create trading strategies that adapt to market conditions. In this project, we will implement Q-learning for a simple trading environment, where an agent learns to make optimal trades based on market prices.
+
+🧪 Python Implementation (RL for Financial Trading using Q-learning)
+import gym
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define the Q-network for financial trading
+class TradingQNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(TradingQNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: Q-values for each action (buy, sell, hold)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)  # Output: Q-values for each action
+ 
+# 2. Define the RL agent for financial trading
+class TradingRLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(state)
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(state)
+        next_q_values = self.model(next_state)
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Define the financial trading environment (simulated)
+class TradingEnv:
+    def __init__(self, prices):
+        self.prices = prices  # Historical price data
+        self.current_step = 0
+        self.balance = 1000  # Starting balance
+        self.asset = 0  # Amount of asset owned
+        self.num_steps = len(prices)
+ 
+    def reset(self):
+        self.current_step = 0
+        self.balance = 1000
+        self.asset = 0
+        return np.array([self.balance, self.asset, self.prices[self.current_step]])
+ 
+    def step(self, action):
+        current_price = self.prices[self.current_step]
+        if action == 0:  # Buy
+            self.asset = self.balance / current_price
+            self.balance = 0
+        elif action == 1:  # Sell
+            self.balance = self.asset * current_price
+            self.asset = 0
+        reward = self.balance + (self.asset * current_price) - 1000  # Reward based on portfolio value
+        self.current_step += 1
+        done = self.current_step >= self.num_steps
+        return np.array([self.balance, self.asset, self.prices[self.current_step]]), reward, done
+ 
+# 4. Initialize the environment and RL agent for financial trading
+prices = np.random.uniform(100, 200, 100)  # Example random price data for 100 time steps
+env = TradingEnv(prices)
+model = TradingQNetwork(input_size=3, output_size=3)  # 3 actions: Buy, Sell, Hold
+agent = TradingRLAgent(model)
+ 
+# 5. Train the agent using Q-learning for financial trading
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+        next_state, reward, done = env.step(action)
+ 
+        # Update the agent using Q-learning
+        loss = agent.update(torch.tensor(state, dtype=torch.float32).unsqueeze(0), action, reward, torch.tensor(next_state, dtype=torch.float32).unsqueeze(0), done)
+        total_reward += reward
+        state = next_state
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 6. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+    next_state, reward, done = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Q-learning training for Financial Trading: {total_reward}")
+Project 637: RL for Transportation Optimization
+Description:
+Reinforcement learning (RL) for transportation optimization involves applying RL algorithms to optimize transportation systems, such as route planning, fleet management, and traffic control. The agent learns to make decisions that minimize travel time, reduce congestion, or optimize fuel efficiency based on real-time data. In this project, we will apply Q-learning to a simple transportation problem, where an agent learns to optimize vehicle routing to minimize travel time and maximize efficiency.
+
+🧪 Python Implementation (RL for Transportation Optimization using Q-learning)
+import gym
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define the Q-network for transportation optimization
+class TransportationQNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(TransportationQNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: Q-values for each action (routes)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)  # Output: Q-values for each action (route)
+ 
+# 2. Define the RL agent for transportation optimization
+class TransportationRLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(state)
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(state)
+        next_q_values = self.model(next_state)
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Define the transportation optimization environment (simulated)
+class TransportationEnv:
+    def __init__(self):
+        self.num_locations = 5  # Number of locations
+        self.state = np.random.rand(self.num_locations)  # Example: vehicle's state (location, speed, etc.)
+        self.num_actions = self.num_locations  # Number of possible routes (actions)
+ 
+    def reset(self):
+        self.state = np.random.rand(self.num_locations)  # Random initial state (e.g., locations, conditions)
+        return self.state
+ 
+    def step(self, action):
+        # Simulate the environment step based on the action taken (e.g., selecting a route)
+        # For simplicity, assume reward is based on the time or distance (lower is better)
+        reward = -np.abs(np.sum(self.state) - action)  # Example reward function (minimize travel time/distance)
+        done = False  # In this simple environment, we don't have an "end"
+        return self.state, reward, done
+ 
+# 4. Initialize the environment and RL agent for transportation optimization
+env = TransportationEnv()
+model = TransportationQNetwork(input_size=env.num_locations, output_size=env.num_actions)
+agent = TransportationRLAgent(model)
+ 
+# 5. Train the agent using Q-learning for transportation optimization
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+        next_state, reward, done = env.step(action)
+ 
+        # Update the agent using Q-learning
+        loss = agent.update(torch.tensor(state, dtype=torch.float32).unsqueeze(0), action, reward, torch.tensor(next_state, dtype=torch.float32).unsqueeze(0), done)
+        total_reward += reward
+        state = next_state
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 6. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+    next_state, reward, done = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Q-learning training for Transportation Optimization: {total_reward}")
+Project 638: RL for Energy Management
+Description:
+Reinforcement learning (RL) for energy management involves applying RL algorithms to optimize the generation, distribution, and consumption of energy in systems such as smart grids, renewable energy systems, and building energy management. In this project, we will train an RL agent to make energy management decisions, such as when to store energy, when to consume it, or when to distribute it to minimize costs or maximize efficiency. The agent will learn policies that can handle uncertainties in energy generation and consumption.
+
+🧪 Python Implementation (RL for Energy Management using Q-learning)
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define the Q-network for energy management optimization
+class EnergyQNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(EnergyQNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: Q-values for each action (energy management decision)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)  # Output: Q-values for each action
+ 
+# 2. Define the RL agent for energy management
+class EnergyRLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(state)
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(state)
+        next_q_values = self.model(next_state)
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Define the energy management environment (simulated)
+class EnergyManagementEnv:
+    def __init__(self):
+        self.state = np.random.rand(3)  # Example: 3-dimensional state (e.g., energy storage, demand, price)
+        self.num_actions = 3  # Example: 3 possible actions (store energy, consume energy, distribute energy)
+ 
+    def reset(self):
+        self.state = np.random.rand(3)  # Random initial state (energy storage, demand, price)
+        return self.state
+ 
+    def step(self, action):
+        # Simulate the environment step based on the action taken
+        # For simplicity, assume reward is based on cost savings or efficiency
+        reward = np.random.choice([1, 0], p=[0.7, 0.3])  # 70% chance of positive outcome
+        done = False  # In this simple environment, we don't have an "end"
+        return self.state, reward, done
+ 
+# 4. Initialize the environment and RL agent for energy management
+env = EnergyManagementEnv()
+model = EnergyQNetwork(input_size=env.state.shape[0], output_size=env.num_actions)
+agent = EnergyRLAgent(model)
+ 
+# 5. Train the agent using Q-learning for energy management
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+        next_state, reward, done = env.step(action)
+ 
+        # Update the agent using Q-learning
+        loss = agent.update(torch.tensor(state, dtype=torch.float32).unsqueeze(0), action, reward, torch.tensor(next_state, dtype=torch.float32).unsqueeze(0), done)
+        total_reward += reward
+        state = next_state
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 6. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+    next_state, reward, done = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Q-learning training for Energy Management: {total_reward}")
+Project 639: RL for Resource Allocation
+Description:
+Reinforcement learning (RL) for resource allocation focuses on optimizing the allocation of limited resources (such as computing power, bandwidth, or personnel) in an environment. The agent learns how to distribute resources efficiently to maximize performance, minimize cost, or achieve a set of predefined goals. In this project, we will apply Q-learning to a resource allocation problem, where an agent learns how to allocate resources in a way that maximizes efficiency or minimizes cost.
+
+🧪 Python Implementation (RL for Resource Allocation using Q-learning)
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define the Q-network for resource allocation optimization
+class ResourceQNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(ResourceQNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: Q-values for each action (resource allocation decision)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)  # Output: Q-values for each action
+ 
+# 2. Define the RL agent for resource allocation
+class ResourceRLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(state)
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(state)
+        next_q_values = self.model(next_state)
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Define the resource allocation environment (simulated)
+class ResourceAllocationEnv:
+    def __init__(self, num_resources=3):
+        self.num_resources = num_resources
+        self.state = np.random.rand(self.num_resources)  # Example: resource availability (e.g., bandwidth, CPU)
+        self.num_actions = 5  # Example: 5 possible allocation actions (e.g., allocate 0-100%)
+ 
+    def reset(self):
+        self.state = np.random.rand(self.num_resources)  # Random initial state (resource availability)
+        return self.state
+ 
+    def step(self, action):
+        # Simulate the environment step based on the action taken
+        # For simplicity, assume reward is based on allocation efficiency
+        reward = np.random.choice([1, 0], p=[0.7, 0.3])  # 70% chance of positive outcome (efficiency)
+        done = False  # In this simple environment, we don't have an "end"
+        return self.state, reward, done
+ 
+# 4. Initialize the environment and RL agent for resource allocation
+env = ResourceAllocationEnv()
+model = ResourceQNetwork(input_size=env.num_resources, output_size=env.num_actions)
+agent = ResourceRLAgent(model)
+ 
+# 5. Train the agent using Q-learning for resource allocation
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+        next_state, reward, done = env.step(action)
+ 
+        # Update the agent using Q-learning
+        loss = agent.update(torch.tensor(state, dtype=torch.float32).unsqueeze(0), action, reward, torch.tensor(next_state, dtype=torch.float32).unsqueeze(0), done)
+        total_reward += reward
+        state = next_state
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 6. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+    next_state, reward, done = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Q-learning training for Resource Allocation: {total_reward}")
+
+
+Project 640: RL for Scheduling Problems
+Description:
+Reinforcement learning (RL) for scheduling problems involves using RL techniques to optimize the allocation of tasks or resources in systems where scheduling is a key factor. This could include optimizing job schedules in factories, computer processes in operating systems, or even employee work shifts. The agent learns to optimize the scheduling policy to maximize efficiency, reduce costs, or meet deadlines. In this project, we will use Q-learning to model a scheduling problem, where the agent learns to allocate tasks to resources in an optimal way.
+
+🧪 Python Implementation (RL for Scheduling Problems using Q-learning)
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+ 
+# 1. Define the Q-network for scheduling optimization
+class SchedulingQNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(SchedulingQNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, output_size)  # Output: Q-values for each action (schedule decision)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)  # Output: Q-values for each action
+ 
+# 2. Define the RL agent for scheduling
+class SchedulingRLAgent:
+    def __init__(self, model, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
+        self.model = model
+        self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.criterion = nn.MSELoss()
+ 
+    def select_action(self, state):
+        # Epsilon-greedy action selection
+        if np.random.rand() < self.epsilon:
+            return np.random.choice(len(state))  # Random action (exploration)
+        else:
+            q_values = self.model(state)
+            return torch.argmax(q_values).item()  # Select action with the highest Q-value
+ 
+    def update(self, state, action, reward, next_state, done):
+        # Q-learning update rule
+        q_values = self.model(state)
+        next_q_values = self.model(next_state)
+        target = reward + self.gamma * torch.max(next_q_values) * (1 - done)
+        loss = self.criterion(q_values[action], target)  # Compute loss (MSE)
+ 
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+ 
+        # Decay epsilon (exploration rate)
+        if done:
+            self.epsilon *= self.epsilon_decay
+ 
+        return loss.item()
+ 
+# 3. Define the scheduling environment (simulated)
+class SchedulingEnv:
+    def __init__(self, num_jobs, num_resources):
+        self.num_jobs = num_jobs
+        self.num_resources = num_resources
+        self.state = np.random.rand(self.num_jobs)  # Example: job features (e.g., priority, duration)
+        self.num_actions = self.num_resources  # Number of available resources for scheduling
+ 
+    def reset(self):
+        self.state = np.random.rand(self.num_jobs)  # Random initial state (job features)
+        return self.state
+ 
+    def step(self, action):
+        # Simulate the environment step based on the action taken (e.g., assigning job to resource)
+        # For simplicity, assume reward is based on efficiency of task allocation
+        reward = np.random.choice([1, 0], p=[0.7, 0.3])  # 70% chance of positive outcome (efficient scheduling)
+        done = False  # In this simple environment, we don't have an "end"
+        return self.state, reward, done
+ 
+# 4. Initialize the environment and RL agent for scheduling
+env = SchedulingEnv(num_jobs=5, num_resources=3)
+model = SchedulingQNetwork(input_size=env.num_jobs, output_size=env.num_resources)
+agent = SchedulingRLAgent(model)
+ 
+# 5. Train the agent using Q-learning for scheduling optimization
+num_episodes = 1000
+for episode in range(num_episodes):
+    state = env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+        next_state, reward, done = env.step(action)
+ 
+        # Update the agent using Q-learning
+        loss = agent.update(torch.tensor(state, dtype=torch.float32).unsqueeze(0), action, reward, torch.tensor(next_state, dtype=torch.float32).unsqueeze(0), done)
+        total_reward += reward
+        state = next_state
+ 
+    if episode % 100 == 0:
+        print(f"Episode {episode}, Total Reward: {total_reward}, Loss: {loss:.4f}")
+ 
+# 6. Evaluate the agent after training (no exploration, only exploitation)
+state = env.reset()
+done = False
+total_reward = 0
+while not done:
+    action = agent.select_action(torch.tensor(state, dtype=torch.float32).unsqueeze(0))
+    next_state, reward, done = env.step(action)
+    total_reward += reward
+    state = next_state
+ 
+print(f"Total reward after Q-learning training for Scheduling: {total_reward}")
