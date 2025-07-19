@@ -1,0 +1,2018 @@
+
+Project 801. Customer Segmentation Analysis
+
+This project involves segmenting customers into distinct groups based on purchasing behavior or demographic attributes. By clustering similar customers together, businesses can tailor marketing strategies, product recommendations, or loyalty programs more effectively. We'll use the K-Means clustering algorithm on a synthetic dataset containing customer features such as age, income, and spending score.
+
+Here’s the implementation in Python:
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+ 
+# Create a sample dataset simulating customer data
+data = {
+    'Age': [19, 35, 26, 27, 19, 27, 27, 32, 25, 35],
+    'Annual_Income_k$': [15, 35, 35, 19, 27, 75, 45, 40, 60, 50],
+    'Spending_Score': [39, 81, 6, 77, 40, 76, 20, 8, 40, 35]
+}
+ 
+# Convert to DataFrame
+df = pd.DataFrame(data)
+ 
+# Scale the features for better clustering performance
+scaler = StandardScaler()
+scaled_data = scaler.fit_transform(df)
+ 
+# Apply KMeans clustering
+# Here we choose 3 clusters arbitrarily (can use elbow method to choose optimal)
+kmeans = KMeans(n_clusters=3, random_state=42)
+df['Cluster'] = kmeans.fit_predict(scaled_data)
+ 
+# Visualize the clusters
+plt.figure(figsize=(8, 5))
+plt.scatter(df['Annual_Income_k$'], df['Spending_Score'], 
+            c=df['Cluster'], cmap='viridis', s=100)
+ 
+# Plot cluster centers
+centers = scaler.inverse_transform(kmeans.cluster_centers_)  # scale back for original values
+plt.scatter(centers[:, 1], centers[:, 2], c='red', s=200, alpha=0.75, marker='X', label='Centroids')
+ 
+plt.xlabel('Annual Income (k$)')
+plt.ylabel('Spending Score')
+plt.title('Customer Segmentation using K-Means')
+plt.legend()
+plt.grid(True)
+plt.show()
+ 
+# Display the segmented customer data
+print(df)
+This code demonstrates how to group customers based on income and spending habits, helping businesses understand different customer profiles (e.g., high spenders, budget-conscious, etc.) for targeted actions.
+
+Project 802. Market Basket Analysis
+
+This project aims to identify associations between products frequently bought together using association rule mining. It's widely used in retail to create recommendation systems, optimize store layout, or design cross-selling strategies. We'll use the Apriori algorithm to extract frequent itemsets and generate association rules from transaction data.
+
+Here’s the Python implementation using the mlxtend library:
+
+import pandas as pd
+from mlxtend.preprocessing import TransactionEncoder
+from mlxtend.frequent_patterns import apriori, association_rules
+ 
+# Sample transaction dataset (each sublist is a customer's basket)
+transactions = [
+    ['milk', 'bread', 'eggs'],
+    ['beer', 'bread', 'butter'],
+    ['milk', 'bread'],
+    ['milk', 'eggs'],
+    ['bread', 'butter'],
+    ['milk', 'bread', 'butter', 'eggs'],
+    ['beer', 'bread']
+]
+ 
+# Convert transaction data to a format suitable for analysis
+te = TransactionEncoder()
+te_array = te.fit(transactions).transform(transactions)
+df = pd.DataFrame(te_array, columns=te.columns_)
+ 
+# Generate frequent itemsets using Apriori algorithm
+# Set minimum support (frequency) threshold
+frequent_itemsets = apriori(df, min_support=0.3, use_colnames=True)
+ 
+# Generate association rules from frequent itemsets
+# Set minimum confidence threshold to filter strong rules
+rules = association_rules(frequent_itemsets, metric="confidence", min_threshold=0.6)
+ 
+# Display the resulting rules
+print("Frequent Itemsets:")
+print(frequent_itemsets)
+print("\nAssociation Rules:")
+print(rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']])
+This code performs classic market basket analysis, revealing patterns like:
+“If a customer buys milk and bread, they are likely to also buy eggs.”
+
+Project 803. Customer Lifetime Value Prediction
+
+Customer Lifetime Value (CLV) is a key business metric that estimates the total revenue a business can expect from a single customer throughout their relationship. Predicting CLV helps in budgeting, customer acquisition strategy, and personalized marketing. This implementation uses a simplified regression-based approach using RFM (Recency, Frequency, Monetary) features.
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+ 
+# Sample dataset: each row represents a customer with RFM features and known CLV
+data = {
+    'Recency': [10, 30, 5, 45, 3, 25, 7, 50],        # days since last purchase
+    'Frequency': [15, 5, 25, 2, 30, 6, 18, 1],       # number of purchases
+    'Monetary': [200, 100, 400, 50, 500, 120, 300, 30],  # total spend
+    'CLV': [1000, 500, 2000, 200, 2500, 600, 1500, 100]  # known lifetime value
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Define features and target
+X = df[['Recency', 'Frequency', 'Monetary']]
+y = df['CLV']
+ 
+# Split into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train a linear regression model
+model = LinearRegression()
+model.fit(X_train, y_train)
+ 
+# Predict CLV on test data
+y_pred = model.predict(X_test)
+ 
+# Evaluate model performance
+mse = mean_squared_error(y_test, y_pred)
+print("Mean Squared Error on test set:", round(mse, 2))
+ 
+# Display predictions
+predictions = pd.DataFrame({
+    'Actual CLV': y_test,
+    'Predicted CLV': y_pred
+})
+print("\nPredicted vs Actual CLV:")
+print(predictions)
+This model uses Recency, Frequency, and Monetary values to estimate customer lifetime value. In real applications, more sophisticated models like LTV with time decay, probabilistic models (BG/NBD), or deep learning can be used.
+
+Project 804. Churn Prediction Model
+
+Churn prediction helps businesses identify customers who are likely to stop using their services or products. By detecting churn risks early, companies can take action to retain those customers. In this implementation, we’ll use a logistic regression model on customer behavior data to predict whether a customer will churn (1) or not (0).
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, confusion_matrix
+ 
+# Sample dataset: each row represents a customer with usage features and churn status
+data = {
+    'Tenure': [1, 24, 12, 5, 36, 6, 30, 4],  # months with the company
+    'MonthlyCharges': [70, 30, 50, 65, 25, 55, 20, 75],  # monthly bill
+    'TotalCharges': [70, 720, 600, 325, 900, 330, 600, 300],  # total spend
+    'Churn': [1, 0, 0, 1, 0, 1, 0, 1]  # 1 = churned, 0 = retained
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Define features and target
+X = df[['Tenure', 'MonthlyCharges', 'TotalCharges']]
+y = df['Churn']
+ 
+# Split into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train logistic regression model
+model = LogisticRegression()
+model.fit(X_train, y_train)
+ 
+# Predict on test set
+y_pred = model.predict(X_test)
+ 
+# Evaluate model performance
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+ 
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+This model predicts customer churn based on their billing and tenure history. In real-world applications, more features (e.g., support calls, service usage, demographics) and advanced models like Random Forest or XGBoost can boost performance.
+
+Project 805. Lead Scoring System
+
+A lead scoring system ranks potential customers (leads) based on their likelihood to convert into paying customers. This helps sales teams prioritize outreach and improve conversion rates. We'll build a simple scoring model using classification techniques based on lead behavior and demographic attributes.
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+ 
+# Sample dataset: each row is a lead with features and a label for conversion (1 = converted, 0 = not converted)
+data = {
+    'PageViews': [5, 10, 2, 15, 3, 8, 1, 12],          # number of website pages viewed
+    'TimeOnSite': [2, 8, 1, 10, 1.5, 5, 0.5, 7],       # time spent on site (minutes)
+    'EmailOpened': [1, 1, 0, 1, 0, 1, 0, 1],           # did they open marketing emails (1=yes)
+    'IndustryScore': [3, 5, 1, 5, 2, 4, 1, 5],         # internal score assigned by industry fit
+    'Converted': [0, 1, 0, 1, 0, 1, 0, 1]              # lead conversion status
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df[['PageViews', 'TimeOnSite', 'EmailOpened', 'IndustryScore']]
+y = df['Converted']
+ 
+# Split into training and test datasets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train a Random Forest Classifier
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# Predict lead conversion on test set
+y_pred = model.predict(X_test)
+ 
+# Evaluate the model
+print("Lead Scoring Classification Report:")
+print(classification_report(y_test, y_pred))
+This code builds a basic lead scoring classifier that evaluates the probability of conversion based on behavioral and firmographic data. In production, you'd use probability outputs for ranking leads instead of hard classifications.
+
+Project 806. Sales Forecasting Model
+
+Sales forecasting predicts future sales based on historical data. This helps businesses plan inventory, manage resources, and set revenue targets. We'll build a simple time series model using linear regression to forecast monthly sales based on trends.
+
+Here’s the Python implementation:
+
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+import numpy as np
+ 
+# Sample monthly sales data
+data = {
+    'Month': pd.date_range(start='2023-01-01', periods=12, freq='M'),
+    'Sales': [200, 220, 250, 270, 300, 320, 340, 360, 400, 420, 450, 470]
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Convert Month to numeric index for regression
+df['MonthIndex'] = np.arange(len(df))
+ 
+# Features (MonthIndex) and target (Sales)
+X = df[['MonthIndex']]
+y = df['Sales']
+ 
+# Train a simple linear regression model
+model = LinearRegression()
+model.fit(X, y)
+ 
+# Forecast next 6 months
+future_months = np.arange(len(df), len(df) + 6).reshape(-1, 1)
+future_sales = model.predict(future_months)
+ 
+# Combine past and future data for plotting
+forecast_df = pd.DataFrame({
+    'Month': pd.date_range(start='2023-01-01', periods=18, freq='M'),
+    'Sales': np.concatenate([y, future_sales])
+})
+ 
+# Plot actual and forecasted sales
+plt.figure(figsize=(10, 5))
+plt.plot(forecast_df['Month'], forecast_df['Sales'], marker='o', label='Sales Forecast')
+plt.axvline(x=df['Month'].iloc[-1], color='gray', linestyle='--', label='Forecast Start')
+plt.title('Monthly Sales Forecast')
+plt.xlabel('Month')
+plt.ylabel('Sales')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+ 
+# Show forecasted values
+print("Forecasted Sales for Next 6 Months:")
+print(pd.DataFrame({'Month': forecast_df['Month'].tail(6), 'ForecastedSales': future_sales.round(2)}))
+This model captures a linear trend in monthly sales and extends it to make future predictions. For real-world usage, you can enhance it with seasonal components (using ARIMA, Prophet, or LSTM).
+
+Project 807. Demand Forecasting System
+
+Demand forecasting predicts the quantity of products or services customers will purchase in the future. This is crucial for inventory planning, reducing waste, and meeting customer needs. We’ll use a basic regression model on historical demand data to forecast future demand.
+
+Here’s the Python implementation:
+
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LinearRegression
+import matplotlib.pyplot as plt
+ 
+# Sample weekly demand data
+data = {
+    'Week': np.arange(1, 13),  # Week numbers
+    'Units_Demanded': [120, 130, 125, 140, 135, 150, 160, 170, 165, 180, 175, 190]
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df[['Week']]
+y = df['Units_Demanded']
+ 
+# Train a simple linear regression model
+model = LinearRegression()
+model.fit(X, y)
+ 
+# Forecast demand for the next 4 weeks
+future_weeks = np.arange(13, 17).reshape(-1, 1)
+future_demand = model.predict(future_weeks)
+ 
+# Combine actual and forecasted data
+forecast_df = pd.concat([
+    df,
+    pd.DataFrame({'Week': future_weeks.flatten(), 'Units_Demanded': future_demand})
+])
+ 
+# Plot actual vs forecasted demand
+plt.figure(figsize=(10, 5))
+plt.plot(forecast_df['Week'], forecast_df['Units_Demanded'], marker='o', label='Demand')
+plt.axvline(x=12.5, color='gray', linestyle='--', label='Forecast Start')
+plt.title('Weekly Demand Forecast')
+plt.xlabel('Week')
+plt.ylabel('Units Demanded')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+ 
+# Display forecasted values
+print("Forecasted Demand (Next 4 Weeks):")
+print(pd.DataFrame({
+    'Week': future_weeks.flatten(),
+    'Forecasted Units': future_demand.round(1)
+}))
+This basic model captures the upward trend in demand and projects it into future weeks. For better accuracy, especially in real businesses, you might include variables like price, seasonality, promotions, and competitor actions.
+
+Project 808. Price Optimization Model
+
+Price optimization identifies the best price point for a product to maximize revenue or profit. It analyzes how changes in price affect demand and revenue. In this simplified version, we simulate price vs. demand data and find the price that maximizes revenue using a regression-based approach.
+
+Here’s the Python implementation:
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+ 
+# Simulated data: prices and corresponding customer demand
+data = {
+    'Price': [10, 12, 14, 16, 18, 20, 22, 24],
+    'Demand': [220, 200, 185, 160, 140, 120, 100, 85]
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Calculate revenue (Price * Demand)
+df['Revenue'] = df['Price'] * df['Demand']
+ 
+# Fit a quadratic regression model to find the price that maximizes revenue
+# Create polynomial features: Price and Price^2
+df['Price_Sq'] = df['Price'] ** 2
+X = df[['Price', 'Price_Sq']]
+y = df['Revenue']
+ 
+model = LinearRegression()
+model.fit(X, y)
+ 
+# Generate prices to evaluate model
+price_range = np.linspace(10, 25, 100)
+price_sq = price_range ** 2
+X_pred = pd.DataFrame({'Price': price_range, 'Price_Sq': price_sq})
+predicted_revenue = model.predict(X_pred)
+ 
+# Find the price that gives the highest predicted revenue
+optimal_index = np.argmax(predicted_revenue)
+optimal_price = price_range[optimal_index]
+max_revenue = predicted_revenue[optimal_index]
+ 
+# Plot the revenue curve
+plt.figure(figsize=(10, 5))
+plt.plot(price_range, predicted_revenue, label='Predicted Revenue')
+plt.axvline(optimal_price, color='red', linestyle='--', label=f'Optimal Price: ${optimal_price:.2f}')
+plt.title('Price Optimization')
+plt.xlabel('Price')
+plt.ylabel('Revenue')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+ 
+# Output result
+print(f"Optimal Price: ${optimal_price:.2f}")
+print(f"Maximum Predicted Revenue: ${max_revenue:.2f}")
+This model fits a quadratic curve to simulate the classic price-revenue relationship and identifies the price point where revenue is maximized. For more advanced setups, you can incorporate cost, customer segments, and price elasticity models.
+
+Project 809. Inventory Optimization System
+
+An inventory optimization system ensures the right amount of stock is maintained to meet demand while minimizing holding and shortage costs. In this basic implementation, we simulate inventory levels, demand, and restocking using the Economic Order Quantity (EOQ) model—a classic approach in operations.
+
+Here’s the Python implementation:
+
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# Input values for the EOQ model
+annual_demand = 1200     # units per year
+ordering_cost = 100      # cost to place one order
+holding_cost = 2         # cost to hold one unit for a year
+ 
+# EOQ formula: sqrt((2 * D * S) / H)
+eoq = np.sqrt((2 * annual_demand * ordering_cost) / holding_cost)
+ 
+# Calculate number of orders and total costs
+num_orders = annual_demand / eoq
+total_ordering_cost = num_orders * ordering_cost
+avg_inventory = eoq / 2
+total_holding_cost = avg_inventory * holding_cost
+total_inventory_cost = total_ordering_cost + total_holding_cost
+ 
+# Display results
+print(f"Economic Order Quantity (EOQ): {eoq:.2f} units")
+print(f"Number of Orders per Year: {num_orders:.1f}")
+print(f"Total Ordering Cost: ${total_ordering_cost:.2f}")
+print(f"Total Holding Cost: ${total_holding_cost:.2f}")
+print(f"Total Inventory Cost: ${total_inventory_cost:.2f}")
+ 
+# Visualize inventory level over time
+cycle_days = 365 / num_orders
+time = np.linspace(0, 365, 1000)
+inventory = eoq - (eoq / cycle_days) * (time % cycle_days)
+ 
+plt.figure(figsize=(10, 4))
+plt.plot(time, inventory)
+plt.title('Inventory Level Over Time (EOQ Model)')
+plt.xlabel('Day of the Year')
+plt.ylabel('Inventory Level')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+This model calculates the optimal order quantity that minimizes total inventory cost and simulates how inventory levels fluctuate over time with regular replenishment cycles.
+
+Project 810. Supply Chain Optimization
+
+Supply chain optimization focuses on minimizing cost and maximizing efficiency across sourcing, production, storage, and delivery. In this simplified project, we simulate a transportation problem — deciding how to ship products from warehouses to stores at the lowest cost using linear programming.
+
+Here’s the Python implementation using scipy.optimize:
+
+import numpy as np
+from scipy.optimize import linprog
+import pandas as pd
+ 
+# Supply (units available at each warehouse)
+supply = [100, 150]  # Warehouse A, Warehouse B
+ 
+# Demand (units needed at each store)
+demand = [80, 120, 50]  # Store X, Store Y, Store Z
+ 
+# Cost matrix (shipping cost per unit from each warehouse to each store)
+cost_matrix = [
+    [2, 4, 5],   # Warehouse A to X, Y, Z
+    [3, 1, 7]    # Warehouse B to X, Y, Z
+]
+ 
+# Flatten cost matrix for optimization
+c = np.array(cost_matrix).flatten()
+ 
+# Define inequality constraints (supply limits per warehouse)
+A_eq = []
+ 
+# Supply constraints: rows = warehouses, columns = flattened shipping plan
+for i in range(len(supply)):
+    row = [0] * len(c)
+    for j in range(len(demand)):
+        row[i * len(demand) + j] = 1
+    A_eq.append(row)
+ 
+# Demand constraints: columns = stores
+for j in range(len(demand)):
+    row = [0] * len(c)
+    for i in range(len(supply)):
+        row[i * len(demand) + j] = 1
+    A_eq.append(row)
+ 
+A_eq = np.array(A_eq)
+b_eq = np.array(supply + demand)
+ 
+# Solve the linear programming problem
+result = linprog(c, A_eq=A_eq, b_eq=b_eq, method='highs')
+ 
+# Output results
+if result.success:
+    print("Optimal Shipping Plan (units from warehouse to store):")
+    plan = np.array(result.x).reshape(len(supply), len(demand))
+    df = pd.DataFrame(plan, 
+                      index=['Warehouse A', 'Warehouse B'], 
+                      columns=['Store X', 'Store Y', 'Store Z'])
+    print(df.round(2))
+    print(f"\nTotal Minimum Cost: ${result.fun:.2f}")
+else:
+    print("Optimization failed:", result.message)
+This code determines the most cost-effective distribution plan to satisfy demand while respecting warehouse supply constraints. For more complex networks, tools like PuLP or Google OR-Tools can handle multi-stage supply chains, constraints, and objectives.
+
+Project 811. Resource Allocation Optimization
+
+This project aims to optimally allocate limited resources (e.g., budget, labor, machines) to various tasks or departments to maximize output or minimize cost. We'll simulate a scenario where resources need to be allocated across projects for maximum profit using linear programming.
+
+Here’s the Python implementation using scipy.optimize:
+
+from scipy.optimize import linprog
+import numpy as np
+import pandas as pd
+ 
+# Example: Allocate labor hours across 3 projects to maximize profit
+# Profit per unit of labor hour for each project
+profits = [-50, -40, -70]  # Negative for maximization in linprog
+ 
+# Constraints:
+# Total available labor = 100 hours
+# Each project has max hours it can use
+A = [
+    [1, 1, 1],       # Total labor constraint
+    [1, 0, 0],       # Project A max
+    [0, 1, 0],       # Project B max
+    [0, 0, 1]        # Project C max
+]
+ 
+b = [100, 40, 50, 30]  # total labor, max per project
+ 
+# Bounds for each variable (hours assigned to each project)
+bounds = [(0, None), (0, None), (0, None)]
+ 
+# Solve the linear programming problem
+result = linprog(c=profits, A_ub=A, b_ub=b, bounds=bounds, method='highs')
+ 
+# Output results
+if result.success:
+    hours = result.x
+    total_profit = -result.fun  # flip sign back to positive
+    print("Optimal Resource Allocation (Labor Hours):")
+    df = pd.DataFrame({
+        'Project': ['A', 'B', 'C'],
+        'Allocated Hours': hours.round(2),
+        'Profit/Hour': [-p for p in profits],
+        'Total Profit': (hours * [-p for p in profits]).round(2)
+    })
+    print(df)
+    print(f"\nTotal Maximum Profit: ${total_profit:.2f}")
+else:
+    print("Optimization failed:", result.message)
+This linear program allocates limited labor hours to maximize profit while respecting both total and per-project constraints. You can expand this to include multiple resources, skill levels, or multi-objective goals using more advanced solvers.
+
+Project 812. Staff Scheduling System
+
+Staff scheduling involves assigning employees to shifts or tasks to meet operational requirements while minimizing overwork or understaffing. In this simplified example, we'll use linear programming to assign staff to shifts such that all shifts are covered with minimal total working hours.
+
+Here’s the Python implementation using scipy.optimize:
+
+import numpy as np
+from scipy.optimize import linprog
+import pandas as pd
+ 
+# Assume we have 3 employees and 4 shifts to fill
+# Cost matrix (e.g., hours employee is available to work each shift)
+# Rows = employees (E1, E2, E3), Columns = shifts (S1, S2, S3, S4)
+availability_cost = [
+    [1, 1, 0, 1],   # E1 can work S1, S2, S4
+    [1, 0, 1, 1],   # E2 can work S1, S3, S4
+    [0, 1, 1, 1]    # E3 can work S2, S3, S4
+]
+ 
+# Flatten the cost matrix (objective: minimize total shifts assigned)
+c = np.array(availability_cost).flatten()
+ 
+# Constraints: each shift must be assigned exactly once
+A_eq = []
+b_eq = []
+ 
+# For each shift, sum over employees = 1 (exactly one employee per shift)
+for j in range(4):  # 4 shifts
+    row = [0] * 12  # 3x4 = 12 variables
+    for i in range(3):  # 3 employees
+        row[i * 4 + j] = 1
+    A_eq.append(row)
+    b_eq.append(1)
+ 
+# Bounds: either an employee works a shift (1) or not (0)
+bounds = [(0, 1)] * 12
+ 
+# Solve the integer linear program (relaxed to continuous 0–1 for simplicity)
+result = linprog(c, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+ 
+# Output the schedule
+if result.success:
+    x = result.x.round()  # round for binary interpretation
+    schedule = np.reshape(x, (3, 4))
+    df = pd.DataFrame(schedule, 
+                      index=['Employee 1', 'Employee 2', 'Employee 3'], 
+                      columns=['Shift 1', 'Shift 2', 'Shift 3', 'Shift 4'])
+    print("Optimal Staff Scheduling (1 = assigned):")
+    print(df.astype(int))
+else:
+    print("Scheduling failed:", result.message)
+This model ensures every shift is covered once while assigning available employees. For real-world use, integer programming and constraints for max hours, rest periods, or employee preferences would be added.
+
+Project 813. Workforce Planning Model
+
+A workforce planning model helps determine the number of employees needed across departments or future time periods based on projected demand. In this example, we simulate staffing demand over upcoming quarters and optimize hiring plans to meet demand at minimum cost using linear programming.
+
+Here’s the Python implementation:
+
+import numpy as np
+from scipy.optimize import linprog
+import pandas as pd
+ 
+# Assume we have to plan staffing over 3 quarters
+# Forecasted demand for employees in each quarter
+demand = [50, 60, 55]  # Q1, Q2, Q3
+ 
+# Hiring cost per employee per quarter
+hiring_cost = [1000, 1100, 1200]
+ 
+# Objective: minimize hiring costs while meeting demand
+# Decision variables: number of employees to hire each quarter
+c = hiring_cost
+ 
+# Each quarter must meet or exceed cumulative demand
+# Construct inequality matrix to reflect cumulative hiring
+A = [
+    [-1, 0, 0],       # Q1 hires >= 50
+    [-1, -1, 0],      # Q1 + Q2 hires >= 60
+    [-1, -1, -1]      # Q1 + Q2 + Q3 hires >= 55
+]
+b = [-d for d in demand]  # Flip sign to use <= format in linprog
+ 
+# Bounds: cannot hire negative number of employees
+bounds = [(0, None), (0, None), (0, None)]
+ 
+# Solve the linear programming problem
+result = linprog(c=c, A_ub=A, b_ub=b, bounds=bounds, method='highs')
+ 
+# Output the hiring plan
+if result.success:
+    hires = np.ceil(result.x)  # Round up since we can't hire fractions of people
+    df = pd.DataFrame({
+        'Quarter': ['Q1', 'Q2', 'Q3'],
+        'Hires': hires.astype(int),
+        'Cost per Hire': c,
+        'Total Cost': hires * c
+    })
+    print("Optimal Workforce Hiring Plan:")
+    print(df)
+    print(f"\nTotal Hiring Cost: ${df['Total Cost'].sum():.2f}")
+else:
+    print("Optimization failed:", result.message)
+This basic model calculates how many people to hire each quarter to meet demand at the lowest cost. In advanced scenarios, you can incorporate attrition, part-time/full-time mixes, training lags, and skill-based assignments.
+
+Project 814. Project Duration Estimation
+
+Project duration estimation predicts how long a project will take based on task dependencies and time requirements. One widely used method is the Critical Path Method (CPM), which identifies the longest path through dependent tasks — this determines the shortest time in which the project can be completed.
+
+Here’s a simplified Python implementation using a directed graph:
+
+import networkx as nx
+import matplotlib.pyplot as plt
+ 
+# Define tasks with their durations and dependencies
+tasks = {
+    'A': {'duration': 4, 'deps': []},         # Start task
+    'B': {'duration': 3, 'deps': ['A']},
+    'C': {'duration': 2, 'deps': ['A']},
+    'D': {'duration': 5, 'deps': ['B']},
+    'E': {'duration': 2, 'deps': ['C']},
+    'F': {'duration': 3, 'deps': ['D', 'E']}  # End task
+}
+ 
+# Create a directed graph to model task dependencies
+G = nx.DiGraph()
+ 
+# Add tasks and edges to the graph
+for task, info in tasks.items():
+    G.add_node(task, duration=info['duration'])
+    for dep in info['deps']:
+        G.add_edge(dep, task)
+ 
+# Compute the longest path (critical path)
+critical_path = nx.dag_longest_path(G, weight='duration')
+critical_duration = nx.dag_longest_path_length(G, weight='duration')
+ 
+# Display results
+print("Critical Path:", ' -> '.join(critical_path))
+print(f"Estimated Project Duration: {critical_duration} days")
+ 
+# Draw the graph
+pos = nx.spring_layout(G)
+nx.draw(G, pos, with_labels=True, node_color='lightblue', node_size=1500)
+labels = {node: f"{node}\n({G.nodes[node]['duration']}d)" for node in G.nodes}
+nx.draw_networkx_labels(G, pos, labels=labels)
+plt.title("Project Task Dependency Graph")
+plt.tight_layout()
+plt.show()
+This code builds a task dependency graph, computes the critical path, and estimates the total project duration. For real project planning, this can be expanded with resource allocation, buffer times, and probabilistic estimates (e.g., PERT).
+
+Project 815. Project Risk Assessment
+
+Project risk assessment evaluates potential risks that could affect a project's success — such as delays, budget overruns, or resource shortages. A basic model quantifies risk by evaluating the probability and impact of various risk factors and calculating a risk score to prioritize them.
+
+Here’s the Python implementation:
+
+import pandas as pd
+ 
+# Define a list of risks with estimated probability and impact (both on a 1–5 scale)
+data = {
+    'Risk': [
+        'Resource Shortage',
+        'Budget Overrun',
+        'Technology Failure',
+        'Vendor Delay',
+        'Scope Creep',
+        'Regulatory Issue'
+    ],
+    'Probability': [4, 3, 2, 3, 5, 1],  # Likelihood of occurrence
+    'Impact': [5, 4, 3, 4, 2, 5]        # Severity if it occurs
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Calculate risk score as the product of probability and impact
+df['Risk Score'] = df['Probability'] * df['Impact']
+ 
+# Sort risks by highest risk score
+df_sorted = df.sort_values(by='Risk Score', ascending=False)
+ 
+# Display risk assessment table
+print("Project Risk Assessment Table (Sorted by Risk Score):")
+print(df_sorted)
+ 
+# Visual representation (bar chart)
+import matplotlib.pyplot as plt
+ 
+plt.figure(figsize=(10, 6))
+plt.barh(df_sorted['Risk'], df_sorted['Risk Score'], color='salmon')
+plt.xlabel('Risk Score (Probability × Impact)')
+plt.title('Project Risk Prioritization')
+plt.gca().invert_yaxis()
+plt.grid(True, axis='x')
+plt.tight_layout()
+plt.show()
+This model helps identify which risks should be monitored or mitigated first, based on a simple risk scoring system. You can expand it by adding risk mitigation strategies, status tracking, or dynamic updates during project execution.
+
+Project 816. Quality Control System
+
+A quality control system monitors product characteristics to ensure they meet predefined standards. A simple yet powerful tool is the control chart, used to detect process variation over time. We'll simulate product measurements and plot a control chart to detect any values outside acceptable limits.
+
+Here’s the Python implementation:
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+ 
+# Simulated quality measurement data (e.g., product weight over time)
+np.random.seed(42)
+measurements = np.random.normal(loc=100, scale=2, size=30)  # 30 samples with mean=100g, std=2g
+ 
+# Calculate control limits (±3 standard deviations from mean)
+mean_val = np.mean(measurements)
+std_val = np.std(measurements)
+ucl = mean_val + 3 * std_val  # Upper Control Limit
+lcl = mean_val - 3 * std_val  # Lower Control Limit
+ 
+# Create DataFrame for plotting
+df = pd.DataFrame({'Sample': np.arange(1, 31), 'Measurement': measurements})
+ 
+# Plot control chart
+plt.figure(figsize=(10, 5))
+plt.plot(df['Sample'], df['Measurement'], marker='o', label='Measurements')
+plt.axhline(mean_val, color='green', linestyle='-', label='Mean')
+plt.axhline(ucl, color='red', linestyle='--', label='UCL (Upper Control Limit)')
+plt.axhline(lcl, color='red', linestyle='--', label='LCL (Lower Control Limit)')
+plt.fill_between(df['Sample'], lcl, ucl, color='lightgrey', alpha=0.3)
+plt.title('Quality Control Chart')
+plt.xlabel('Sample Number')
+plt.ylabel('Measurement Value')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+ 
+# Identify out-of-control points
+outliers = df[(df['Measurement'] > ucl) | (df['Measurement'] < lcl)]
+print("Out-of-Control Samples:")
+print(outliers)
+This code simulates quality measurements, calculates control limits, and highlights any out-of-control samples—key for detecting manufacturing or process issues early.
+
+Project 817. Process Optimization Model
+
+A process optimization model improves operational efficiency by adjusting process parameters to maximize output or minimize cost. In this example, we'll simulate a production process and use constrained optimization to find the best input combination for maximum output while respecting resource limits.
+
+Here’s the Python implementation using scipy.optimize:
+
+from scipy.optimize import minimize
+import numpy as np
+ 
+# Objective: maximize production output
+# Production function: output = 5*x1 + 8*x2 (x1, x2 are input units)
+# Convert to minimization problem by negating the objective
+def objective(x):
+    return -1 * (5 * x[0] + 8 * x[1])  # maximize output
+ 
+# Constraints:
+# 1. Total labor available = 40 units
+# 2. Total material available = 60 units
+# Labor: x1 uses 1 unit, x2 uses 2 units
+# Material: x1 uses 2 units, x2 uses 1 unit
+constraints = [
+    {'type': 'ineq', 'fun': lambda x: 40 - (1 * x[0] + 2 * x[1])},  # labor constraint
+    {'type': 'ineq', 'fun': lambda x: 60 - (2 * x[0] + 1 * x[1])}   # material constraint
+]
+ 
+# Bounds: cannot use negative input units
+bounds = [(0, None), (0, None)]  # x1, x2 ≥ 0
+ 
+# Initial guess
+x0 = [0, 0]
+ 
+# Solve the optimization problem
+result = minimize(objective, x0, method='SLSQP', bounds=bounds, constraints=constraints)
+ 
+# Display results
+if result.success:
+    x1, x2 = result.x
+    max_output = -result.fun
+    print(f"Optimal Inputs: x1 = {x1:.2f}, x2 = {x2:.2f}")
+    print(f"Maximum Output: {max_output:.2f}")
+else:
+    print("Optimization failed:", result.message)
+This model finds the optimal mix of inputs (x1 and x2) to maximize production, constrained by labor and material availability. In real cases, such models can optimize multi-stage processes, energy use, or even AI inference pipelines.
+
+Project 818. Predictive Maintenance System
+
+A predictive maintenance system anticipates equipment failures before they occur using historical sensor data. By predicting failures early, businesses can reduce downtime and maintenance costs. In this basic example, we simulate sensor readings and use logistic regression to classify whether a machine is likely to fail.
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+ 
+# Simulated dataset: sensor readings and failure status (1 = failure, 0 = normal)
+data = {
+    'Temperature': [70, 75, 80, 85, 90, 95, 100, 105],
+    'Vibration': [0.2, 0.3, 0.4, 0.6, 0.8, 1.0, 1.2, 1.5],
+    'RPM': [1500, 1600, 1650, 1700, 1800, 1850, 1900, 1950],
+    'Failed': [0, 0, 0, 0, 1, 1, 1, 1]
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df[['Temperature', 'Vibration', 'RPM']]
+y = df['Failed']
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train logistic regression model
+model = LogisticRegression()
+model.fit(X_train, y_train)
+ 
+# Predict failure
+y_pred = model.predict(X_test)
+ 
+# Output model performance
+print("Predictive Maintenance Classification Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Example: Predict failure for new sensor reading
+new_reading = pd.DataFrame({'Temperature': [92], 'Vibration': [0.9], 'RPM': [1820]})
+failure_risk = model.predict_proba(new_reading)[0][1]
+print(f"\nPredicted Failure Risk: {failure_risk:.2%}")
+This model trains on past sensor data to predict whether a machine is at risk of failure. You can extend this with time-series models, anomaly detection, or survival analysis for more realistic predictive maintenance systems.
+
+Project 819. Equipment Failure Prediction
+
+Equipment failure prediction aims to forecast when a machine or system might fail based on operational and environmental data. Unlike binary classification in maintenance alerts, this example focuses on regression to predict time-to-failure (TTF) — useful for planning proactive maintenance windows.
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error
+ 
+# Simulated dataset: sensor readings and remaining time before failure in hours
+data = {
+    'Temperature': [70, 75, 80, 85, 90, 95, 100, 105],
+    'Pressure': [30, 32, 35, 38, 42, 45, 48, 50],
+    'Vibration': [0.2, 0.3, 0.4, 0.6, 0.8, 1.1, 1.3, 1.6],
+    'TimeToFailure': [48, 40, 35, 28, 20, 14, 7, 2]  # target: hours left before failure
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df[['Temperature', 'Pressure', 'Vibration']]
+y = df['TimeToFailure']
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train a regression model
+model = LinearRegression()
+model.fit(X_train, y_train)
+ 
+# Predict time to failure
+y_pred = model.predict(X_test)
+ 
+# Evaluate performance
+mae = mean_absolute_error(y_test, y_pred)
+print(f"Mean Absolute Error: {mae:.2f} hours")
+ 
+# Example prediction for new input
+new_input = pd.DataFrame({'Temperature': [92], 'Pressure': [43], 'Vibration': [0.85]})
+predicted_ttf = model.predict(new_input)[0]
+print(f"Predicted Time to Failure: {predicted_ttf:.2f} hours")
+This model estimates how much time is left before equipment fails based on real-time sensor inputs. It's valuable for maintenance scheduling, especially in industrial and critical infrastructure settings.
+
+Project 820. Energy Consumption Optimization
+
+This project focuses on minimizing energy usage (and cost) while maintaining operational performance. In this example, we simulate how to allocate machine run-times or energy-consuming activities under constraints to minimize total energy consumption using linear programming.
+
+Here’s the Python implementation:
+
+import numpy as np
+from scipy.optimize import linprog
+import pandas as pd
+ 
+# Simulated scenario:
+# 3 machines (M1, M2, M3) can complete a task using different energy levels per hour
+# Our goal is to complete 100 units of work using minimum total energy
+ 
+# Energy consumption per unit of work for each machine
+energy_per_unit = [5, 4, 6]  # in kWh
+ 
+# Max capacity (max units of work per machine)
+capacity = [40, 35, 50]
+ 
+# Objective: minimize total energy used
+c = energy_per_unit  # minimize energy = sum(energy_per_unit * units_assigned)
+ 
+# Constraints: sum of units worked by all machines = 100
+A_eq = [[1, 1, 1]]
+b_eq = [100]
+ 
+# Bounds: work assigned to each machine must be within its capacity
+bounds = [(0, cap) for cap in capacity]
+ 
+# Solve the optimization problem
+result = linprog(c=c, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+ 
+# Output optimal energy plan
+if result.success:
+    allocation = result.x
+    total_energy = result.fun
+    df = pd.DataFrame({
+        'Machine': ['M1', 'M2', 'M3'],
+        'Units Assigned': allocation.round(2),
+        'Energy per Unit': energy_per_unit,
+        'Total Energy (kWh)': (allocation * energy_per_unit).round(2)
+    })
+    print("Optimal Energy Allocation Plan:")
+    print(df)
+    print(f"\nMinimum Total Energy Consumption: {total_energy:.2f} kWh")
+else:
+    print("Optimization failed:", result.message)
+This model finds the most energy-efficient distribution of workload across machines, respecting their capacity. It can be scaled up to optimize energy use across HVAC, lighting, or smart grid components in real-time.
+
+Project 821. Fraud Detection for Businesses
+
+Fraud detection systems help identify unusual transactions or behaviors that may indicate fraud. In this basic project, we'll simulate transaction data and train a classification model to detect fraudulent activity using features like transaction amount, frequency, and location deviation.
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated transaction dataset
+data = {
+    'Amount': [20, 500, 15, 2000, 25, 4500, 35, 3000, 45, 10],
+    'Frequency': [5, 1, 6, 1, 7, 1, 5, 1, 4, 8],  # transactions per day
+    'IsForeignTransaction': [0, 1, 0, 1, 0, 1, 0, 1, 0, 0],
+    'IsHighRiskCountry': [0, 1, 0, 1, 0, 1, 0, 1, 0, 0],
+    'IsWeekend': [0, 1, 0, 1, 0, 0, 1, 1, 0, 0],
+    'Fraud': [0, 1, 0, 1, 0, 1, 0, 1, 0, 0]  # 1 = fraud, 0 = normal
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df.drop('Fraud', axis=1)
+y = df['Fraud']
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+ 
+# Train a Random Forest model
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# Predict on test set
+y_pred = model.predict(X_test)
+ 
+# Evaluate performance
+print("Fraud Detection Model Evaluation:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict on new transaction
+new_transaction = pd.DataFrame([{
+    'Amount': 3500,
+    'Frequency': 1,
+    'IsForeignTransaction': 1,
+    'IsHighRiskCountry': 1,
+    'IsWeekend': 0
+}])
+fraud_prob = model.predict_proba(new_transaction)[0][1]
+print(f"\nPredicted Fraud Probability: {fraud_prob:.2%}")
+This model learns from patterns in transaction data to classify future transactions as fraudulent or not. It can be extended with time-series patterns, user profiling, and deep learning for higher complexity fraud detection pipelines.
+
+Project 822. Anomaly Detection in Operations
+
+Anomaly detection helps identify unexpected behavior in operational data, such as spikes in process time, unexpected sensor values, or unusual demand. In this project, we simulate time-series data and use Isolation Forest, an unsupervised learning model, to detect anomalies without prior labeling.
+
+Here’s the Python implementation:
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.ensemble import IsolationForest
+ 
+# Simulated operational metric data (e.g., process time in seconds)
+np.random.seed(42)
+normal_data = np.random.normal(loc=50, scale=5, size=50)
+anomalies = [80, 85, 90]  # Injected anomalies
+data_values = np.concatenate([normal_data, anomalies])
+ 
+df = pd.DataFrame({'MetricValue': data_values})
+ 
+# Train an Isolation Forest model
+model = IsolationForest(contamination=0.05, random_state=42)
+df['Anomaly'] = model.fit_predict(df[['MetricValue']])
+ 
+# Anomaly labels: -1 = anomaly, 1 = normal
+df['Anomaly'] = df['Anomaly'].map({1: 0, -1: 1})
+ 
+# Plotting results
+plt.figure(figsize=(10, 5))
+plt.plot(df.index, df['MetricValue'], marker='o', label='Metric Value')
+plt.scatter(df.index[df['Anomaly'] == 1], 
+            df['MetricValue'][df['Anomaly'] == 1], 
+            color='red', label='Anomaly', zorder=5)
+plt.title('Operational Metric Anomaly Detection')
+plt.xlabel('Observation Index')
+plt.ylabel('Metric Value')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+ 
+# Show detected anomalies
+print("Detected Anomalies:")
+print(df[df['Anomaly'] == 1])
+This implementation uses Isolation Forest to detect unusual patterns in unlabelled operational data, useful for monitoring KPIs, detecting equipment drift, or spotting abnormal system behavior in real-time.
+
+Project 823. Business Process Mining
+
+Business process mining involves analyzing event logs to discover, monitor, and improve real business processes. It helps visualize how tasks are actually performed (vs. how they were designed), identify bottlenecks, and suggest automation. In this project, we simulate an event log and generate a simple process map using a directed graph.
+
+Here’s the Python implementation using networkx:
+
+import pandas as pd
+import networkx as nx
+import matplotlib.pyplot as plt
+ 
+# Simulated event log: each row = one step in a process
+# CaseID identifies the process instance, Activity is the step taken
+event_log = pd.DataFrame({
+    'CaseID': [1, 1, 1, 2, 2, 3, 3, 3],
+    'Activity': ['Start', 'Check Form', 'Approve', 'Start', 'Reject',
+                 'Start', 'Check Form', 'Reject']
+})
+ 
+# Create edges based on activity transitions within each case
+edges = []
+for case_id in event_log['CaseID'].unique():
+    activities = event_log[event_log['CaseID'] == case_id]['Activity'].tolist()
+    edges += [(activities[i], activities[i+1]) for i in range(len(activities) - 1)]
+ 
+# Count frequency of each transition
+edge_freq = pd.Series(edges).value_counts().reset_index()
+edge_freq.columns = ['Edge', 'Count']
+ 
+# Create directed graph with frequencies
+G = nx.DiGraph()
+for edge, count in zip(edge_freq['Edge'], edge_freq['Count']):
+    G.add_edge(edge[0], edge[1], weight=count, label=f'{count}x')
+ 
+# Draw process map
+pos = nx.spring_layout(G, seed=42)
+plt.figure(figsize=(10, 6))
+nx.draw(G, pos, with_labels=True, node_size=2000, node_color='lightblue', arrows=True)
+edge_labels = nx.get_edge_attributes(G, 'label')
+nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
+plt.title('Discovered Business Process Map')
+plt.tight_layout()
+plt.show()
+ 
+# Show transitions
+print("Activity Transitions:")
+print(edge_freq)
+This code visualizes the actual flow of business activities from the event log, revealing how often certain transitions occur. More advanced mining uses log timestamps, case durations, and conformance checking.
+
+Project 824. Customer Feedback Analysis
+
+Customer feedback analysis extracts insights from open-text feedback (e.g., surveys, reviews, support tickets) to understand satisfaction, identify pain points, and guide improvements. In this project, we’ll use sentiment analysis on textual feedback to classify responses as positive, neutral, or negative.
+
+Here’s the Python implementation using TextBlob:
+
+import pandas as pd
+from textblob import TextBlob
+ 
+# Sample customer feedback data
+feedback = [
+    "Great service and fast delivery!",
+    "The product quality was terrible.",
+    "Average experience, nothing special.",
+    "Very helpful customer support.",
+    "The item arrived late and was damaged.",
+    "I'm satisfied with the purchase.",
+    "Terrible app. Crashes every time!",
+    "Absolutely love it!",
+    "Not bad, but could be improved.",
+    "Worst experience ever."
+]
+ 
+# Create a DataFrame
+df = pd.DataFrame({'Feedback': feedback})
+ 
+# Function to classify sentiment using TextBlob polarity
+def classify_sentiment(text):
+    polarity = TextBlob(text).sentiment.polarity
+    if polarity > 0.2:
+        return 'Positive'
+    elif polarity < -0.2:
+        return 'Negative'
+    else:
+        return 'Neutral'
+ 
+# Apply sentiment classification
+df['Sentiment'] = df['Feedback'].apply(classify_sentiment)
+ 
+# Display results
+print("Customer Feedback Sentiment Analysis:")
+print(df)
+ 
+# Plot sentiment distribution
+import matplotlib.pyplot as plt
+ 
+plt.figure(figsize=(6, 4))
+df['Sentiment'].value_counts().plot(kind='bar', color='skyblue')
+plt.title('Feedback Sentiment Distribution')
+plt.xlabel('Sentiment')
+plt.ylabel('Number of Comments')
+plt.tight_layout()
+plt.grid(axis='y')
+plt.show()
+This basic sentiment analysis helps categorize open-text feedback at scale. You can enhance it with keyword extraction, topic modeling (e.g., LDA), or fine-tuned transformers for nuanced insights.
+
+Project 825. Product Recommendation System
+
+A product recommendation system suggests items to users based on their past behavior or similarities with other users. In this basic project, we’ll build a user-based collaborative filtering system using a user-item ratings matrix and cosine similarity to recommend products.
+
+Here’s the Python implementation using sklearn:
+
+import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+ 
+# Simulated user-item rating matrix
+# Rows = Users, Columns = Products, Values = Ratings (1–5), NaN = not rated
+data = {
+    'Product_A': [5, 4, np.nan, 2, np.nan],
+    'Product_B': [3, np.nan, 2, 5, 4],
+    'Product_C': [np.nan, 2, 4, np.nan, 3],
+    'Product_D': [1, 2, 3, 5, 4]
+}
+user_ids = ['User1', 'User2', 'User3', 'User4', 'User5']
+df = pd.DataFrame(data, index=user_ids)
+ 
+# Fill NaNs with 0s (optional: use mean/ALS for better imputation)
+filled = df.fillna(0)
+ 
+# Compute cosine similarity between users
+similarity = cosine_similarity(filled)
+similarity_df = pd.DataFrame(similarity, index=user_ids, columns=user_ids)
+ 
+# Function to recommend products for a given user
+def recommend_products(user_id, top_n=2):
+    user_index = df.index.get_loc(user_id)
+    similar_users = similarity[user_index]
+    
+    # Weighted ratings based on similarity
+    weighted_ratings = np.dot(similar_users, filled.values)
+    user_seen = ~df.loc[user_id].isna()
+    weighted_ratings[user_seen.values] = 0  # Exclude already rated items
+    
+    # Recommend top N unrated products
+    product_indices = np.argsort(weighted_ratings)[::-1][:top_n]
+    recommended = df.columns[product_indices]
+    return list(recommended)
+ 
+# Example: recommend for User3
+recommendations = recommend_products('User3', top_n=2)
+print(f"Recommended products for User3: {recommendations}")
+This collaborative filtering system uses user similarity to infer preferences and suggest new products. It can be scaled with matrix factorization or neural recommenders for better performance on large datasets.
+
+Project 826. Customer Support Automation
+
+Customer support automation uses AI to handle repetitive support queries—like answering FAQs, processing returns, or providing status updates. In this project, we'll build a simple rule-based chatbot using NLTK for text preprocessing and basic keyword matching to simulate support automation.
+
+Here’s the Python implementation:
+
+import re
+import nltk
+nltk.download('punkt')
+from nltk.tokenize import word_tokenize
+ 
+# Predefined FAQ responses
+faq_responses = {
+    'order status': "You can check your order status by logging into your account and visiting 'My Orders'.",
+    'return policy': "Our return policy allows returns within 30 days of delivery.",
+    'cancel order': "To cancel an order, go to 'My Orders', select the order, and click 'Cancel'.",
+    'payment failed': "Please check your payment method or try using a different card.",
+    'delivery time': "Delivery usually takes 3–5 business days depending on your location."
+}
+ 
+# Lowercase keywords for matching
+keywords = list(faq_responses.keys())
+ 
+# Function to respond to user queries
+def get_support_response(user_input):
+    # Preprocess and tokenize user input
+    user_input = user_input.lower()
+    tokens = word_tokenize(user_input)
+ 
+    # Check for matching keyword in user input
+    for key in keywords:
+        key_tokens = word_tokenize(key)
+        if any(token in tokens for token in key_tokens):
+            return faq_responses[key]
+    return "I'm sorry, I didn't understand that. Could you please rephrase your question?"
+ 
+# Test the bot
+queries = [
+    "How do I cancel my order?",
+    "Tell me about your return policy.",
+    "When will my delivery arrive?",
+    "My payment failed. What should I do?",
+    "What's the status of my order?"
+]
+ 
+for q in queries:
+    print(f"User: {q}")
+    print(f"Bot: {get_support_response(q)}\n")
+This lightweight support automation system can answer common queries using keyword detection. You can expand it using intent classification, retrieval-based QA (e.g., TF-IDF + cosine), or transformer-based models (e.g., RAG, BERT).
+
+Project 827. Document Processing Automation
+
+Document processing automation extracts and structures information from documents like invoices, forms, and contracts. In this project, we’ll simulate extracting structured data (e.g., invoice number, date, total) from unstructured text using regular expressions.
+
+Here’s the Python implementation:
+
+import re
+import pandas as pd
+ 
+# Simulated raw text from scanned invoices (could come from OCR output)
+documents = [
+    "Invoice #12345\nDate: 2024-11-03\nTotal: $1,250.00\nCustomer: ABC Corp.",
+    "Invoice #12346\nDate: 2024-11-04\nTotal: $2,100.50\nCustomer: XYZ Inc.",
+    "Invoice #12347\nDate: 2024-11-05\nTotal: $785.75\nCustomer: GlobalTech Ltd."
+]
+ 
+# Function to extract structured fields from document text
+def extract_invoice_data(text):
+    invoice_no = re.search(r'Invoice\s*#(\d+)', text)
+    date = re.search(r'Date:\s*([\d-]+)', text)
+    total = re.search(r'Total:\s*\$([\d,]+\.\d{2})', text)
+    customer = re.search(r'Customer:\s*(.+)', text)
+ 
+    return {
+        'InvoiceNumber': invoice_no.group(1) if invoice_no else None,
+        'Date': date.group(1) if date else None,
+        'TotalAmount': float(total.group(1).replace(',', '')) if total else None,
+        'Customer': customer.group(1).strip() if customer else None
+    }
+ 
+# Extract data from each document
+records = [extract_invoice_data(doc) for doc in documents]
+ 
+# Create structured DataFrame
+df = pd.DataFrame(records)
+print("Extracted Invoice Data:")
+print(df)
+This script automates the parsing of key fields from raw document text. For production, it can be enhanced with OCR (e.g., Tesseract), layout parsing, entity recognition (SpaCy), or document AI services like Amazon Textract or Google Document AI.
+
+Project 828. Resume Screening System
+
+A resume screening system automatically evaluates and filters resumes based on required skills or job descriptions. In this project, we simulate screening by extracting skills from resume text and matching them against job requirements using simple keyword matching and scoring.
+
+Here’s the Python implementation:
+
+import pandas as pd
+ 
+# Simulated resumes (text blocks)
+resumes = [
+    "Experienced software engineer skilled in Python, Java, and SQL. Worked on backend systems and APIs.",
+    "Data analyst with expertise in Excel, Power BI, and SQL. Strong knowledge of data visualization.",
+    "Full stack developer familiar with React, Node.js, MongoDB, and Python. Built web applications.",
+    "Machine learning enthusiast with skills in Python, TensorFlow, and deep learning. Strong math background."
+]
+ 
+# Job requirement: list of required skills
+required_skills = ['Python', 'SQL', 'APIs', 'TensorFlow']
+ 
+# Function to score each resume by number of matching skills
+def score_resume(text, skills):
+    text_lower = text.lower()
+    matches = [skill for skill in skills if skill.lower() in text_lower]
+    return len(matches), matches
+ 
+# Score all resumes
+results = []
+for idx, resume in enumerate(resumes):
+    score, matched_skills = score_resume(resume, required_skills)
+    results.append({
+        'Candidate': f'Resume {idx+1}',
+        'Score': score,
+        'Matched Skills': ', '.join(matched_skills)
+    })
+ 
+# Create and display results table
+df = pd.DataFrame(results).sort_values(by='Score', ascending=False)
+print("Resume Screening Results:")
+print(df)
+This script evaluates resumes by counting keyword overlaps with the job's skill requirements. It provides a basic filter for recruiters to prioritize candidates. For advanced matching, use embeddings (e.g., SBERT), semantic similarity, or fine-tuned transformers for NLP-based screening.
+
+Project 829. Interview Performance Prediction
+
+Interview performance prediction helps estimate a candidate’s success based on pre-interview data (e.g., resume features, assessments, and behavioral traits). In this simplified project, we simulate candidate attributes and use a classification model to predict interview outcome (pass/fail).
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+ 
+# Simulated candidate dataset
+data = {
+    'TechnicalScore': [85, 60, 78, 92, 55, 65, 70, 88],
+    'CommunicationScore': [80, 65, 75, 90, 50, 60, 68, 85],
+    'ExperienceYears': [3, 1, 2, 4, 0, 1, 2, 5],
+    'ProblemSolving': [4, 3, 4, 5, 2, 3, 3, 5],  # scale 1–5
+    'PassedInterview': [1, 0, 1, 1, 0, 0, 0, 1]  # 1 = passed, 0 = failed
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df.drop('PassedInterview', axis=1)
+y = df['PassedInterview']
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train model
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# Evaluate model
+y_pred = model.predict(X_test)
+print("Interview Performance Prediction Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict new candidate's outcome
+new_candidate = pd.DataFrame([{
+    'TechnicalScore': 82,
+    'CommunicationScore': 78,
+    'ExperienceYears': 2,
+    'ProblemSolving': 4
+}])
+ 
+prob_pass = model.predict_proba(new_candidate)[0][1]
+print(f"\nPredicted Probability of Passing: {prob_pass:.2%}")
+This model uses candidate features to predict the likelihood of passing an interview. In real scenarios, additional data like test scores, behavioral assessments, or video interview analysis can be incorporated.
+
+Project 830. Employee Performance Prediction
+
+Employee performance prediction uses HR and work-related data to forecast how well an employee might perform. This can support decisions in hiring, promotion, and training. In this example, we’ll build a classification model to predict high or low performance based on work experience, training hours, and prior ratings.
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated dataset of employee attributes and performance outcome
+data = {
+    'ExperienceYears': [1, 5, 2, 4, 3, 6, 2, 7],
+    'TrainingHours': [20, 10, 30, 15, 25, 8, 22, 5],
+    'PreviousRating': [3, 5, 4, 4, 3, 5, 3, 5],  # 1–5 scale
+    'Certifications': [0, 1, 1, 1, 0, 1, 0, 1],
+    'Performance': [0, 1, 1, 1, 0, 1, 0, 1]  # 1 = high performer, 0 = low performer
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df.drop('Performance', axis=1)
+y = df['Performance']
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train classifier
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# Evaluate model
+y_pred = model.predict(X_test)
+print("Employee Performance Prediction Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict performance for a new employee
+new_employee = pd.DataFrame([{
+    'ExperienceYears': 3,
+    'TrainingHours': 18,
+    'PreviousRating': 4,
+    'Certifications': 1
+}])
+ 
+prob_high_perf = model.predict_proba(new_employee)[0][1]
+print(f"\nPredicted Probability of High Performance: {prob_high_perf:.2%}")
+This predictive model can help HR teams assess candidates or current employees, and personalize development plans. It can be enhanced with peer feedback, KPI trends, or even sentiment analysis from internal communications.
+
+Project 831. Employee Attrition Prediction
+
+Employee attrition prediction identifies individuals likely to leave an organization, enabling proactive retention strategies. In this project, we simulate HR data and use a classification model to predict attrition based on factors like satisfaction, workload, and years at the company.
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated HR dataset
+data = {
+    'SatisfactionLevel': [0.9, 0.4, 0.8, 0.3, 0.6, 0.7, 0.2, 0.85],
+    'AverageMonthlyHours': [180, 240, 160, 250, 200, 170, 260, 155],
+    'YearsAtCompany': [3, 2, 4, 1, 5, 3, 1, 6],
+    'PromotionLast5Years': [0, 0, 1, 0, 1, 0, 0, 1],
+    'Attrition': [0, 1, 0, 1, 0, 0, 1, 0]  # 1 = left, 0 = stayed
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df.drop('Attrition', axis=1)
+y = df['Attrition']
+ 
+# Split into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train the model
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# Predict attrition
+y_pred = model.predict(X_test)
+ 
+# Evaluate model
+print("Employee Attrition Prediction Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict for a new employee
+new_employee = pd.DataFrame([{
+    'SatisfactionLevel': 0.5,
+    'AverageMonthlyHours': 230,
+    'YearsAtCompany': 2,
+    'PromotionLast5Years': 0
+}])
+ 
+attrition_risk = model.predict_proba(new_employee)[0][1]
+print(f"\nPredicted Attrition Risk: {attrition_risk:.2%}")
+This model estimates the risk of an employee leaving based on behavioral and organizational metrics. In real-world scenarios, it can be enriched with survey responses, salary changes, or manager feedback.
+
+Project 832. Employee Satisfaction Analysis
+
+Employee satisfaction analysis helps organizations understand workforce morale and engagement. In this project, we simulate employee survey responses and use sentiment analysis to classify satisfaction levels from open-ended feedback.
+
+Here’s the Python implementation using TextBlob:
+
+import pandas as pd
+from textblob import TextBlob
+import matplotlib.pyplot as plt
+ 
+# Simulated open-text employee feedback
+feedback = [
+    "I love working here. The culture is amazing!",
+    "Management doesn't listen to employee concerns.",
+    "It's okay, but there’s a lot of room for improvement.",
+    "Great team and work-life balance.",
+    "Too much pressure and no recognition.",
+    "I'm happy with the flexibility and support from my manager.",
+    "The pay is not competitive and growth is slow.",
+    "Fantastic experience overall!"
+]
+ 
+# Create DataFrame
+df = pd.DataFrame({'Feedback': feedback})
+ 
+# Function to classify sentiment using TextBlob polarity
+def classify_sentiment(text):
+    polarity = TextBlob(text).sentiment.polarity
+    if polarity > 0.2:
+        return 'Satisfied'
+    elif polarity < -0.2:
+        return 'Dissatisfied'
+    else:
+        return 'Neutral'
+ 
+# Apply sentiment classification
+df['SatisfactionLevel'] = df['Feedback'].apply(classify_sentiment)
+ 
+# Show results
+print("Employee Satisfaction Analysis:")
+print(df)
+ 
+# Visualize sentiment distribution
+plt.figure(figsize=(6, 4))
+df['SatisfactionLevel'].value_counts().plot(kind='bar', color='mediumseagreen')
+plt.title('Employee Satisfaction Sentiment')
+plt.xlabel('Satisfaction Level')
+plt.ylabel('Number of Responses')
+plt.grid(axis='y')
+plt.tight_layout()
+plt.show()
+This model uses simple NLP to detect whether employees express satisfaction, neutrality, or dissatisfaction. It can be expanded with topic modeling (e.g., complaints vs. praise), time-series trends, or AI-based emotion detection.
+
+Project 833. Workplace Safety Monitoring
+
+Workplace safety monitoring involves detecting and responding to unsafe conditions or incidents in real-time. In this project, we simulate sensor data (like temperature, gas level, and movement) and use threshold-based rules combined with anomaly detection to flag safety violations.
+
+Here’s the Python implementation:
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.ensemble import IsolationForest
+ 
+# Simulated workplace sensor data
+data = {
+    'Temperature': [22, 23, 24, 25, 80, 22, 23, 85, 24, 23],     # °C
+    'GasLevel': [5, 4, 6, 5, 30, 4, 5, 35, 6, 5],                # ppm
+    'Vibration': [0.2, 0.3, 0.2, 0.4, 1.5, 0.3, 0.3, 1.8, 0.2, 0.3]  # G-force
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Simple threshold rule-based monitoring
+def check_thresholds(row):
+    if row['Temperature'] > 60 or row['GasLevel'] > 25 or row['Vibration'] > 1.0:
+        return 1  # Unsafe
+    return 0  # Safe
+ 
+df['UnsafeCondition'] = df.apply(check_thresholds, axis=1)
+ 
+# Anomaly detection using Isolation Forest
+model = IsolationForest(contamination=0.2, random_state=42)
+df['Anomaly'] = model.fit_predict(df[['Temperature', 'GasLevel', 'Vibration']])
+df['Anomaly'] = df['Anomaly'].map({1: 0, -1: 1})  # 1 = anomaly
+ 
+# Final flag: any row marked as unsafe or anomalous
+df['SafetyAlert'] = df[['UnsafeCondition', 'Anomaly']].max(axis=1)
+ 
+# Show flagged safety alerts
+print("Workplace Safety Alerts:")
+print(df[df['SafetyAlert'] == 1])
+ 
+# Visualize alerts
+plt.figure(figsize=(10, 5))
+plt.plot(df.index, df['Temperature'], label='Temperature (°C)', marker='o')
+plt.plot(df.index, df['GasLevel'], label='Gas Level (ppm)', marker='x')
+plt.plot(df.index, df['Vibration'], label='Vibration (G)', marker='s')
+plt.scatter(df.index[df['SafetyAlert'] == 1], 
+            df['Temperature'][df['SafetyAlert'] == 1], 
+            color='red', label='Safety Alert', zorder=5)
+plt.legend()
+plt.title('Sensor Readings and Safety Alerts')
+plt.xlabel('Time Index')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+This hybrid model flags readings based on hardcoded thresholds and anomalies detected via Isolation Forest—useful for early warning systems in factories, mines, or labs.
+
+Project 834. Brand Sentiment Analysis
+
+Brand sentiment analysis evaluates how people feel about a brand across social media, reviews, or survey data. In this project, we'll simulate tweets or customer opinions and use sentiment analysis to classify public opinion as positive, negative, or neutral.
+
+Here’s the Python implementation using TextBlob:
+
+import pandas as pd
+from textblob import TextBlob
+import matplotlib.pyplot as plt
+ 
+# Simulated brand-related tweets or comments
+comments = [
+    "I love this brand! The new collection is amazing.",
+    "Terrible customer service. Will not buy again.",
+    "Product is okay, not too great, not too bad.",
+    "Excellent experience with support team!",
+    "The quality has really gone down recently.",
+    "Fast delivery and great packaging.",
+    "Not worth the money at all.",
+    "Their app is super smooth and easy to use.",
+    "Pretty average, nothing special.",
+    "Worst return process I've ever experienced."
+]
+ 
+# Create DataFrame
+df = pd.DataFrame({'Comment': comments})
+ 
+# Classify sentiment using polarity score
+def get_sentiment(text):
+    polarity = TextBlob(text).sentiment.polarity
+    if polarity > 0.2:
+        return 'Positive'
+    elif polarity < -0.2:
+        return 'Negative'
+    else:
+        return 'Neutral'
+ 
+# Apply sentiment classifier
+df['Sentiment'] = df['Comment'].apply(get_sentiment)
+ 
+# Show sentiment analysis results
+print("Brand Sentiment Analysis:")
+print(df)
+ 
+# Visualize sentiment distribution
+plt.figure(figsize=(6, 4))
+df['Sentiment'].value_counts().plot(kind='bar', color='coral')
+plt.title('Brand Sentiment Distribution')
+plt.xlabel('Sentiment')
+plt.ylabel('Number of Mentions')
+plt.grid(axis='y')
+plt.tight_layout()
+plt.show()
+This script processes customer opinions and classifies them using polarity scores into sentiment buckets. It can help brands monitor perception, track campaigns, or benchmark against competitors. For deeper insights, it can be upgraded with BERT-based sentiment models or aspect-based analysis.
+
+Project 835. Competitive Intelligence System
+
+A competitive intelligence system gathers and analyzes public data about competitors to gain strategic insights. This project simulates scraping competitor news, product updates, or pricing changes and then performs keyword analysis and topic detection to extract trends.
+
+Here’s the Python implementation using basic text processing:
+
+import pandas as pd
+from sklearn.feature_extraction.text import CountVectorizer
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+ 
+# Simulated news and updates from competitor websites or press releases
+documents = [
+    "Competitor A launches AI-powered analytics dashboard.",
+    "Competitor B announces price reduction on core SaaS product.",
+    "Competitor A partners with cloud provider for global expansion.",
+    "Competitor C introduces real-time customer support feature.",
+    "Competitor B expands into European market with new tools.",
+    "Competitor C raises funding to enhance AI capabilities."
+]
+ 
+# Create DataFrame
+df = pd.DataFrame({'Update': documents})
+ 
+# Extract keyword frequencies using CountVectorizer
+vectorizer = CountVectorizer(stop_words='english')
+X = vectorizer.fit_transform(df['Update'])
+word_freq = pd.DataFrame(X.toarray(), columns=vectorizer.get_feature_names_out())
+total_freq = word_freq.sum().sort_values(ascending=False)
+ 
+# Display top keywords
+print("Top Competitive Intelligence Keywords:")
+print(total_freq.head(10))
+ 
+# Generate word cloud for visual pattern recognition
+wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(total_freq)
+ 
+plt.figure(figsize=(10, 5))
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.axis('off')
+plt.title('Competitor Activity Word Cloud')
+plt.tight_layout()
+plt.show()
+This basic system extracts high-frequency keywords from text updates to help identify competitor focus areas like "AI," "expansion," or "support." You can extend this with web scraping, named entity recognition (NER), trend graphs, and alerting.
+
+
+
+Project 836. Market Trend Analysis
+
+Market trend analysis tracks shifts in consumer behavior, industry focus, or keyword popularity over time. In this project, we simulate weekly search or mention volumes of market-related keywords and use trend plotting and smoothing to visualize changes.
+
+Here’s the Python implementation:
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# Simulated weekly keyword search/mention data for 3 market trends
+weeks = pd.date_range(start='2024-01-01', periods=12, freq='W')
+trend_data = {
+    'AI Tools': [120, 135, 150, 160, 180, 200, 220, 240, 270, 290, 310, 330],
+    'Remote Work': [300, 280, 270, 260, 250, 245, 240, 235, 230, 225, 220, 215],
+    'Sustainability': [100, 105, 110, 115, 130, 145, 160, 180, 200, 210, 220, 230]
+}
+ 
+df = pd.DataFrame(trend_data, index=weeks)
+ 
+# Plot raw trends
+plt.figure(figsize=(10, 6))
+for column in df.columns:
+    plt.plot(df.index, df[column], marker='o', label=column)
+ 
+plt.title('Market Trend Analysis (Weekly)')
+plt.xlabel('Week')
+plt.ylabel('Search/Mention Volume')
+plt.xticks(rotation=45)
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.show()
+ 
+# Identify top growing trend
+growth_rates = df.iloc[-1] - df.iloc[0]
+top_trend = growth_rates.idxmax()
+print(f"Top growing market trend: {top_trend} (+{growth_rates[top_trend]} units)")
+This model visualizes how market interests evolve over time. You can extend this with:
+
+Google Trends API for real data,
+
+smoothing techniques (e.g., rolling mean), and
+
+topic modeling from news articles or social media.
+
+Project 837. Product Feature Analysis
+
+Product feature analysis aims to uncover which attributes or features of a product are most frequently discussed, praised, or criticized by users. This kind of analysis enables companies to improve product design, refine marketing strategies, and prioritize updates based on real user feedback. In this project, we'll simulate customer review data and extract common product features using noun phrase extraction, followed by frequency analysis and sentiment scoring.
+
+Here’s a detailed and comprehensive implementation using TextBlob and pandas:
+
+import pandas as pd
+from textblob import TextBlob
+from collections import Counter
+import matplotlib.pyplot as plt
+ 
+# Simulated product reviews
+reviews = [
+    "The camera quality is excellent, but the battery life is disappointing.",
+    "I love the screen resolution and the design is sleek.",
+    "Battery drains too fast. The software also feels sluggish.",
+    "Great performance and build quality, but the screen scratches easily.",
+    "Audio output is amazing, though the charging port feels loose.",
+    "I’m happy with the processor speed, and the touch response is smooth.",
+    "The camera captures vivid colors but struggles in low light.",
+    "The phone overheats and the battery doesn’t last long.",
+    "Beautiful design, responsive UI, but storage is too low.",
+    "Display is crisp, but the device gets hot during gaming."
+]
+ 
+# Create a DataFrame
+df = pd.DataFrame({'Review': reviews})
+ 
+# Function to extract noun phrases and analyze sentiment
+def extract_features_with_sentiment(text):
+    blob = TextBlob(text)
+    features = [phrase.lower() for phrase in blob.noun_phrases]
+    sentiment = blob.sentiment.polarity
+    return features, sentiment
+ 
+# Analyze all reviews
+feature_sentiment_data = []
+ 
+for review in df['Review']:
+    features, polarity = extract_features_with_sentiment(review)
+    for feature in features:
+        feature_sentiment_data.append({'Feature': feature, 'Sentiment': polarity})
+ 
+# Convert to DataFrame
+features_df = pd.DataFrame(feature_sentiment_data)
+ 
+# Aggregate sentiment and frequency per feature
+summary = features_df.groupby('Feature').agg(
+    Frequency=('Sentiment', 'count'),
+    AvgSentiment=('Sentiment', 'mean')
+).sort_values(by='Frequency', ascending=False)
+ 
+# Display most discussed features
+print("Top Product Features Mentioned and Their Sentiment:")
+print(summary.head(10))
+ 
+# Visualize feature frequency and sentiment
+plt.figure(figsize=(10, 5))
+summary.head(10).plot(kind='barh', y='Frequency', legend=False, color='steelblue')
+plt.title("Top 10 Most Frequently Mentioned Product Features")
+plt.xlabel("Mention Frequency")
+plt.ylabel("Feature")
+plt.gca().invert_yaxis()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+Why This Works:
+Noun Phrase Extraction: We use TextBlob to identify key phrases in the reviews that likely correspond to product features (e.g., camera quality, battery life, touch response). These phrases are more informative than single keywords.
+
+Sentiment Association: For each extracted feature, we associate the overall sentiment polarity of the review. This gives a rough indication of whether the mention was positive or negative, helping prioritize strengths and pain points.
+
+Aggregation and Prioritization: By grouping features and calculating both how often they're mentioned and the average sentiment score, we can determine not only what's being talked about the most, but also how users feel about those features on average.
+
+Example Insights:
+You might discover that battery life is mentioned frequently but has a low average sentiment, signaling dissatisfaction.
+
+Conversely, screen resolution might appear less often but have strong positive sentiment, pointing to a standout feature that could be emphasized in marketing.
+
+This foundational analysis can be enhanced with named entity recognition (NER), aspect-based sentiment analysis, or clustering to group related features.
+
+Project 838. Product Categorization System
+
+A product categorization system automatically assigns products to predefined categories based on their titles or descriptions. This is crucial for organizing online catalogs, improving search, and enabling filters. In this project, we simulate product titles and use a text classification model (Naive Bayes) to predict categories.
+
+Here’s the Python implementation using sklearn:
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import classification_report
+ 
+# Simulated dataset of product titles and categories
+data = {
+    'Title': [
+        'Wireless Bluetooth Headphones',
+        'USB-C Fast Charging Cable',
+        'Cotton Crew Neck T-Shirt',
+        'Noise Cancelling Earbuds',
+        'Men’s Slim Fit Jeans',
+        'Portable Laptop Charger',
+        'Silk Scarf for Women',
+        '4K Ultra HD Smart TV',
+        'Denim Jacket for Men',
+        'Smartphone Screen Protector'
+    ],
+    'Category': [
+        'Electronics', 'Electronics', 'Clothing', 'Electronics', 'Clothing',
+        'Electronics', 'Clothing', 'Electronics', 'Clothing', 'Electronics'
+    ]
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features (text) and target (category)
+X = df['Title']
+y = df['Category']
+ 
+# Convert text to bag-of-words features
+vectorizer = CountVectorizer()
+X_vectorized = vectorizer.fit_transform(X)
+ 
+# Split into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X_vectorized, y, test_size=0.3, random_state=42)
+ 
+# Train a Naive Bayes classifier
+model = MultinomialNB()
+model.fit(X_train, y_train)
+ 
+# Predict on test data
+y_pred = model.predict(X_test)
+ 
+# Evaluate the classifier
+print("Product Categorization Performance:")
+print(classification_report(y_test, y_pred))
+ 
+# Example: categorize a new product
+new_product = ["Stylish Leather Wallet for Men"]
+new_vector = vectorizer.transform(new_product)
+predicted_category = model.predict(new_vector)[0]
+print(f"\nPredicted Category for '{new_product[0]}': {predicted_category}")
+This basic classification system uses bag-of-words features to learn which words are associated with each product category. It’s ideal for e-commerce platforms and can be extended using:
+
+TF-IDF or BERT embeddings for better text representation
+
+Multi-label classification for products with overlapping categories
+
+Integration with product metadata (e.g., brand, price, tags)
+
+
+
+Project 839. Dynamic Pricing System
+
+A dynamic pricing system adjusts product prices in real time based on factors like demand, inventory, competition, and time. This project simulates pricing decisions using a regression model to predict optimal price that maximizes revenue based on input features.
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+import numpy as np
+ 
+# Simulated dataset of product pricing context
+data = {
+    'DemandLevel': [100, 80, 120, 90, 70, 110, 130, 60],  # units demanded
+    'StockLevel': [50, 70, 30, 60, 80, 40, 20, 90],       # current inventory
+    'CompetitorPrice': [19, 21, 18, 20, 22, 17, 16, 23],  # market price
+    'OptimalPrice': [20, 21, 19, 20.5, 21.5, 18, 17, 22]  # target price to predict
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df[['DemandLevel', 'StockLevel', 'CompetitorPrice']]
+y = df['OptimalPrice']
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train regression model
+model = LinearRegression()
+model.fit(X_train, y_train)
+ 
+# Predict optimal price for a new context
+new_context = pd.DataFrame([{
+    'DemandLevel': 115,
+    'StockLevel': 35,
+    'CompetitorPrice': 18.5
+}])
+ 
+predicted_price = model.predict(new_context)[0]
+print(f"Predicted Optimal Price: ${predicted_price:.2f}")
+This simple model suggests prices based on demand, inventory, and competitor pricing. In production, dynamic pricing systems may also include:
+
+Time-based features (e.g., hour, day of week, season)
+
+Machine learning models (e.g., XGBoost, reinforcement learning)
+
+Revenue simulations or constraint-based optimization
+
+
+
+Project 840. A/B Testing Analysis System
+
+An A/B testing analysis system evaluates the performance of two (or more) versions of a product, webpage, or feature to determine which performs better. In this project, we simulate user engagement data (e.g., conversion rates) and use statistical hypothesis testing to assess if version B is significantly better than version A.
+
+Here’s the Python implementation using a two-proportion z-test:
+
+import statsmodels.api as sm
+from statsmodels.stats.proportion import proportions_ztest
+ 
+# Simulated A/B test results
+# A: control group, B: variant group
+# conversions = number of users who performed desired action
+conversions = [200, 240]     # A group had 200 conversions, B had 240
+total_users = [1000, 1000]   # Each group had 1000 visitors
+ 
+# Perform two-proportion z-test
+z_stat, p_value = proportions_ztest(conversions, total_users, alternative='smaller')
+ 
+print(f"Z-Statistic: {z_stat:.4f}")
+print(f"P-Value: {p_value:.4f}")
+ 
+# Interpretation
+alpha = 0.05
+if p_value < alpha:
+    print("Result: Statistically significant. Variant B outperforms A.")
+else:
+    print("Result: Not statistically significant. No clear winner.")
+Why This Works:
+This model compares the conversion rates between A and B.
+
+It uses a z-test to determine if the observed difference is due to chance.
+
+The alternative='smaller' argument checks if B has a higher conversion rate than A.
+
+You can expand this with:
+
+Multi-variant tests
+
+Bayesian A/B testing
+
+Time-based segmentation (e.g., weekday/weekend)
+
+Effect size and confidence intervals
+
+
+
