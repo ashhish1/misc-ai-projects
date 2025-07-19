@@ -1,0 +1,4016 @@
+
+Project 961: Neural Architecture Search (NAS)
+Description
+Neural Architecture Search (NAS) automates the process of designing the architecture of neural networks. It involves defining a search space for the network architecture, selecting an optimization strategy, and using search algorithms (e.g., reinforcement learning, evolutionary algorithms) to discover the best-performing architecture for a task.
+
+Python Implementation with Comments (NAS for Image Classification)
+To demonstrate a simple version of NAS, we'll use random search as a basic starting point. For real-world use cases, you can explore more complex methods like reinforcement learning or evolutionary algorithms.
+
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.datasets import cifar10
+from tensorflow.keras.utils import to_categorical
+ 
+# Load CIFAR-10 dataset for image classification
+(x_train, y_train), (x_test, y_test) = cifar10.load_data()
+x_train, x_test = x_train / 255.0, x_test / 255.0  # Normalize to [0, 1]
+y_train, y_test = to_categorical(y_train, 10), to_categorical(y_test, 10)  # One-hot encoding
+ 
+# Define a basic model search space (in this case, layers and units)
+search_space = {
+    'conv_layers': [2, 3, 4],   # Number of convolution layers
+    'units': [64, 128, 256],     # Number of units in each dense layer
+    'dropout_rate': [0.2, 0.3, 0.4],  # Dropout rate
+}
+ 
+# Randomly choose architecture from search space
+def create_model():
+    conv_layers = np.random.choice(search_space['conv_layers'])
+    units = np.random.choice(search_space['units'])
+    dropout_rate = np.random.choice(search_space['dropout_rate'])
+    
+    model = models.Sequential()
+    
+    # Add convolutional layers
+    for _ in range(conv_layers):
+        model.add(layers.Conv2D(units, (3, 3), activation='relu', padding='same'))
+        model.add(layers.MaxPooling2D((2, 2)))
+    
+    # Flatten and add dense layer with dropout
+    model.add(layers.Flatten())
+    model.add(layers.Dense(units, activation='relu'))
+    model.add(layers.Dropout(dropout_rate))
+    
+    # Output layer
+    model.add(layers.Dense(10, activation='softmax'))
+    
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    
+    return model
+ 
+# Train the model using random search for 5 iterations
+best_model = None
+best_accuracy = 0
+ 
+for i in range(5):
+    print(f"Training model {i+1}...")
+    model = create_model()
+    
+    # Train the model
+    model.fit(x_train, y_train, epochs=5, batch_size=64, validation_data=(x_test, y_test), verbose=1)
+    
+    # Evaluate the model
+    _, accuracy = model.evaluate(x_test, y_test)
+    
+    # Track the best model
+    if accuracy > best_accuracy:
+        best_accuracy = accuracy
+        best_model = model
+    print(f"Model {i+1} Accuracy: {accuracy:.4f}")
+ 
+print(f"Best Model Accuracy: {best_accuracy:.4f}")
+Key Concepts Covered:
+Search Space Definition: We define potential architectures such as the number of convolutional layers, number of units in the dense layer, and dropout rates.
+
+Random Search: The simplest form of NAS, where we randomly select values from the search space and evaluate the resulting model.
+
+
+
+Project 962: Hyperparameter Optimization
+Description
+Hyperparameter optimization is the process of tuning the hyperparameters of a machine learning model (e.g., learning rate, batch size, number of layers) to improve performance. In this project, we will use random search or grid search to optimize hyperparameters for a neural network model.
+
+Python Implementation with Comments (Hyperparameter Optimization with Random Search)
+We'll demonstrate hyperparameter optimization by tuning a few important hyperparameters of a neural network model for CIFAR-10 image classification.
+
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from tensorflow.keras.datasets import cifar10
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.utils import to_categorical
+ 
+# Load CIFAR-10 dataset for image classification
+(x_train, y_train), (x_test, y_test) = cifar10.load_data()
+x_train, x_test = x_train / 255.0, x_test / 255.0  # Normalize to [0, 1]
+y_train, y_test = to_categorical(y_train, 10), to_categorical(y_test, 10)  # One-hot encoding
+ 
+# Define the hyperparameter search space
+hyperparameters = {
+    'learning_rate': [0.001, 0.01, 0.1],  # Learning rates to try
+    'batch_size': [32, 64, 128],           # Batch sizes
+    'epochs': [10, 20, 30],                # Number of epochs
+    'units': [64, 128, 256]                # Number of units in the dense layer
+}
+ 
+# Function to create a model based on the hyperparameters
+def create_model(learning_rate, batch_size, units):
+    model = models.Sequential([
+        layers.Conv2D(units, (3, 3), activation='relu', input_shape=(32, 32, 3)),
+        layers.MaxPooling2D((2, 2)),
+        layers.Flatten(),
+        layers.Dense(units, activation='relu'),
+        layers.Dense(10, activation='softmax')
+    ])
+    
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+                  loss='categorical_crossentropy', metrics=['accuracy'])
+    
+    return model
+ 
+# Random Search for hyperparameters
+best_accuracy = 0
+best_params = None
+ 
+# Randomly choose hyperparameters and train
+for _ in range(5):  # Randomly sample 5 combinations
+    learning_rate = np.random.choice(hyperparameters['learning_rate'])
+    batch_size = np.random.choice(hyperparameters['batch_size'])
+    epochs = np.random.choice(hyperparameters['epochs'])
+    units = np.random.choice(hyperparameters['units'])
+    
+    print(f"Training model with learning_rate={learning_rate}, batch_size={batch_size}, epochs={epochs}, units={units}...")
+    
+    # Create and train the model
+    model = create_model(learning_rate, batch_size, units)
+    model.fit(x_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(x_test, y_test), verbose=0)
+    
+    # Evaluate the model
+    _, accuracy = model.evaluate(x_test, y_test)
+    
+    # Track the best model
+    if accuracy > best_accuracy:
+        best_accuracy = accuracy
+        best_params = (learning_rate, batch_size, epochs, units)
+    
+    print(f"Model accuracy: {accuracy:.4f}")
+ 
+print(f"Best Model Hyperparameters: {best_params}")
+print(f"Best Accuracy: {best_accuracy:.4f}")
+Key Concepts Covered:
+Hyperparameter Search Space: Defining a range of values for hyperparameters like learning rate, batch size, number of epochs, and units.
+
+Random Search: A simple method to randomly sample combinations of hyperparameters, train the model, and track the best-performing configuration.
+
+
+
+Project 963: AutoML Implementation
+Description
+AutoML (Automated Machine Learning) automates the process of selecting models, hyperparameters, and feature engineering, making machine learning more accessible and efficient. In this project, we'll implement a simple AutoML pipeline that can automatically choose models and hyperparameters for a classification task.
+
+Python Implementation with Comments (AutoML Pipeline using TPOT)
+We'll use TPOT, a popular AutoML library that uses genetic algorithms to optimize machine learning pipelines, to build an automated system for training and evaluating models.
+
+import numpy as np
+from tpot import TPOTClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.datasets import load_digits
+from sklearn.preprocessing import StandardScaler
+ 
+# Load the digits dataset (for simplicity)
+digits = load_digits()
+X, y = digits.data, digits.target
+ 
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Preprocess the data (standardization)
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+ 
+# Initialize the AutoML model (TPOTClassifier)
+model = TPOTClassifier( generations=5, population_size=20, random_state=42, verbosity=2)
+ 
+# Fit the model to the training data
+model.fit(X_train, y_train)
+ 
+# Evaluate the model on the test data
+accuracy = model.score(X_test, y_test)
+print(f"✅ AutoML Model Accuracy: {accuracy:.4f}")
+ 
+# Export the best pipeline
+model.export('best_model_pipeline.py')
+Key Concepts Covered:
+AutoML with TPOT: Automatically tunes models and selects the best-performing pipeline using evolutionary algorithms.
+
+Genetic Algorithm: A search method that uses the concept of survival of the fittest to evolve models.
+
+Model Export: TPOT allows you to export the best pipeline to a Python script, which can be reused for predictions.
+
+
+
+Project 964: Meta-learning Implementation
+Description
+Meta-learning, or "learning to learn," enables models to adapt to new tasks with minimal data. It focuses on training models to generalize across tasks. In this project, we’ll implement a meta-learning system using model-agnostic meta-learning (MAML), which allows a model to learn quickly from a small number of examples.
+
+Python Implementation with Comments (Meta-Learning using MAML)
+We'll use the learn2learn library, which provides a simple implementation of MAML. This will allow us to apply meta-learning to tasks like few-shot classification.
+
+pip install learn2learn
+import learn2learn as l2l
+import torch
+from torch import nn
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, random_split
+ 
+# Define a simple neural network for classification
+class SimpleCNN(nn.Module):
+    def __init__(self):
+        super(SimpleCNN, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, 3)
+        self.conv2 = nn.Conv2d(32, 64, 3)
+        self.fc1 = nn.Linear(64 * 6 * 6, 128)
+        self.fc2 = nn.Linear(128, 10)  # 10 output classes for MNIST
+ 
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.max_pool2d(x, 2)
+        x = torch.relu(self.conv2(x))
+        x = torch.max_pool2d(x, 2)
+        x = torch.flatten(x, 1)
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+ 
+# Load MNIST dataset
+transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+mnist_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+ 
+# Split dataset into training and validation sets
+train_dataset, val_dataset = random_split(mnist_dataset, [55000, 5000])
+ 
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+ 
+# Create a meta-learning model using MAML
+model = SimpleCNN()
+maml = l2l.algorithms.MAML(model, lr=0.01)
+ 
+# Meta-training loop (training on multiple tasks)
+optimizer = optim.Adam(maml.parameters(), lr=0.001)
+ 
+for epoch in range(5):  # Meta-training for 5 epochs
+    total_loss = 0
+    for batch_idx, (data, target) in enumerate(train_loader):
+        # Meta-learning step
+        loss = maml(data, target)  # Calculate loss for the task
+        total_loss += loss.item()
+ 
+        # Step the optimizer to update model parameters
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+ 
+    print(f'Epoch {epoch+1}, Loss: {total_loss/len(train_loader)}')
+ 
+# Test the meta-learned model on validation data
+model.eval()
+correct = 0
+total = 0
+with torch.no_grad():
+    for data, target in val_loader:
+        output = model(data)
+        _, predicted = torch.max(output, 1)
+        total += target.size(0)
+        correct += (predicted == target).sum().item()
+ 
+print(f'Accuracy on validation data: {100 * correct / total:.2f}%')
+Key Concepts Covered:
+Model-Agnostic Meta-Learning (MAML): A meta-learning algorithm that trains models to quickly adapt to new tasks.
+
+Few-shot learning: Training a model to perform well with only a few examples from a new task.
+
+Meta-training Loop: The process of training the model on multiple tasks, optimizing it for fast adaptation.
+
+
+
+Project 965: Learning to Learn Algorithms
+Description
+Learning to learn algorithms, also known as meta-learning algorithms, aim to optimize a model’s ability to generalize and adapt quickly to new tasks with minimal data. This project focuses on implementing a simple meta-learning algorithm, such as MAML or Reptile, for few-shot learning tasks like classification or regression.
+
+Python Implementation with Comments (Reptile Meta-Learning Algorithm)
+We'll implement the Reptile algorithm, a simpler meta-learning approach that focuses on updating model parameters in a way that enables fast adaptation to new tasks. We'll use PyTorch to train on a few tasks from the Omniglot dataset, commonly used for few-shot learning tasks.
+
+First, install learn2learn and torch if you haven't already:
+
+pip install learn2learn
+pip install torch torchvision
+Then, here’s a simple Reptile-based meta-learning implementation:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import learn2learn as l2l
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
+import numpy as np
+ 
+# Define a simple neural network for few-shot classification
+class SimpleNN(nn.Module):
+    def __init__(self):
+        super(SimpleNN, self).__init__()
+        self.fc1 = nn.Linear(28*28, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 10)
+ 
+    def forward(self, x):
+        x = x.view(-1, 28*28)
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+ 
+# Define the Reptile meta-learning algorithm
+def reptile_update(model, meta_lr=0.1):
+    for param in model.parameters():
+        param.data -= meta_lr * param.grad.data
+ 
+# Load Omniglot dataset (used for few-shot learning)
+transform = transforms.Compose([transforms.Grayscale(num_output_channels=1), transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+omniglot_train = datasets.Omniglot(root='./data', background=True, transform=transform, download=True)
+omniglot_test = datasets.Omniglot(root='./data', background=False, transform=transform, download=True)
+ 
+# Create DataLoader for training and testing
+train_loader = DataLoader(omniglot_train, batch_size=32, shuffle=True)
+test_loader = DataLoader(omniglot_test, batch_size=32, shuffle=False)
+ 
+# Initialize the model
+model = SimpleNN()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+ 
+# Train the model using Reptile meta-learning algorithm
+for epoch in range(5):  # Meta-training loop for 5 epochs
+    model.train()
+    total_loss = 0
+ 
+    # Task-specific training loop
+    for data, target in train_loader:
+        optimizer.zero_grad()
+        
+        # Task training: forward pass and loss calculation
+        output = model(data)
+        loss = nn.CrossEntropyLoss()(output, target)
+        loss.backward()
+        
+        # Update the model with the Reptile algorithm
+        reptile_update(model, meta_lr=0.1)
+        
+        total_loss += loss.item()
+ 
+    print(f"Epoch {epoch+1}, Loss: {total_loss/len(train_loader)}")
+ 
+# Test the model on the test dataset
+model.eval()
+correct = 0
+total = 0
+with torch.no_grad():
+    for data, target in test_loader:
+        output = model(data)
+        _, predicted = torch.max(output, 1)
+        total += target.size(0)
+        correct += (predicted == target).sum().item()
+ 
+print(f"Accuracy on test data: {100 * correct / total:.2f}%")
+Key Concepts Covered:
+Reptile Meta-Learning: A simpler meta-learning algorithm that focuses on updating the model parameters to quickly adapt to new tasks.
+
+Few-Shot Learning: Training models to perform well with only a few examples from a new task.
+
+Meta-Training Loop: The outer loop that trains the model on multiple tasks, ensuring it can quickly adapt to new ones.
+
+
+
+Project 966: Continual Learning Systems
+Description
+Continual learning (also known as lifelong learning) refers to the ability of a model to learn from new data while retaining previously learned knowledge. In this project, we’ll implement a simple continual learning system that can learn from a sequence of tasks (e.g., classification tasks) without forgetting previously learned information.
+
+Python Implementation with Comments (Continual Learning using EWC - Elastic Weight Consolidation)
+Elastic Weight Consolidation (EWC) is a technique that helps mitigate catastrophic forgetting during continual learning. It involves adding a regularization term that penalizes changes to important weights learned in previous tasks.
+
+Here’s a simple implementation using EWC in PyTorch:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, TensorDataset
+ 
+# Define a simple neural network for classification
+class SimpleNN(nn.Module):
+    def __init__(self):
+        super(SimpleNN, self).__init__()
+        self.fc1 = nn.Linear(64, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 10)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+ 
+# Define the EWC loss (Elastic Weight Consolidation)
+class EWC:
+    def __init__(self, model, dataloader, importance_factor=1000):
+        self.model = model
+        self.importance_factor = importance_factor
+        self.saved_params = {}
+        self.saved_grads = {}
+        self.saved_fisher_information = {}
+ 
+        # Train the model on the first task to capture the optimal parameters
+        self._capture_params(dataloader)
+ 
+    def _capture_params(self, dataloader):
+        # Save the current parameters of the model
+        for name, param in self.model.named_parameters():
+            self.saved_params[name] = param.clone().detach()
+ 
+        # Compute the Fisher Information Matrix
+        fisher_information = {}
+        for name, param in self.model.named_parameters():
+            fisher_information[name] = torch.zeros_like(param)
+        
+        self.model.eval()  # Set model to evaluation mode
+        for data, target in dataloader:
+            self.model.zero_grad()
+            output = self.model(data)
+            loss = nn.CrossEntropyLoss()(output, target)
+            loss.backward()
+ 
+            for name, param in self.model.named_parameters():
+                fisher_information[name] += param.grad ** 2 / len(dataloader)
+ 
+        self.saved_fisher_information = fisher_information
+ 
+    def compute_ewc_loss(self):
+        ewc_loss = 0
+        for name, param in self.model.named_parameters():
+            fisher_information = self.saved_fisher_information[name]
+            old_param = self.saved_params[name]
+            ewc_loss += (fisher_information * (param - old_param) ** 2).sum()
+ 
+        return self.importance_factor * ewc_loss
+ 
+# Load the Digits dataset
+digits = load_digits()
+X = digits.data / 16.0  # Normalize data
+y = digits.target
+ 
+# Split into two tasks (Task 1: First 5 classes, Task 2: Last 5 classes)
+X_task1, X_task2 = X[y < 5], X[y >= 5]
+y_task1, y_task2 = y[y < 5], y[y >= 5]
+ 
+# Split into training and testing sets for both tasks
+X_train1, X_test1, y_train1, y_test1 = train_test_split(X_task1, y_task1, test_size=0.2, random_state=42)
+X_train2, X_test2, y_train2, y_test2 = train_test_split(X_task2, y_task2, test_size=0.2, random_state=42)
+ 
+# Convert to PyTorch tensors
+train_data1 = TensorDataset(torch.tensor(X_train1, dtype=torch.float32), torch.tensor(y_train1, dtype=torch.long))
+test_data1 = TensorDataset(torch.tensor(X_test1, dtype=torch.float32), torch.tensor(y_test1, dtype=torch.long))
+ 
+train_data2 = TensorDataset(torch.tensor(X_train2, dtype=torch.float32), torch.tensor(y_train2, dtype=torch.long))
+test_data2 = TensorDataset(torch.tensor(X_test2, dtype=torch.float32), torch.tensor(y_test2, dtype=torch.long))
+ 
+# Create DataLoader
+train_loader1 = DataLoader(train_data1, batch_size=32, shuffle=True)
+test_loader1 = DataLoader(test_data1, batch_size=32, shuffle=False)
+ 
+train_loader2 = DataLoader(train_data2, batch_size=32, shuffle=True)
+test_loader2 = DataLoader(test_data2, batch_size=32, shuffle=False)
+ 
+# Initialize the model, optimizer, and EWC
+model = SimpleNN()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+ 
+# Task 1: Train on the first task
+for epoch in range(5):
+    model.train()
+    total_loss = 0
+    for data, target in train_loader1:
+        optimizer.zero_grad()
+        output = model(data)
+        loss = nn.CrossEntropyLoss()(output, target)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+ 
+    print(f"Task 1 Epoch {epoch+1}, Loss: {total_loss / len(train_loader1)}")
+ 
+# Capture the parameters and Fisher information after Task 1
+ewc = EWC(model, train_loader1)
+ 
+# Task 2: Train on the second task with EWC loss
+for epoch in range(5):
+    model.train()
+    total_loss = 0
+    for data, target in train_loader2:
+        optimizer.zero_grad()
+        output = model(data)
+        loss = nn.CrossEntropyLoss()(output, target)
+ 
+        # Add the EWC loss term
+        ewc_loss = ewc.compute_ewc_loss()
+        total_loss = loss + ewc_loss
+        total_loss.backward()
+        optimizer.step()
+ 
+    print(f"Task 2 Epoch {epoch+1}, Loss: {total_loss / len(train_loader2)}")
+ 
+# Evaluate on Task 1 and Task 2
+model.eval()
+correct1, correct2 = 0, 0
+total1, total2 = 0, 0
+with torch.no_grad():
+    for data, target in test_loader1:
+        output = model(data)
+        _, predicted = torch.max(output, 1)
+        total1 += target.size(0)
+        correct1 += (predicted == target).sum().item()
+ 
+    for data, target in test_loader2:
+        output = model(data)
+        _, predicted = torch.max(output, 1)
+        total2 += target.size(0)
+        correct2 += (predicted == target).sum().item()
+ 
+print(f"Task 1 Accuracy: {100 * correct1 / total1:.2f}%")
+print(f"Task 2 Accuracy: {100 * correct2 / total2:.2f}%")
+Key Concepts Covered:
+Elastic Weight Consolidation (EWC): A technique for preventing catastrophic forgetting by penalizing changes to important parameters from previous tasks.
+
+Task Incremental Learning: Learning new tasks without forgetting previous ones.
+
+Continual Learning: A model learns sequentially from multiple tasks, retaining knowledge from all of them.
+
+
+
+Project 967: Progressive Neural Networks
+Description
+Progressive neural networks allow a model to adapt to new tasks by adding new neural network components while retaining previously learned knowledge. This project focuses on implementing progressive neural networks to learn a sequence of tasks while preserving prior task knowledge.
+
+Python Implementation with Comments (Progressive Neural Networks)
+Progressive neural networks are typically implemented by creating new "columns" of the neural network that learn new tasks while keeping old columns fixed (frozen). Here’s a simplified version of progressive learning in PyTorch.
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, TensorDataset
+ 
+# Define a basic neural network with two columns for progressive learning
+class ProgressiveNN(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super(ProgressiveNN, self).__init__()
+        self.fc1 = nn.Linear(input_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, output_size)
+        self.fc3 = nn.Linear(hidden_size, output_size)  # New column for the second task
+        self.fc1.weight.data.normal_()  # Initialize weights
+        self.fc2.weight.data.normal_()
+        self.fc3.weight.data.normal_()
+ 
+    def forward(self, x, task=1):
+        x = torch.relu(self.fc1(x))
+        if task == 1:
+            x = self.fc2(x)  # Use first column for Task 1
+        elif task == 2:
+            x = self.fc3(x)  # Use second column for Task 2
+        return x
+ 
+# Load Digits dataset (for simplicity)
+digits = load_digits()
+X = digits.data / 16.0  # Normalize data
+y = digits.target
+ 
+# Split into two tasks (Task 1: First 5 classes, Task 2: Last 5 classes)
+X_task1, X_task2 = X[y < 5], X[y >= 5]
+y_task1, y_task2 = y[y < 5], y[y >= 5]
+ 
+# Split into training and testing sets for both tasks
+X_train1, X_test1, y_train1, y_test1 = train_test_split(X_task1, y_task1, test_size=0.2, random_state=42)
+X_train2, X_test2, y_train2, y_test2 = train_test_split(X_task2, y_task2, test_size=0.2, random_state=42)
+ 
+# Convert to PyTorch tensors
+train_data1 = TensorDataset(torch.tensor(X_train1, dtype=torch.float32), torch.tensor(y_train1, dtype=torch.long))
+test_data1 = TensorDataset(torch.tensor(X_test1, dtype=torch.float32), torch.tensor(y_test1, dtype=torch.long))
+ 
+train_data2 = TensorDataset(torch.tensor(X_train2, dtype=torch.float32), torch.tensor(y_train2, dtype=torch.long))
+test_data2 = TensorDataset(torch.tensor(X_test2, dtype=torch.float32), torch.tensor(y_test2, dtype=torch.long))
+ 
+# Create DataLoader for training and testing
+train_loader1 = DataLoader(train_data1, batch_size=32, shuffle=True)
+test_loader1 = DataLoader(test_data1, batch_size=32, shuffle=False)
+ 
+train_loader2 = DataLoader(train_data2, batch_size=32, shuffle=True)
+test_loader2 = DataLoader(test_data2, batch_size=32, shuffle=False)
+ 
+# Initialize the model and optimizer
+model = ProgressiveNN(input_size=64, hidden_size=128, output_size=5)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+ 
+# Task 1: Train on the first task
+for epoch in range(5):
+    model.train()
+    total_loss = 0
+    for data, target in train_loader1:
+        optimizer.zero_grad()
+        output = model(data, task=1)
+        loss = nn.CrossEntropyLoss()(output, target)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+ 
+    print(f"Task 1 Epoch {epoch+1}, Loss: {total_loss / len(train_loader1)}")
+ 
+# Task 2: Train on the second task using the second column (frozen first column)
+for epoch in range(5):
+    model.train()
+    total_loss = 0
+    for data, target in train_loader2:
+        optimizer.zero_grad()
+        output = model(data, task=2)
+        loss = nn.CrossEntropyLoss()(output, target)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+ 
+    print(f"Task 2 Epoch {epoch+1}, Loss: {total_loss / len(train_loader2)}")
+ 
+# Evaluate on Task 1 and Task 2
+model.eval()
+correct1, correct2 = 0, 0
+total1, total2 = 0, 0
+with torch.no_grad():
+    for data, target in test_loader1:
+        output = model(data, task=1)
+        _, predicted = torch.max(output, 1)
+        total1 += target.size(0)
+        correct1 += (predicted == target).sum().item()
+ 
+    for data, target in test_loader2:
+        output = model(data, task=2)
+        _, predicted = torch.max(output, 1)
+        total2 += target.size(0)
+        correct2 += (predicted == target).sum().item()
+ 
+print(f"Task 1 Accuracy: {100 * correct1 / total1:.2f}%")
+print(f"Task 2 Accuracy: {100 * correct2 / total2:.2f}%")
+Key Concepts Covered:
+Progressive Neural Networks: A method for continual learning where new "columns" are added for new tasks while old tasks are retained by freezing the previous columns.
+
+Task Incremental Learning: Adapting the model to new tasks without forgetting previous ones.
+
+Frozen Parameters: Freezing the parameters of previous layers to preserve knowledge when learning a new task.
+
+
+
+Project 968: Lifelong Learning Implementation
+Description
+Lifelong learning systems enable models to continuously learn from new data while retaining the knowledge learned from previous tasks. In this project, we will implement a simple lifelong learning system that can learn multiple tasks sequentially without forgetting the previous tasks.
+
+Python Implementation with Comments (Lifelong Learning with EWC)
+We’ll use Elastic Weight Consolidation (EWC), which was introduced to prevent catastrophic forgetting in lifelong learning. We'll implement it for learning multiple tasks sequentially while retaining knowledge from the previous tasks.
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, TensorDataset
+ 
+# Define a basic neural network
+class SimpleNN(nn.Module):
+    def __init__(self):
+        super(SimpleNN, self).__init__()
+        self.fc1 = nn.Linear(64, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 10)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+ 
+# EWC loss function (Elastic Weight Consolidation)
+class EWC:
+    def __init__(self, model, dataloader, importance_factor=1000):
+        self.model = model
+        self.importance_factor = importance_factor
+        self.saved_params = {}
+        self.saved_fisher_information = {}
+        self._capture_params(dataloader)
+ 
+    def _capture_params(self, dataloader):
+        # Save model parameters
+        for name, param in self.model.named_parameters():
+            self.saved_params[name] = param.clone().detach()
+ 
+        # Compute Fisher Information
+        fisher_information = {}
+        for name, param in self.model.named_parameters():
+            fisher_information[name] = torch.zeros_like(param)
+ 
+        self.model.eval()
+        for data, target in dataloader:
+            self.model.zero_grad()
+            output = self.model(data)
+            loss = nn.CrossEntropyLoss()(output, target)
+            loss.backward()
+ 
+            for name, param in self.model.named_parameters():
+                fisher_information[name] += param.grad ** 2 / len(dataloader)
+ 
+        self.saved_fisher_information = fisher_information
+ 
+    def compute_ewc_loss(self):
+        ewc_loss = 0
+        for name, param in self.model.named_parameters():
+            fisher_information = self.saved_fisher_information[name]
+            old_param = self.saved_params[name]
+            ewc_loss += (fisher_information * (param - old_param) ** 2).sum()
+ 
+        return self.importance_factor * ewc_loss
+ 
+# Load Digits dataset (for simplicity)
+digits = load_digits()
+X = digits.data / 16.0  # Normalize data
+y = digits.target
+ 
+# Split into two tasks (Task 1: First 5 classes, Task 2: Last 5 classes)
+X_task1, X_task2 = X[y < 5], X[y >= 5]
+y_task1, y_task2 = y[y < 5], y[y >= 5]
+ 
+# Split into training and testing sets for both tasks
+X_train1, X_test1, y_train1, y_test1 = train_test_split(X_task1, y_task1, test_size=0.2, random_state=42)
+X_train2, X_test2, y_train2, y_test2 = train_test_split(X_task2, y_task2, test_size=0.2, random_state=42)
+ 
+# Convert to PyTorch tensors
+train_data1 = TensorDataset(torch.tensor(X_train1, dtype=torch.float32), torch.tensor(y_train1, dtype=torch.long))
+test_data1 = TensorDataset(torch.tensor(X_test1, dtype=torch.float32), torch.tensor(y_test1, dtype=torch.long))
+ 
+train_data2 = TensorDataset(torch.tensor(X_train2, dtype=torch.float32), torch.tensor(y_train2, dtype=torch.long))
+test_data2 = TensorDataset(torch.tensor(X_test2, dtype=torch.float32), torch.tensor(y_test2, dtype=torch.long))
+ 
+# Create DataLoader
+train_loader1 = DataLoader(train_data1, batch_size=32, shuffle=True)
+test_loader1 = DataLoader(test_data1, batch_size=32, shuffle=False)
+ 
+train_loader2 = DataLoader(train_data2, batch_size=32, shuffle=True)
+test_loader2 = DataLoader(test_data2, batch_size=32, shuffle=False)
+ 
+# Initialize the model, optimizer, and EWC
+model = SimpleNN()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+ 
+# Task 1: Train on the first task
+for epoch in range(5):
+    model.train()
+    total_loss = 0
+    for data, target in train_loader1:
+        optimizer.zero_grad()
+        output = model(data)
+        loss = nn.CrossEntropyLoss()(output, target)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+ 
+    print(f"Task 1 Epoch {epoch+1}, Loss: {total_loss / len(train_loader1)}")
+ 
+# Capture parameters and Fisher information after Task 1
+ewc = EWC(model, train_loader1)
+ 
+# Task 2: Train on the second task using EWC to avoid forgetting Task 1
+for epoch in range(5):
+    model.train()
+    total_loss = 0
+    for data, target in train_loader2:
+        optimizer.zero_grad()
+        output = model(data)
+        loss = nn.CrossEntropyLoss()(output, target)
+ 
+        # Add the EWC loss term
+        ewc_loss = ewc.compute_ewc_loss()
+        total_loss = loss + ewc_loss
+        total_loss.backward()
+        optimizer.step()
+ 
+    print(f"Task 2 Epoch {epoch+1}, Loss: {total_loss / len(train_loader2)}")
+ 
+# Evaluate on Task 1 and Task 2
+model.eval()
+correct1, correct2 = 0, 0
+total1, total2 = 0, 0
+with torch.no_grad():
+    for data, target in test_loader1:
+        output = model(data)
+        _, predicted = torch.max(output, 1)
+        total1 += target.size(0)
+        correct1 += (predicted == target).sum().item()
+ 
+    for data, target in test_loader2:
+        output = model(data)
+        _, predicted = torch.max(output, 1)
+        total2 += target.size(0)
+        correct2 += (predicted == target).sum().item()
+ 
+print(f"Task 1 Accuracy: {100 * correct1 / total1:.2f}%")
+print(f"Task 2 Accuracy: {100 * correct2 / total2:.2f}%")
+Key Concepts Covered:
+Lifelong Learning: A system that learns from a sequence of tasks while retaining knowledge from previous ones.
+
+Elastic Weight Consolidation (EWC): A technique that helps prevent catastrophic forgetting by penalizing changes to important weights.
+
+Task Incremental Learning: The model can learn new tasks while maintaining performance on previously learned tasks.
+
+
+
+Project 969: Zero-shot Learning Implementation
+Description
+Zero-shot learning allows a model to correctly make predictions on tasks it has never seen before, based solely on descriptions or semantic information about the classes. In this project, we will implement a simple zero-shot learning system for image classification, where the model predicts labels for unseen classes based on textual descriptions.
+
+Python Implementation with Comments (Zero-shot Learning with CLIP)
+We'll use CLIP (Contrastive Language-Image Pre-training), a powerful model trained on large amounts of text and image data. CLIP can be used for zero-shot learning by directly associating images with textual descriptions.
+
+Here's a simple implementation using the CLIP model from OpenAI to perform zero-shot classification:
+
+pip install torch torchvision clip-by-openai
+import torch
+import clip
+from PIL import Image
+from torchvision import datasets, transforms
+import numpy as np
+ 
+# Load the CLIP model
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model, preprocess = clip.load("ViT-B/32", device)
+ 
+# Example classes and their descriptions (Zero-shot learning)
+class_descriptions = [
+    "A photo of a cat",
+    "A photo of a dog",
+    "A picture of a car",
+    "A picture of a tree"
+]
+ 
+# Define the transformation for input images
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+ 
+# Load an image to classify
+image_path = 'example_image.jpg'  # Replace with your image path
+image = Image.open(image_path)
+image_input = preprocess(image).unsqueeze(0).to(device)
+ 
+# Encode the text descriptions using CLIP
+text_inputs = torch.cat([clip.tokenize(desc).unsqueeze(0) for desc in class_descriptions]).to(device)
+ 
+# Generate image and text features using CLIP
+with torch.no_grad():
+    image_features = model.encode_image(image_input)
+    text_features = model.encode_text(text_inputs)
+ 
+# Normalize the features
+image_features /= image_features.norm(dim=-1, keepdim=True)
+text_features /= text_features.norm(dim=-1, keepdim=True)
+ 
+# Calculate similarity scores (cosine similarity)
+similarity = (image_features @ text_features.T).squeeze(0)
+ 
+# Get the index of the highest similarity (the predicted class)
+predicted_class_idx = np.argmax(similarity.cpu().numpy())
+print(f"Predicted class: {class_descriptions[predicted_class_idx]}")
+Key Concepts Covered:
+Zero-shot Learning (ZSL): The ability of a model to classify instances from classes it has never seen before, using textual or semantic information.
+
+CLIP Model: A pre-trained model that learns to associate images with text descriptions. It can be used for zero-shot classification by comparing image and text embeddings.
+
+Cosine Similarity: Measures the cosine of the angle between two vectors in the feature space to determine their similarity.
+
+
+
+Project 970: Few-shot Learning Implementation
+Description
+Few-shot learning allows a model to generalize and make predictions with just a few labeled examples. In this project, we will implement a simple few-shot learning system using Siamese networks, which are designed for tasks like one-shot and few-shot image classification.
+
+Python Implementation with Comments (Few-shot Learning with Siamese Network)
+A Siamese network consists of twin neural networks that share weights and are used to compare pairs of inputs. This is perfect for few-shot learning where we compare the similarity between examples.
+
+We'll use PyTorch to implement a simple Siamese network for classifying few-shot tasks on a small dataset like Omniglot (a common dataset for few-shot learning tasks).
+
+First, install the necessary libraries:
+
+pip install torch torchvision learn2learn
+Then, here's a basic implementation using Siamese Networks for few-shot learning:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, Dataset
+import numpy as np
+ 
+# Define the Siamese Network architecture
+class SiameseNetwork(nn.Module):
+    def __init__(self):
+        super(SiameseNetwork, self).__init__()
+        self.conv1 = nn.Conv2d(1, 64, kernel_size=3)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3)
+        self.fc1 = nn.Linear(128*6*6, 256)
+        self.fc2 = nn.Linear(256, 1)
+ 
+    def forward_one(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.relu(self.conv2(x))
+        x = torch.flatten(x, start_dim=1)
+        x = torch.relu(self.fc1(x))
+        return x
+ 
+    def forward(self, input1, input2):
+        out1 = self.forward_one(input1)
+        out2 = self.forward_one(input2)
+        diff = torch.abs(out1 - out2)  # Calculate the absolute difference between the outputs
+        return torch.sigmoid(self.fc2(diff))  # Output similarity score (0 or 1)
+ 
+# Define the dataset class for Omniglot (few-shot task setup)
+class OmniglotFewShot(Dataset):
+    def __init__(self, data, labels, num_classes=5, num_examples=5):
+        self.data = data
+        self.labels = labels
+        self.num_classes = num_classes
+        self.num_examples = num_examples
+ 
+    def __getitem__(self, idx):
+        # Select two random classes
+        class1_idx = np.random.randint(0, self.num_classes)
+        class2_idx = np.random.randint(0, self.num_classes)
+ 
+        # Get example pairs from each class
+        class1_data = self.data[self.labels == class1_idx]
+        class2_data = self.data[self.labels == class2_idx]
+ 
+        # Select random examples for both classes
+        example1 = class1_data[np.random.randint(len(class1_data))]
+        example2 = class2_data[np.random.randint(len(class2_data))]
+ 
+        # Label the pair as either a match (1) or non-match (0)
+        label = 1 if class1_idx == class2_idx else 0
+ 
+        return example1, example2, label
+ 
+    def __len__(self):
+        return len(self.data)
+ 
+# Load Omniglot dataset (for simplicity, use a subset)
+transform = transforms.Compose([transforms.Grayscale(num_output_channels=1), transforms.ToTensor()])
+omniglot_dataset = datasets.Omniglot(root='./data', background=True, transform=transform, download=True)
+ 
+# Convert to tensor format
+data = omniglot_dataset.data.numpy().reshape(-1, 1, 28, 28) / 255.0
+labels = omniglot_dataset.targets.numpy()
+ 
+# Set up the few-shot dataset
+few_shot_dataset = OmniglotFewShot(data, labels)
+ 
+# DataLoader for few-shot learning
+train_loader = DataLoader(few_shot_dataset, batch_size=32, shuffle=True)
+ 
+# Initialize the model, optimizer, and loss function
+model = SiameseNetwork()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+criterion = nn.BCELoss()
+ 
+# Train the model
+for epoch in range(5):  # Few-shot training loop for 5 epochs
+    model.train()
+    total_loss = 0
+    for data1, data2, label in train_loader:
+        optimizer.zero_grad()
+        output = model(data1, data2)
+        loss = criterion(output.squeeze(), label.float())
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+ 
+    print(f"Epoch {epoch+1}, Loss: {total_loss / len(train_loader)}")
+ 
+# Test the model
+model.eval()
+correct = 0
+total = 0
+with torch.no_grad():
+    for data1, data2, label in train_loader:
+        output = model(data1, data2)
+        _, predicted = torch.max(output, 1)
+        total += label.size(0)
+        correct += (predicted == label).sum().item()
+ 
+print(f"Accuracy on few-shot task: {100 * correct / total:.2f}%")
+Key Concepts Covered:
+Siamese Networks: A network architecture that compares two inputs and determines whether they belong to the same class (ideal for few-shot learning).
+
+Few-shot Learning: A machine learning paradigm where a model is trained to generalize from a small number of labeled examples.
+
+Pairwise Comparison: The core idea in Siamese Networks, where the model compares pairs of inputs and learns whether they belong to the same class.
+
+
+
+Project 971: Domain Adaptation Techniques
+Description
+Domain adaptation involves transferring knowledge learned from a source domain (with plenty of labeled data) to a target domain (with limited or no labeled data). In this project, we’ll implement a domain adaptation technique, such as adversarial training or fine-tuning, to adapt a model trained on one dataset to perform well on another.
+
+Python Implementation with Comments (Domain Adaptation using Adversarial Training)
+We’ll implement adversarial domain adaptation using GANs (Generative Adversarial Networks), where the goal is to adapt a model trained on a source domain (e.g., MNIST digits) to perform well on a target domain (e.g., USPS digits), even if the target domain has very few labeled examples.
+
+pip install torch torchvision
+Here's the implementation:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
+import numpy as np
+ 
+# Define the model architecture
+class SimpleCNN(nn.Module):
+    def __init__(self):
+        super(SimpleCNN, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=5)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=5)
+        self.fc1 = nn.Linear(1024, 128)
+        self.fc2 = nn.Linear(128, 10)
+ 
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.max_pool2d(x, 2)
+        x = torch.relu(self.conv2(x))
+        x = torch.max_pool2d(x, 2)
+        x = x.view(x.size(0), -1)
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+ 
+# Define the domain classifier (for adversarial training)
+class DomainClassifier(nn.Module):
+    def __init__(self):
+        super(DomainClassifier, self).__init__()
+        self.fc1 = nn.Linear(1024, 128)
+        self.fc2 = nn.Linear(128, 1)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+ 
+# Define the adversarial loss function (Domain Adaptation Loss)
+def adversarial_loss(domain_output, target_domain):
+    return nn.BCEWithLogitsLoss()(domain_output, target_domain)
+ 
+# Load the MNIST and USPS datasets (Source and Target Domains)
+transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+ 
+mnist_train = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+usps_train = datasets.USPS(root='./data', train=True, download=True, transform=transform)
+ 
+# Create DataLoaders
+mnist_loader = DataLoader(mnist_train, batch_size=64, shuffle=True)
+usps_loader = DataLoader(usps_train, batch_size=64, shuffle=True)
+ 
+# Initialize models
+cnn_model = SimpleCNN()
+domain_classifier = DomainClassifier()
+ 
+# Optimizers
+optimizer_cnn = optim.Adam(cnn_model.parameters(), lr=0.001)
+optimizer_domain = optim.Adam(domain_classifier.parameters(), lr=0.001)
+ 
+# Train the model with adversarial domain adaptation
+for epoch in range(5):
+    cnn_model.train()
+    domain_classifier.train()
+ 
+    total_loss = 0
+    for (source_data, _), (target_data, _) in zip(mnist_loader, usps_loader):
+        # Adversarial training
+        source_domain_label = torch.ones(source_data.size(0), 1)  # Source domain label: 1
+        target_domain_label = torch.zeros(target_data.size(0), 1)  # Target domain label: 0
+ 
+        # Forward pass through CNN (shared layers)
+        source_features = cnn_model(source_data)
+        target_features = cnn_model(target_data)
+ 
+        # Adversarial loss: try to confuse the domain classifier
+        source_domain_output = domain_classifier(source_features)
+        target_domain_output = domain_classifier(target_features)
+ 
+        domain_loss = adversarial_loss(source_domain_output, source_domain_label) + adversarial_loss(target_domain_output, target_domain_label)
+ 
+        # Backpropagation for domain classifier
+        optimizer_domain.zero_grad()
+        domain_loss.backward()
+        optimizer_domain.step()
+ 
+        # Train CNN to minimize domain loss (domain classifier confusion)
+        optimizer_cnn.zero_grad()
+        total_loss += domain_loss.item()
+        domain_loss.backward()
+        optimizer_cnn.step()
+ 
+    print(f"Epoch {epoch+1}, Domain Loss: {total_loss / len(mnist_loader)}")
+ 
+# Test the model on the target domain (USPS)
+cnn_model.eval()
+correct = 0
+total = 0
+with torch.no_grad():
+    for data, target in usps_loader:
+        output = cnn_model(data)
+        _, predicted = torch.max(output, 1)
+        total += target.size(0)
+        correct += (predicted == target).sum().item()
+ 
+print(f"Accuracy on target domain (USPS): {100 * correct / total:.2f}%")
+Key Concepts Covered:
+Adversarial Training: In domain adaptation, adversarial training helps the model learn to classify from the target domain by "fooling" a domain classifier into thinking that the source domain examples are from the target domain.
+
+Domain Adaptation: A technique that enables the model to transfer knowledge from a source domain to a target domain, even if labeled data is scarce for the target domain.
+
+Domain Classifier: A separate network that learns to distinguish between source and target domain examples, guiding the main model to learn generalizable features.
+
+
+
+Project 972: Transfer Learning Framework
+Description
+Transfer learning involves leveraging knowledge from one domain (usually with a large amount of data) and applying it to another domain (usually with limited data). In this project, we will implement a transfer learning framework using pre-trained models and fine-tune them for a different task or domain.
+
+Python Implementation with Comments (Transfer Learning using Pre-trained Models)
+We’ll use a pre-trained model (e.g., ResNet50) for image classification on a small dataset, such as CIFAR-10, and fine-tune it for the new task.
+
+First, install the necessary libraries:
+
+pip install torch torchvision
+Now, here's the implementation:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms, models
+from torch.utils.data import DataLoader
+from sklearn.model_selection import train_test_split
+ 
+# Load CIFAR-10 dataset
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),  # Resizing to fit ResNet50 input size
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Pre-trained model normalization
+])
+ 
+train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+test_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+ 
+# Split the dataset into train and validation sets
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+ 
+# Load pre-trained ResNet50 model
+model = models.resnet50(pretrained=True)
+ 
+# Freeze all layers except the final fully connected layer
+for param in model.parameters():
+    param.requires_grad = False
+ 
+# Modify the final fully connected layer to match CIFAR-10 classes (10 classes)
+model.fc = nn.Linear(model.fc.in_features, 10)
+ 
+# Use Adam optimizer and cross-entropy loss
+optimizer = optim.Adam(model.fc.parameters(), lr=0.001)
+criterion = nn.CrossEntropyLoss()
+ 
+# Train the model on CIFAR-10 using transfer learning
+model.train()
+for epoch in range(5):  # Fine-tune for 5 epochs
+    total_loss = 0
+    for data, target in train_loader:
+        optimizer.zero_grad()
+        output = model(data)
+        loss = criterion(output, target)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+    print(f"Epoch {epoch+1}, Loss: {total_loss / len(train_loader)}")
+ 
+# Test the fine-tuned model
+model.eval()
+correct = 0
+total = 0
+with torch.no_grad():
+    for data, target in test_loader:
+        output = model(data)
+        _, predicted = torch.max(output, 1)
+        total += target.size(0)
+        correct += (predicted == target).sum().item()
+ 
+print(f"Accuracy on test set: {100 * correct / total:.2f}%")
+Key Concepts Covered:
+Transfer Learning: Using a model pre-trained on a large dataset (e.g., ImageNet) and adapting it to a new, smaller dataset (e.g., CIFAR-10).
+
+Fine-Tuning: Freezing the layers of a pre-trained model and training only the final layers for a new task.
+
+Pre-trained Models: Models that have been trained on large datasets and can be used as feature extractors for new tasks.
+
+
+
+Project 973: Multi-task Learning Implementation
+Description
+Multi-task learning (MTL) involves training a model to perform multiple tasks simultaneously, sharing common representations between tasks. In this project, we will implement a multi-task learning framework to classify images while also predicting other attributes, such as age or gender, from the same image.
+
+Python Implementation with Comments (Multi-task Learning for Image Classification and Attribute Prediction)
+We'll build a multi-task model that simultaneously performs image classification (e.g., CIFAR-10) and attribute prediction (e.g., gender, age) from the same input. The model will have shared layers and separate branches for each task.
+
+First, install the necessary libraries:
+
+pip install torch torchvision
+Now, here's the implementation:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms, models
+from torch.utils.data import DataLoader
+from sklearn.model_selection import train_test_split
+ 
+# Load CIFAR-10 dataset
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),  # Resizing to fit ResNet50 input size
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Pre-trained model normalization
+])
+ 
+train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+test_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+ 
+# Split the dataset into train and validation sets
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+ 
+# Define the multi-task learning model
+class MultiTaskModel(nn.Module):
+    def __init__(self):
+        super(MultiTaskModel, self).__init__()
+        self.resnet = models.resnet50(pretrained=True)  # Pre-trained ResNet50
+        
+        # Replace the final fully connected layer with a new one for shared feature extraction
+        self.resnet.fc = nn.Identity()  # Remove the original fully connected layer
+ 
+        # Task-specific branches
+        self.classifier = nn.Linear(self.resnet.fc.in_features, 10)  # CIFAR-10 classification (10 classes)
+        self.age_predictor = nn.Linear(self.resnet.fc.in_features, 1)  # Age prediction (1 output)
+        self.gender_predictor = nn.Linear(self.resnet.fc.in_features, 2)  # Gender prediction (2 classes)
+ 
+    def forward(self, x):
+        # Extract features from the ResNet backbone
+        features = self.resnet(x)
+        
+        # Task-specific predictions
+        class_output = self.classifier(features)
+        age_output = self.age_predictor(features)
+        gender_output = self.gender_predictor(features)
+        
+        return class_output, age_output, gender_output
+ 
+# Initialize the model, optimizer, and loss function
+model = MultiTaskModel()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+ 
+# Define loss functions for each task
+classification_loss_fn = nn.CrossEntropyLoss()
+regression_loss_fn = nn.MSELoss()
+ 
+# Training the multi-task model
+for epoch in range(5):  # Multi-task training for 5 epochs
+    model.train()
+    total_loss = 0
+    for data, target in train_loader:
+        optimizer.zero_grad()
+ 
+        # Get predictions for each task
+        class_output, age_output, gender_output = model(data)
+        
+        # Task-specific losses
+        class_loss = classification_loss_fn(class_output, target)  # Classification loss
+        age_loss = regression_loss_fn(age_output, target.float().view(-1, 1))  # Age regression loss
+        gender_loss = classification_loss_fn(gender_output, target)  # Gender classification loss
+        
+        # Total loss as the sum of all task losses
+        loss = class_loss + age_loss + gender_loss
+        loss.backward()
+        optimizer.step()
+ 
+        total_loss += loss.item()
+ 
+    print(f"Epoch {epoch+1}, Loss: {total_loss / len(train_loader)}")
+ 
+# Evaluate the model on the test dataset
+model.eval()
+correct_classifications, correct_gender, total = 0, 0, 0
+total_age_error = 0
+ 
+with torch.no_grad():
+    for data, target in test_loader:
+        class_output, age_output, gender_output = model(data)
+ 
+        # Classification accuracy
+        _, predicted_class = torch.max(class_output, 1)
+        correct_classifications += (predicted_class == target).sum().item()
+ 
+        # Gender classification accuracy
+        _, predicted_gender = torch.max(gender_output, 1)
+        correct_gender += (predicted_gender == target).sum().item()
+ 
+        # Age prediction error (MSE)
+        total_age_error += torch.abs(age_output - target.float().view(-1, 1)).sum().item()
+ 
+        total += target.size(0)
+ 
+# Print results
+print(f"Classification Accuracy: {100 * correct_classifications / total:.2f}%")
+print(f"Gender Classification Accuracy: {100 * correct_gender / total:.2f}%")
+print(f"Average Age Prediction Error: {total_age_error / total:.2f}")
+Key Concepts Covered:
+Multi-task Learning (MTL): A single model is trained to perform multiple tasks simultaneously, sharing common layers while having task-specific branches.
+
+Shared Representation: The model learns a shared representation in the early layers, while separate output layers are dedicated to each task.
+
+Task-specific Losses: Each task has its own loss function (e.g., cross-entropy loss for classification and mean squared error for regression).
+
+
+
+Project 974: Curriculum Learning Implementation
+Description
+Curriculum learning involves training a model on tasks that gradually increase in complexity, similar to how humans learn. The model starts with easier examples and progressively learns from more challenging ones. In this project, we will implement a curriculum learning system for image classification using CIFAR-10 and gradually introduce harder images as training progresses.
+
+Python Implementation with Comments (Curriculum Learning for Image Classification)
+We will create a simple curriculum where the model starts by learning from easy-to-classify images (e.g., images of distinct objects) and gradually moves to harder images (e.g., images with noise or occlusion).
+
+Here’s a basic implementation:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, random_split
+ 
+# Define a simple neural network for image classification
+class SimpleCNN(nn.Module):
+    def __init__(self):
+        super(SimpleCNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3)
+        self.fc1 = nn.Linear(64 * 6 * 6, 128)
+        self.fc2 = nn.Linear(128, 10)
+ 
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.max_pool2d(x, 2)
+        x = torch.relu(self.conv2(x))
+        x = torch.max_pool2d(x, 2)
+        x = x.view(x.size(0), -1)
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+ 
+# Define curriculum steps (easy to hard images)
+def curriculum_learning_step(data, step):
+    # Adjust the complexity of the images based on the curriculum step
+    if step == 1:
+        # "Easy" - No noise or occlusion
+        return data
+    elif step == 2:
+        # "Medium" - Apply slight noise to images
+        noise = torch.normal(mean=0, std=0.1, size=data.size())
+        return data + noise
+    elif step == 3:
+        # "Hard" - Apply more occlusion to images
+        data[:, :, 10:15, 10:15] = 0  # Black-out a region
+        return data
+ 
+# Load CIFAR-10 dataset
+transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+ 
+# Split the dataset into train and validation sets
+train_size = int(0.8 * len(train_dataset))
+val_size = len(train_dataset) - train_size
+train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
+ 
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+ 
+# Initialize the model, optimizer, and loss function
+model = SimpleCNN()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+criterion = nn.CrossEntropyLoss()
+ 
+# Curriculum learning training loop
+for epoch in range(5):  # Training with curriculum for 5 epochs
+    model.train()
+    total_loss = 0
+    for step, (data, target) in enumerate(train_loader, 1):
+        # Apply curriculum learning step
+        data = curriculum_learning_step(data, step=epoch % 3 + 1)  # Alternating curriculum steps (1, 2, 3)
+        
+        optimizer.zero_grad()
+        output = model(data)
+        loss = criterion(output, target)
+        loss.backward()
+        optimizer.step()
+ 
+        total_loss += loss.item()
+ 
+    print(f"Epoch {epoch+1}, Loss: {total_loss / len(train_loader)}")
+ 
+# Evaluate the model on the validation set
+model.eval()
+correct = 0
+total = 0
+with torch.no_grad():
+    for data, target in val_loader:
+        output = model(data)
+        _, predicted = torch.max(output, 1)
+        total += target.size(0)
+        correct += (predicted == target).sum().item()
+ 
+print(f"Validation Accuracy: {100 * correct / total:.2f}%")
+Key Concepts Covered:
+Curriculum Learning: Training a model on simpler tasks first and gradually increasing the difficulty level.
+
+Task Difficulty Scaling: By adjusting the image complexity (e.g., adding noise or occlusion), we simulate the curriculum progression.
+
+Curriculum Steps: Different stages in the curriculum where the model learns from easy to harder examples.
+
+
+
+Project 975: Active Learning System
+Description
+Active learning is a machine learning paradigm where the model actively selects the most informative examples to be labeled, typically from a pool of unlabeled data. This can significantly reduce the amount of labeled data required for training. In this project, we will implement a simple active learning system using uncertainty sampling.
+
+Python Implementation with Comments (Active Learning with Uncertainty Sampling)
+In this active learning setup, we will use uncertainty sampling, where the model queries the instances for which it is least confident (i.e., the ones that are close to the decision boundary).
+
+Here’s the implementation using CIFAR-10 dataset and SVM classifier for simplicity:
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, Dataset, Subset
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+import random
+ 
+# Define a simple CNN for active learning demonstration
+class SimpleCNN(nn.Module):
+    def __init__(self):
+        super(SimpleCNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3)
+        self.fc1 = nn.Linear(64 * 6 * 6, 128)
+        self.fc2 = nn.Linear(128, 10)
+ 
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.max_pool2d(x, 2)
+        x = torch.relu(self.conv2(x))
+        x = torch.max_pool2d(x, 2)
+        x = x.view(x.size(0), -1)
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+ 
+# Uncertainty Sampling for Active Learning
+def uncertainty_sampling(model, unlabeled_data, n_samples=10):
+    model.eval()
+    uncertainties = []
+    for data, _ in unlabeled_data:
+        output = model(data.unsqueeze(0))  # Make prediction
+        probs = torch.softmax(output, dim=1)
+        uncertainty = -torch.max(probs).item()  # Calculate uncertainty (1 - max probability)
+        uncertainties.append(uncertainty)
+    
+    # Select samples with the highest uncertainty
+    uncertain_indices = np.argsort(uncertainties)[-n_samples:]
+    return uncertain_indices
+ 
+# Load CIFAR-10 dataset
+transform = transforms.Compose([transforms.Resize((32, 32)), transforms.ToTensor()])
+dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+ 
+# Split into labeled and unlabeled sets
+labeled_indices = random.sample(range(len(dataset)), 100)  # Start with 100 labeled samples
+unlabeled_indices = list(set(range(len(dataset))) - set(labeled_indices))
+ 
+labeled_data = torch.utils.data.Subset(dataset, labeled_indices)
+unlabeled_data = torch.utils.data.Subset(dataset, unlabeled_indices)
+ 
+# Create DataLoader for labeled and unlabeled data
+labeled_loader = DataLoader(labeled_data, batch_size=32, shuffle=True)
+unlabeled_loader = DataLoader(unlabeled_data, batch_size=32, shuffle=False)
+ 
+# Initialize the model, optimizer, and loss function
+model = SimpleCNN()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+criterion = nn.CrossEntropyLoss()
+ 
+# Active learning loop
+for iteration in range(10):  # Active learning loop for 10 iterations
+    model.train()
+    total_loss = 0
+    for data, target in labeled_loader:
+        optimizer.zero_grad()
+        output = model(data)
+        loss = criterion(output, target)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+ 
+    print(f"Iteration {iteration+1}, Loss: {total_loss / len(labeled_loader)}")
+ 
+    # Uncertainty sampling: query the most uncertain samples from the unlabeled set
+    uncertain_indices = uncertainty_sampling(model, unlabeled_loader, n_samples=10)
+ 
+    # Add the queried samples to the labeled set
+    labeled_indices.extend(uncertain_indices)
+    unlabeled_indices = list(set(range(len(dataset))) - set(labeled_indices))
+ 
+    # Create new DataLoaders with updated labeled and unlabeled datasets
+    labeled_data = torch.utils.data.Subset(dataset, labeled_indices)
+    unlabeled_data = torch.utils.data.Subset(dataset, unlabeled_indices)
+ 
+    labeled_loader = DataLoader(labeled_data, batch_size=32, shuffle=True)
+    unlabeled_loader = DataLoader(unlabeled_data, batch_size=32, shuffle=False)
+ 
+# Evaluate the model on the full CIFAR-10 test set
+model.eval()
+test_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+ 
+correct = 0
+total = 0
+with torch.no_grad():
+    for data, target in test_loader:
+        output = model(data)
+        _, predicted = torch.max(output, 1)
+        total += target.size(0)
+        correct += (predicted == target).sum().item()
+ 
+print(f"Final Accuracy: {100 * correct / total:.2f}%")
+Key Concepts Covered:
+Active Learning: The model selects the most informative examples to be labeled by querying an oracle (e.g., human annotators).
+
+Uncertainty Sampling: A common strategy in active learning, where the model queries examples it is least confident about (i.e., those near the decision boundary).
+
+Curriculum Learning: While not directly implemented here, active learning can be seen as a curriculum-like strategy for efficiently learning with less data.
+
+
+
+Project 976: Semi-supervised Learning Implementation
+Description
+Semi-supervised learning is a machine learning approach where the model is trained on a small amount of labeled data and a large amount of unlabeled data. This project demonstrates the use of semi-supervised learning using consistency regularization to make predictions on unlabeled data more reliable and improve generalization.
+
+Python Implementation with Comments (Semi-supervised Learning with Pseudo-Labeling)
+In this implementation, we will use pseudo-labeling, a semi-supervised learning technique where the model generates labels for the unlabeled data and treats those pseudo-labels as true labels during training.
+
+Here’s how you can implement semi-supervised learning using pseudo-labeling:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, Subset
+import numpy as np
+import random
+ 
+# Define a simple neural network for CIFAR-10 classification
+class SimpleCNN(nn.Module):
+    def __init__(self):
+        super(SimpleCNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3)
+        self.fc1 = nn.Linear(64 * 6 * 6, 128)
+        self.fc2 = nn.Linear(128, 10)
+ 
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.max_pool2d(x, 2)
+        x = torch.relu(self.conv2(x))
+        x = torch.max_pool2d(x, 2)
+        x = x.view(x.size(0), -1)
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+ 
+# Load CIFAR-10 dataset
+transform = transforms.Compose([transforms.Resize((32, 32)), transforms.ToTensor()])
+train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+test_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+ 
+# Split the dataset into labeled and unlabeled sets
+labeled_indices = random.sample(range(len(train_dataset)), 1000)  # Start with 1000 labeled samples
+unlabeled_indices = list(set(range(len(train_dataset))) - set(labeled_indices))
+ 
+labeled_data = Subset(train_dataset, labeled_indices)
+unlabeled_data = Subset(train_dataset, unlabeled_indices)
+ 
+# Create DataLoaders for labeled and unlabeled data
+labeled_loader = DataLoader(labeled_data, batch_size=32, shuffle=True)
+unlabeled_loader = DataLoader(unlabeled_data, batch_size=32, shuffle=False)
+ 
+# Initialize the model, optimizer, and loss function
+model = SimpleCNN()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+criterion = nn.CrossEntropyLoss()
+ 
+# Semi-supervised learning loop using Pseudo-Labeling
+for epoch in range(5):  # Semi-supervised training for 5 epochs
+    model.train()
+    total_loss = 0
+ 
+    # Train on labeled data
+    for data, target in labeled_loader:
+        optimizer.zero_grad()
+        output = model(data)
+        loss = criterion(output, target)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+ 
+    # Pseudo-labeling: Assign labels to the unlabeled data
+    model.eval()
+    pseudo_labels = []
+    with torch.no_grad():
+        for data, _ in unlabeled_loader:
+            output = model(data)
+            pseudo_label = torch.argmax(output, dim=1)
+            pseudo_labels.append(pseudo_label)
+ 
+    # Update the labeled dataset with pseudo-labeled data
+    pseudo_labels = torch.cat(pseudo_labels, dim=0)
+    pseudo_labeled_data = [(unlabeled_data[i][0], pseudo_labels[i]) for i in range(len(unlabeled_data))]
+    
+    # Add the pseudo-labeled data to the training loop
+    augmented_loader = DataLoader(labeled_data + pseudo_labeled_data, batch_size=32, shuffle=True)
+ 
+    # Train the model on both labeled and pseudo-labeled data
+    for data, target in augmented_loader:
+        optimizer.zero_grad()
+        output = model(data)
+        loss = criterion(output, target)
+        loss.backward()
+        optimizer.step()
+ 
+    print(f"Epoch {epoch+1}, Loss: {total_loss / len(labeled_loader)}")
+ 
+# Evaluate the model on the test dataset
+model.eval()
+correct = 0
+total = 0
+with torch.no_grad():
+    for data, target in DataLoader(test_dataset, batch_size=32, shuffle=False):
+        output = model(data)
+        _, predicted = torch.max(output, 1)
+        total += target.size(0)
+        correct += (predicted == target).sum().item()
+ 
+print(f"Test Accuracy: {100 * correct / total:.2f}%")
+Key Concepts Covered:
+Pseudo-Labeling: A technique for semi-supervised learning where the model generates labels for unlabeled data, which are then treated as ground truth during training.
+
+Semi-supervised Learning: A method of training models using a small amount of labeled data and a large amount of unlabeled data.
+
+Self-training: The model iteratively learns from its own predictions on the unlabeled data.
+
+
+
+Project 977: Self-supervised Learning Methods
+Description
+Self-supervised learning is a type of unsupervised learning where the model generates its own labels from the input data. This approach enables training models without relying on labeled data. In this project, we will implement a self-supervised learning framework using techniques like contrastive learning or predictive modeling for tasks such as image or text representation learning.
+
+Python Implementation with Comments (Self-supervised Learning with Contrastive Learning)
+We will implement contrastive learning, where the model learns to differentiate between positive and negative pairs of images. We'll use a popular self-supervised learning method, SimCLR (Simple Contrastive Learning of Representations), which learns representations by maximizing the similarity between augmented views of the same image.
+
+First, install the necessary libraries:
+
+pip install torch torchvision
+Here’s the basic implementation using SimCLR in PyTorch:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms, models
+from torch.utils.data import DataLoader
+import numpy as np
+ 
+# Define the SimCLR model architecture
+class SimCLR(nn.Module):
+    def __init__(self, base_model, projection_dim=128):
+        super(SimCLR, self).__init__()
+        self.base_model = base_model
+        self.base_model.fc = nn.Identity()  # Remove the final fully connected layer
+        self.projection_head = nn.Sequential(
+            nn.Linear(self.base_model.fc.in_features, 512),
+            nn.ReLU(),
+            nn.Linear(512, projection_dim)
+        )
+ 
+    def forward(self, x):
+        features = self.base_model(x)
+        projections = self.projection_head(features)
+        return projections
+ 
+# Define the contrastive loss (NT-Xent Loss)
+class ContrastiveLoss(nn.Module):
+    def __init__(self, temperature=0.5):
+        super(ContrastiveLoss, self).__init__()
+        self.temperature = temperature
+ 
+    def forward(self, z_i, z_j):
+        # Normalize the projections
+        z_i = nn.functional.normalize(z_i, dim=-1, p=2)
+        z_j = nn.functional.normalize(z_j, dim=-1, p=2)
+        
+        # Compute similarity matrix
+        similarity_matrix = torch.matmul(z_i, z_j.T) / self.temperature
+        
+        # Create labels: positive pairs (same image, different augmentations)
+        labels = torch.arange(z_i.size(0)).long().to(z_i.device)
+        
+        # Compute the contrastive loss (NT-Xent loss)
+        loss = nn.CrossEntropyLoss()(similarity_matrix, labels)
+        return loss
+ 
+# Define the data augmentations for contrastive learning
+transform = transforms.Compose([
+    transforms.RandomResizedCrop(224),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+ 
+# Load the CIFAR-10 dataset
+train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True, num_workers=4)
+ 
+# Initialize the pre-trained ResNet-50 model and SimCLR model
+base_model = models.resnet50(pretrained=True)
+simclr_model = SimCLR(base_model)
+ 
+# Define the optimizer and loss function
+optimizer = optim.Adam(simclr_model.parameters(), lr=0.0001)
+contrastive_loss_fn = ContrastiveLoss()
+ 
+# Train the model using contrastive learning
+for epoch in range(5):  # Training for 5 epochs
+    simclr_model.train()
+    total_loss = 0
+    for data, _ in train_loader:
+        optimizer.zero_grad()
+ 
+        # Generate positive pairs (augmented views of the same image)
+        data_aug1 = data
+        data_aug2 = data  # For simplicity, we'll use the same batch as augmented pairs here
+        
+        # Forward pass for the augmented views
+        projections1 = simclr_model(data_aug1)
+        projections2 = simclr_model(data_aug2)
+ 
+        # Compute the contrastive loss
+        loss = contrastive_loss_fn(projections1, projections2)
+        loss.backward()
+        optimizer.step()
+ 
+        total_loss += loss.item()
+ 
+    print(f"Epoch {epoch+1}, Loss: {total_loss / len(train_loader)}")
+ 
+# Evaluate the model (if needed, apply to downstream tasks)
+# This is a self-supervised learning setup, so the downstream task is often a separate evaluation.
+Key Concepts Covered:
+Self-supervised Learning: A learning method where the model generates its own labels from the input data.
+
+Contrastive Learning: A technique where the model learns to pull together similar pairs and push apart dissimilar ones, optimizing representations.
+
+SimCLR: A specific contrastive learning method that maximizes the similarity between augmented views of the same image and minimizes the similarity between different images.
+
+
+
+Project 978: Contrastive Learning Implementation
+Description
+Contrastive learning aims to learn representations by contrasting positive pairs (similar items) with negative pairs (dissimilar items). In this project, we will implement contrastive learning using SimCLR, a method that learns representations by maximizing the similarity between augmented views of the same image while minimizing the similarity between different images.
+
+Python Implementation with Comments (Contrastive Learning using SimCLR)
+We will build a SimCLR model from scratch using PyTorch. In this case, we'll use CIFAR-10 for simplicity, but you can adapt it to other datasets.
+
+Here’s the implementation:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms, models
+from torch.utils.data import DataLoader
+from sklearn.metrics import accuracy_score
+import numpy as np
+ 
+# Define the SimCLR architecture
+class SimCLR(nn.Module):
+    def __init__(self, base_model, projection_dim=128):
+        super(SimCLR, self).__init__()
+        self.base_model = base_model
+        self.base_model.fc = nn.Identity()  # Remove the final fully connected layer
+        self.projection_head = nn.Sequential(
+            nn.Linear(self.base_model.fc.in_features, 512),
+            nn.ReLU(),
+            nn.Linear(512, projection_dim)
+        )
+ 
+    def forward(self, x):
+        features = self.base_model(x)
+        projections = self.projection_head(features)
+        return projections
+ 
+# Define the contrastive loss (NT-Xent Loss)
+class ContrastiveLoss(nn.Module):
+    def __init__(self, temperature=0.5):
+        super(ContrastiveLoss, self).__init__()
+        self.temperature = temperature
+ 
+    def forward(self, z_i, z_j):
+        # Normalize the projections
+        z_i = nn.functional.normalize(z_i, dim=-1, p=2)
+        z_j = nn.functional.normalize(z_j, dim=-1, p=2)
+        
+        # Compute similarity matrix
+        similarity_matrix = torch.matmul(z_i, z_j.T) / self.temperature
+        
+        # Create labels: positive pairs (same image, different augmentations)
+        labels = torch.arange(z_i.size(0)).long().to(z_i.device)
+        
+        # Compute the contrastive loss (NT-Xent loss)
+        loss = nn.CrossEntropyLoss()(similarity_matrix, labels)
+        return loss
+ 
+# Define the data augmentations for contrastive learning
+transform = transforms.Compose([
+    transforms.RandomResizedCrop(224),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+ 
+# Load the CIFAR-10 dataset
+train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True, num_workers=4)
+ 
+# Initialize the pre-trained ResNet-50 model and SimCLR model
+base_model = models.resnet50(pretrained=True)
+simclr_model = SimCLR(base_model)
+ 
+# Define the optimizer and loss function
+optimizer = optim.Adam(simclr_model.parameters(), lr=0.0001)
+contrastive_loss_fn = ContrastiveLoss()
+ 
+# Train the model using contrastive learning
+for epoch in range(5):  # Training for 5 epochs
+    simclr_model.train()
+    total_loss = 0
+    for data, _ in train_loader:
+        optimizer.zero_grad()
+ 
+        # Generate positive pairs (augmented views of the same image)
+        data_aug1 = data
+        data_aug2 = data  # For simplicity, we'll use the same batch as augmented pairs here
+        
+        # Forward pass for the augmented views
+        projections1 = simclr_model(data_aug1)
+        projections2 = simclr_model(data_aug2)
+ 
+        # Compute the contrastive loss
+        loss = contrastive_loss_fn(projections1, projections2)
+        loss.backward()
+        optimizer.step()
+ 
+        total_loss += loss.item()
+ 
+    print(f"Epoch {epoch+1}, Loss: {total_loss / len(train_loader)}")
+ 
+# Evaluate the model (if needed, apply to downstream tasks)
+# This is a self-supervised learning setup, so the downstream task is often a separate evaluation.
+Key Concepts Covered:
+Contrastive Learning: A technique where the model learns to distinguish between similar and dissimilar pairs, optimizing for representations that are close for similar items and far apart for dissimilar items.
+
+SimCLR: A specific method of contrastive learning that uses augmented views of the same image as positive pairs and learns to maximize their similarity.
+
+NT-Xent Loss: A loss function used for contrastive learning that encourages the model to pull together similar items and push apart dissimilar items.
+
+
+
+Project 979: Knowledge Distillation Framework
+Description
+Knowledge distillation is a technique where a large, complex model (teacher) is used to train a smaller, more efficient model (student). The student model learns from the teacher's predictions, effectively transferring the knowledge while maintaining the same performance but with fewer resources. In this project, we will implement a knowledge distillation framework for a teacher-student setup in image classification.
+
+Python Implementation with Comments (Knowledge Distillation with PyTorch)
+In this implementation, we will use a ResNet-50 model as the teacher and a smaller CNN model as the student. The student will be trained using both hard labels (true labels) and soft labels (predictions from the teacher).
+
+Here's the implementation:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms, models
+from torch.utils.data import DataLoader
+import numpy as np
+ 
+# Define a simple CNN for the student model (smaller architecture)
+class StudentCNN(nn.Module):
+    def __init__(self):
+        super(StudentCNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3)
+        self.fc1 = nn.Linear(32 * 6 * 6, 128)
+        self.fc2 = nn.Linear(128, 10)
+ 
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.max_pool2d(x, 2)
+        x = torch.relu(self.conv2(x))
+        x = torch.max_pool2d(x, 2)
+        x = x.view(x.size(0), -1)
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+ 
+# Define the teacher model (ResNet50)
+teacher_model = models.resnet50(pretrained=True)
+teacher_model.fc = nn.Linear(teacher_model.fc.in_features, 10)  # CIFAR-10 has 10 classes
+ 
+# Define the distillation loss function (combines cross-entropy and KL divergence)
+class DistillationLoss(nn.Module):
+    def __init__(self, T=2, alpha=0.5):
+        super(DistillationLoss, self).__init__()
+        self.T = T  # Temperature parameter for softening the teacher's outputs
+        self.alpha = alpha  # Weight for the distillation loss
+ 
+    def forward(self, student_output, teacher_output, true_labels):
+        # Soft labels (teacher's predictions with softmax)
+        soft_teacher_output = torch.softmax(teacher_output / self.T, dim=1)
+        soft_student_output = torch.softmax(student_output / self.T, dim=1)
+ 
+        # Cross-entropy loss for hard labels (true labels)
+        hard_loss = nn.CrossEntropyLoss()(student_output, true_labels)
+ 
+        # KL divergence between student and teacher's soft labels
+        soft_loss = nn.KLDivLoss()(torch.log(soft_student_output), soft_teacher_output)
+ 
+        # Combine the losses: alpha * soft_loss + (1 - alpha) * hard_loss
+        loss = self.alpha * soft_loss + (1 - self.alpha) * hard_loss
+        return loss
+ 
+# Load CIFAR-10 dataset
+transform = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
+train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+ 
+# Initialize the student model, optimizer, and loss function
+student_model = StudentCNN()
+optimizer = optim.Adam(student_model.parameters(), lr=0.001)
+distillation_loss_fn = DistillationLoss()
+ 
+# Train the student model using knowledge distillation
+for epoch in range(5):  # Training for 5 epochs
+    student_model.train()
+    teacher_model.eval()  # Teacher is fixed (not trained)
+    total_loss = 0
+    for data, target in train_loader:
+        optimizer.zero_grad()
+ 
+        # Get the teacher's predictions (soft labels)
+        with torch.no_grad():
+            teacher_output = teacher_model(data)
+ 
+        # Get the student's predictions
+        student_output = student_model(data)
+ 
+        # Calculate the distillation loss
+        loss = distillation_loss_fn(student_output, teacher_output, target)
+        loss.backward()
+        optimizer.step()
+ 
+        total_loss += loss.item()
+ 
+    print(f"Epoch {epoch+1}, Loss: {total_loss / len(train_loader)}")
+ 
+# Evaluate the student model on the test set
+student_model.eval()
+test_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+ 
+correct = 0
+total = 0
+with torch.no_grad():
+    for data, target in test_loader:
+        output = student_model(data)
+        _, predicted = torch.max(output, 1)
+        total += target.size(0)
+        correct += (predicted == target).sum().item()
+ 
+print(f"Student Model Accuracy on Test Data: {100 * correct / total:.2f}%")
+Key Concepts Covered:
+Teacher-Student Models: Knowledge distillation involves training a smaller (student) model using the output of a larger (teacher) model.
+
+Distillation Loss: The loss function combines the standard classification loss (cross-entropy) and a KL divergence between the student and teacher's soft outputs (after applying a temperature scaling).
+
+Temperature Scaling: In distillation, the softmax function is applied with a higher temperature to soften the output probabilities of the teacher model, allowing the student model to learn from more nuanced information.
+
+
+
+Project 980: Model Compression Techniques
+Description
+Model compression refers to the process of reducing the size of a neural network while maintaining its performance. Techniques like pruning, quantization, and weight sharing can be used to make models smaller, faster, and more efficient, which is particularly useful for deployment on edge devices or mobile applications. In this project, we will implement pruning and quantization techniques for compressing a neural network.
+
+Python Implementation with Comments (Model Compression with Pruning and Quantization)
+In this implementation, we’ll use PyTorch for pruning the model and applying quantization for reducing the model size.
+
+First, install the necessary libraries:
+
+pip install torch torchvision
+Here’s the basic implementation:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms, models
+from torch.utils.data import DataLoader
+import torch.nn.utils.prune as prune
+ 
+# Define a simple CNN for model compression
+class SimpleCNN(nn.Module):
+    def __init__(self):
+        super(SimpleCNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3)
+        self.fc1 = nn.Linear(64 * 6 * 6, 128)
+        self.fc2 = nn.Linear(128, 10)
+ 
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.max_pool2d(x, 2)
+        x = torch.relu(self.conv2(x))
+        x = torch.max_pool2d(x, 2)
+        x = x.view(x.size(0), -1)
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+ 
+# Load CIFAR-10 dataset
+transform = transforms.Compose([transforms.Resize((32, 32)), transforms.ToTensor()])
+train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+ 
+# Initialize the model, optimizer, and loss function
+model = SimpleCNN()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+criterion = nn.CrossEntropyLoss()
+ 
+# Training loop before compression (Baseline model)
+for epoch in range(2):  # Training for 2 epochs (Baseline)
+    model.train()
+    total_loss = 0
+    for data, target in train_loader:
+        optimizer.zero_grad()
+        output = model(data)
+        loss = criterion(output, target)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+ 
+    print(f"Epoch {epoch+1}, Loss: {total_loss / len(train_loader)}")
+ 
+# 1. Model Pruning - Prune 20% of the weights in each layer
+prune.random_unstructured(model.conv1, name="weight", amount=0.2)
+prune.random_unstructured(model.conv2, name="weight", amount=0.2)
+prune.random_unstructured(model.fc1, name="weight", amount=0.2)
+ 
+# Check how many parameters are pruned
+print("\nPruned model parameters:")
+print(f"Conv1 pruned: {prune.get_pruned_parameters(model.conv1)}")
+print(f"Conv2 pruned: {prune.get_pruned_parameters(model.conv2)}")
+print(f"Fc1 pruned: {prune.get_pruned_parameters(model.fc1)}")
+ 
+# 2. Apply Quantization (Post-training static quantization)
+model.eval()  # Set the model to evaluation mode
+ 
+# Fuse the Conv + ReLU layers (for better quantization results)
+model = torch.quantization.fuse_modules(model, [['conv1', 'relu']])
+model = torch.quantization.fuse_modules(model, [['conv2', 'relu']])
+ 
+# Prepare the model for quantization
+model.qconfig = torch.quantization.get_default_qconfig('fbgemm')
+torch.quantization.prepare(model, inplace=True)
+ 
+# Calibrate with a few batches to determine the scale and zero point
+with torch.no_grad():
+    for data, _ in train_loader:
+        model(data)
+ 
+# Convert to a quantized model
+torch.quantization.convert(model, inplace=True)
+ 
+# Evaluate the pruned and quantized model
+model.eval()
+correct = 0
+total = 0
+with torch.no_grad():
+    for data, target in train_loader:
+        output = model(data)
+        _, predicted = torch.max(output, 1)
+        total += target.size(0)
+        correct += (predicted == target).sum().item()
+ 
+print(f"\nAccuracy of the pruned and quantized model: {100 * correct / total:.2f}%")
+Key Concepts Covered:
+Pruning: A technique for removing unimportant weights from the network (i.e., setting them to zero) to reduce the model's size and complexity. Here, we used random pruning, but more advanced methods can be explored.
+
+Quantization: Reducing the precision of the weights and activations (e.g., from 32-bit floating-point to 8-bit integers) to decrease model size and improve inference speed on hardware accelerators.
+
+Post-training Quantization: Quantizing a pre-trained model, which is useful when you have a trained model and want to optimize it for deployment without retraining.
+
+
+
+Project 981: Neural Ordinary Differential Equations (Neural ODEs)
+Description
+Neural Ordinary Differential Equations (ODEs) are a type of neural network architecture where the hidden states are treated as the solution to an ODE. Instead of using discrete layers, a Neural ODE integrates a differential equation over time to model the hidden states. This approach is particularly useful for continuous-time models and offers a more memory-efficient way of learning.
+
+Python Implementation with Comments (Neural ODEs using torchdiffeq)
+We will implement a basic Neural ODE model using torchdiffeq, a library that integrates differential equations efficiently. The model will be applied to a simple regression task.
+
+First, install the necessary library:
+
+pip install torchdiffeq
+Here’s the implementation of a simple Neural ODE using the torchdiffeq library in PyTorch:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchdiffeq import odeint_adjoint as odeint
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# Define the Neural ODE model (learns the derivative of the hidden state)
+class ODEFunc(nn.Module):
+    def __init__(self):
+        super(ODEFunc, self).__init__()
+        self.fc1 = nn.Linear(1, 50)
+        self.fc2 = nn.Linear(50, 1)
+ 
+    def forward(self, t, x):
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+ 
+# Define the Neural ODE model that uses the ODEFunc
+class NeuralODE(nn.Module):
+    def __init__(self, ode_func):
+        super(NeuralODE, self).__init__()
+        self.ode_func = ode_func
+ 
+    def forward(self, x0, t):
+        # Solve the ODE from initial state x0 over time t
+        out = odeint(self.ode_func, x0, t)
+        return out
+ 
+# Define a simple dataset for training
+def generate_data():
+    # True function is a simple sine function with noise
+    t = torch.linspace(0., 25., 100)
+    y = torch.sin(t) + 0.1 * torch.randn_like(t)
+    return t, y
+ 
+# Generate data
+t, y = generate_data()
+ 
+# Initialize the ODE function and the model
+ode_func = ODEFunc()
+model = NeuralODE(ode_func)
+ 
+# Initial condition (start from 0)
+x0 = torch.tensor([[0.0]])
+ 
+# Time points for ODE solver
+t_points = torch.linspace(0., 25., 100)
+ 
+# Loss function and optimizer
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.01)
+ 
+# Training loop
+for epoch in range(500):
+    model.train()
+    
+    # Zero gradients
+    optimizer.zero_grad()
+ 
+    # Forward pass through the Neural ODE model
+    pred_y = model(x0, t_points)
+ 
+    # Compute the loss
+    loss = criterion(pred_y.squeeze(), y)
+    
+    # Backward pass
+    loss.backward()
+    optimizer.step()
+ 
+    if epoch % 50 == 0:
+        print(f"Epoch {epoch}, Loss: {loss.item():.4f}")
+ 
+# Plot the results
+model.eval()
+with torch.no_grad():
+    pred_y = model(x0, t_points)
+ 
+plt.plot(t_points.numpy(), y.numpy(), label='True Function (Sine)')
+plt.plot(t_points.numpy(), pred_y.squeeze().numpy(), label='Predicted by Neural ODE')
+plt.legend()
+plt.show()
+Key Concepts Covered:
+Neural ODEs: Neural networks where the hidden states are modeled as the solution to a differential equation.
+
+ODE Solver: The torchdiffeq library is used to solve the ODE efficiently during training and evaluation.
+
+Continuous-Time Models: Neural ODEs are designed to work with continuous-time models, offering a memory-efficient alternative to traditional discrete-layer networks.
+
+
+
+Project 982: Bayesian Deep Learning Implementation
+Description
+Bayesian deep learning models incorporate uncertainty into predictions by treating weights as random variables with distributions, rather than fixed values. In this project, we will implement Bayesian neural networks to model uncertainty in deep learning predictions using variational inference.
+
+Python Implementation with Comments (Bayesian Neural Networks using torch and Pyro)
+We’ll use the Pyro library, which is built on PyTorch, to implement Bayesian Neural Networks. Pyro uses variational inference to approximate the posterior distribution of the model's weights.
+
+First, install the necessary libraries:
+
+pip install pyro-ppl torch torchvision
+Here’s the implementation of a simple Bayesian Neural Network using Pyro:
+
+import torch
+import torch.nn as nn
+import pyro
+import pyro.distributions as dist
+import torch.optim as optim
+from torch.utils.data import DataLoader
+from torchvision import datasets, transforms
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# Define a Bayesian Neural Network model (a simple fully connected network)
+class BayesianNN(nn.Module):
+    def __init__(self):
+        super(BayesianNN, self).__init__()
+        self.fc1 = nn.Linear(784, 400)  # First fully connected layer
+        self.fc2 = nn.Linear(400, 10)   # Output layer (10 classes for MNIST)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+ 
+# Define a function to model the uncertainty in the weights
+def model(x_data, y_data):
+    # Priors for the weights
+    fc1w_prior = dist.Normal(torch.zeros_like(model.fc1.weight), torch.ones_like(model.fc1.weight)).to_event('both')
+    fc1b_prior = dist.Normal(torch.zeros_like(model.fc1.bias), torch.ones_like(model.fc1.bias)).to_event('both')
+    fc2w_prior = dist.Normal(torch.zeros_like(model.fc2.weight), torch.ones_like(model.fc2.weight)).to_event('both')
+    fc2b_prior = dist.Normal(torch.zeros_like(model.fc2.bias), torch.ones_like(model.fc2.bias)).to_event('both')
+ 
+    # Priors for the weights of the network
+    pyro.sample("fc1w", fc1w_prior)
+    pyro.sample("fc1b", fc1b_prior)
+    pyro.sample("fc2w", fc2w_prior)
+    pyro.sample("fc2b", fc2b_prior)
+    
+    # Likelihood (Softmax likelihood)
+    logits = model(x_data)
+    pyro.sample("obs", dist.Categorical(logits=logits), obs=y_data)
+ 
+# Define the guide (variational distribution)
+def guide(x_data, y_data):
+    # Variational distributions for the weights (approximating the posterior)
+    fc1w_mean = pyro.param("fc1w_mean", torch.randn_like(model.fc1.weight))
+    fc1w_scale = pyro.param("fc1w_scale", torch.ones_like(model.fc1.weight), constraint=torch.constraints.positive)
+    fc1b_mean = pyro.param("fc1b_mean", torch.randn_like(model.fc1.bias))
+    fc1b_scale = pyro.param("fc1b_scale", torch.ones_like(model.fc1.bias), constraint=torch.constraints.positive)
+    fc2w_mean = pyro.param("fc2w_mean", torch.randn_like(model.fc2.weight))
+    fc2w_scale = pyro.param("fc2w_scale", torch.ones_like(model.fc2.weight), constraint=torch.constraints.positive)
+    fc2b_mean = pyro.param("fc2b_mean", torch.randn_like(model.fc2.bias))
+    fc2b_scale = pyro.param("fc2b_scale", torch.ones_like(model.fc2.bias), constraint=torch.constraints.positive)
+ 
+    # Use normal distributions for the guide (variational distribution)
+    pyro.sample("fc1w", dist.Normal(fc1w_mean, fc1w_scale).to_event('both'))
+    pyro.sample("fc1b", dist.Normal(fc1b_mean, fc1b_scale).to_event('both'))
+    pyro.sample("fc2w", dist.Normal(fc2w_mean, fc2w_scale).to_event('both'))
+    pyro.sample("fc2b", dist.Normal(fc2b_mean, fc2b_scale).to_event('both'))
+ 
+# Load MNIST dataset
+transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+ 
+# Initialize the model and optimizer
+model = BayesianNN()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+ 
+# Define the loss function (variational loss)
+def loss_fn(model, guide, x_data, y_data):
+    return pyro.infer.Trace_ELBO().differentiable_loss(model, guide, x_data, y_data)
+ 
+# Train the Bayesian Neural Network
+for epoch in range(5):  # Training for 5 epochs
+    model.train()
+    total_loss = 0
+    for data, target in train_loader:
+        data = data.view(-1, 784)  # Flatten MNIST images to vectors
+ 
+        # Run the model and guide
+        optimizer.zero_grad()
+        loss = loss_fn(model, guide, data, target)
+        loss.backward()
+        optimizer.step()
+ 
+        total_loss += loss.item()
+ 
+    print(f"Epoch {epoch+1}, Loss: {total_loss / len(train_loader)}")
+ 
+# Test the model on the test set
+model.eval()
+test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+ 
+correct = 0
+total = 0
+with torch.no_grad():
+    for data, target in test_loader:
+        data = data.view(-1, 784)
+        output = model(data)
+        _, predicted = torch.max(output, 1)
+        total += target.size(0)
+        correct += (predicted == target).sum().item()
+ 
+print(f"Accuracy on test data: {100 * correct / total:.2f}%")
+Key Concepts Covered:
+Bayesian Neural Networks (BNNs): A neural network where the weights are treated as distributions (random variables) instead of fixed values.
+
+Variational Inference: The method of approximating the true posterior distribution of weights using a variational distribution (guide).
+
+Uncertainty Estimation: BNNs model uncertainty in predictions, which can be useful for applications requiring confidence measures in predictions.
+
+
+
+Project 983: Probabilistic Programming Implementation
+Description
+Probabilistic programming is a technique where models are specified using probabilistic terms, enabling the integration of uncertainty into machine learning models. In this project, we will implement a simple probabilistic program using the Pyro library, a probabilistic programming framework built on top of PyTorch.
+
+Python Implementation with Comments (Probabilistic Programming using Pyro)
+We’ll use Pyro to implement a probabilistic model for linear regression, where we treat both the coefficients and the noise as probabilistic quantities. This allows us to quantify uncertainty in our predictions.
+
+First, install the necessary libraries:
+
+pip install pyro-ppl torch
+Now, here’s the implementation:
+
+import torch
+import pyro
+import pyro.distributions as dist
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# Define the linear regression model with probabilistic parameters
+def model(x_data, y_data):
+    # Define priors for the parameters (slope and intercept)
+    slope = pyro.sample("slope", dist.Normal(0., 1.))  # Prior for slope (mean 0, std 1)
+    intercept = pyro.sample("intercept", dist.Normal(0., 1.))  # Prior for intercept
+ 
+    # Define a prior for the noise (standard deviation of the residuals)
+    noise = pyro.sample("noise", dist.HalfNormal(1.))  # Noise (sigma)
+    
+    # Define the linear model: y = slope * x + intercept
+    y_hat = slope * x_data + intercept
+    
+    # Likelihood: Assuming Gaussian noise for the observations
+    with pyro.plate("data", len(x_data)):
+        pyro.sample("obs", dist.Normal(y_hat, noise), obs=y_data)  # Likelihood with observed data
+ 
+# Define the guide (variational distribution)
+def guide(x_data, y_data):
+    # Variational distributions for slope, intercept, and noise
+    slope_loc = pyro.param("slope_loc", torch.tensor(0.))
+    slope_scale = pyro.param("slope_scale", torch.tensor(1.), constraint=torch.constraints.positive)
+    
+    intercept_loc = pyro.param("intercept_loc", torch.tensor(0.))
+    intercept_scale = pyro.param("intercept_scale", torch.tensor(1.), constraint=torch.constraints.positive)
+    
+    noise_loc = pyro.param("noise_loc", torch.tensor(1.), constraint=torch.constraints.positive)
+ 
+    # Sample from the variational distribution
+    slope = pyro.sample("slope", dist.Normal(slope_loc, slope_scale))
+    intercept = pyro.sample("intercept", dist.Normal(intercept_loc, intercept_scale))
+    noise = pyro.sample("noise", dist.HalfNormal(noise_loc))
+ 
+# Generate synthetic data (linear regression with some noise)
+np.random.seed(0)
+x_data = np.linspace(0, 10, 100)
+y_data = 2 * x_data + 1 + np.random.normal(0, 1, 100)
+ 
+# Convert data to tensors
+x_data = torch.tensor(x_data, dtype=torch.float)
+y_data = torch.tensor(y_data, dtype=torch.float)
+ 
+# Prepare DataLoader
+data = TensorDataset(x_data, y_data)
+data_loader = DataLoader(data, batch_size=32, shuffle=True)
+ 
+# Define the optimizer
+optimizer = optim.Adam([{'params': pyro.get_param_store().values()}], lr=0.01)
+ 
+# Set the number of iterations for training
+num_iterations = 1000
+ 
+# Run inference using variational inference
+for iteration in range(num_iterations):
+    optimizer.zero_grad()
+    
+    # Perform one step of inference
+    loss = pyro.infer.Trace_ELBO().differentiable_loss(model, guide, x_data, y_data)
+    loss.backward()
+    optimizer.step()
+ 
+    if iteration % 100 == 0:
+        print(f"Iteration {iteration}, Loss: {loss.item()}")
+ 
+# Get the learned parameters
+slope_loc = pyro.param("slope_loc").item()
+intercept_loc = pyro.param("intercept_loc").item()
+noise_loc = pyro.param("noise_loc").item()
+ 
+print(f"Learned Slope: {slope_loc:.2f}, Intercept: {intercept_loc:.2f}, Noise: {noise_loc:.2f}")
+ 
+# Plot the results
+plt.scatter(x_data.numpy(), y_data.numpy(), label="Observed data")
+plt.plot(x_data.numpy(), slope_loc * x_data.numpy() + intercept_loc, color='red', label="Fitted line")
+plt.legend()
+plt.show()
+Key Concepts Covered:
+Probabilistic Programming: Modeling uncertain parameters as random variables and defining priors and likelihoods in the program.
+
+Variational Inference: Using Pyro's variational inference tools to approximate the posterior distribution of model parameters.
+
+Bayesian Linear Regression: A linear regression model where both the slope and the intercept are treated as probabilistic quantities, and the model’s uncertainty is quantified.
+
+
+
+Project 984: Causal Inference in Machine Learning
+Description
+Causal inference is the process of determining whether a relationship between two variables is causal rather than just correlational. In this project, we will implement a causal inference model to identify causal relationships in data, using techniques such as propensity score matching and causal graphs.
+
+Python Implementation with Comments (Causal Inference with Propensity Score Matching)
+We’ll implement propensity score matching (PSM), a technique used in observational studies to estimate causal effects by matching treated and untreated units with similar propensity scores (the probability of receiving the treatment).
+
+First, install the necessary libraries:
+
+pip install pandas numpy statsmodels matplotlib
+Here’s the implementation of propensity score matching using scikit-learn and statsmodels:
+
+import pandas as pd
+import numpy as np
+import statsmodels.api as sm
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Generate synthetic data for causal inference
+np.random.seed(0)
+n = 1000  # Number of samples
+X = np.random.randn(n, 3)  # 3 features
+ 
+# Create treatment variable (binary)
+T = np.random.binomial(1, p=0.5, size=n)
+ 
+# Define a true causal effect
+Y0 = X[:, 0] + X[:, 1]  # Outcome without treatment
+Y1 = Y0 + 2 * X[:, 2]   # Outcome with treatment (treatment effect on X2)
+ 
+# Outcome variable (Y) is observed depending on treatment
+Y = Y0 + T * (Y1 - Y0)  # Observed outcome
+ 
+# Convert to DataFrame for convenience
+df = pd.DataFrame(X, columns=["X1", "X2", "X3"])
+df["T"] = T
+df["Y"] = Y
+ 
+# Step 1: Estimate the propensity score using logistic regression
+X = sm.add_constant(df[["X1", "X2", "X3"]])  # Add constant for intercept
+logit = LogisticRegression()
+logit.fit(df[["X1", "X2", "X3"]], df["T"])
+ 
+# Predicted propensity scores
+df["propensity_score"] = logit.predict_proba(df[["X1", "X2", "X3"]])[:, 1]
+ 
+# Step 2: Perform propensity score matching
+treated = df[df["T"] == 1]
+untreated = df[df["T"] == 0]
+ 
+# Sort by propensity score
+treated = treated.sort_values("propensity_score")
+untreated = untreated.sort_values("propensity_score")
+ 
+# Matching treated and untreated units based on the closest propensity scores
+matches = []
+for _, t_row in treated.iterrows():
+    closest_match = untreated.iloc[(untreated["propensity_score"] - t_row["propensity_score"]).abs().argmin()]
+    matches.append((t_row, closest_match))
+ 
+# Step 3: Estimate the causal effect
+treated_outcomes = [match[0]["Y"] for match in matches]
+control_outcomes = [match[1]["Y"] for match in matches]
+ 
+# Calculate the average treatment effect (ATE)
+ATE = np.mean(np.array(treated_outcomes) - np.array(control_outcomes))
+print(f"Estimated Average Treatment Effect (ATE): {ATE:.4f}")
+ 
+# Step 4: Plot the distribution of propensity scores for treated vs untreated
+plt.figure(figsize=(8, 6))
+plt.hist(treated["propensity_score"], bins=30, alpha=0.5, label="Treated", color='blue')
+plt.hist(untreated["propensity_score"], bins=30, alpha=0.5, label="Untreated", color='red')
+plt.xlabel("Propensity Score")
+plt.ylabel("Frequency")
+plt.legend()
+plt.title("Distribution of Propensity Scores")
+plt.show()
+Key Concepts Covered:
+Propensity Score Matching (PSM): A technique used in observational studies to match treated and untreated units based on similar propensity scores to estimate causal effects.
+
+Causal Inference: The process of identifying whether a relationship between two variables is causal (i.e., treatment causes the outcome) or merely correlational.
+
+Causal Effects: Estimating the effect of a treatment or intervention, typically by comparing outcomes of treated vs. untreated units after controlling for confounding variables.
+
+
+
+Project 985: Neuro-symbolic AI Implementation
+Description
+Neuro-symbolic AI combines the strengths of neural networks (learning from data) and symbolic reasoning (logic and rules). This hybrid approach allows AI systems to reason about the world while also learning from raw data. In this project, we will implement a simple neuro-symbolic system that uses both neural networks and symbolic logic to solve a task.
+
+Python Implementation with Comments (Neuro-symbolic AI for Logical Reasoning)
+We’ll implement a basic neuro-symbolic AI system that combines neural networks for learning data representations and symbolic rules for reasoning about those representations. For simplicity, we’ll use a neural network to learn from data, and then apply symbolic rules to make inferences from the learned features.
+
+Here’s a simple implementation:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
+import numpy as np
+ 
+# Define a simple neural network for feature learning
+class SimpleNN(nn.Module):
+    def __init__(self):
+        super(SimpleNN, self).__init__()
+        self.fc1 = nn.Linear(2, 64)
+        self.fc2 = nn.Linear(64, 1)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+ 
+# Define the symbolic reasoning function
+def symbolic_reasoning(predictions):
+    """
+    Apply symbolic reasoning to the neural network predictions.
+    For simplicity, assume a symbolic rule: if the prediction is > 0.5, the class is 1 (True),
+    else it is 0 (False).
+    """
+    return predictions > 0.5
+ 
+# Generate synthetic dataset for learning and symbolic reasoning
+np.random.seed(0)
+X = np.random.rand(100, 2)  # 100 samples with 2 features
+y = (X[:, 0] + X[:, 1] > 1).astype(int)  # Symbolic rule: class 1 if x1 + x2 > 1, else class 0
+ 
+# Convert to PyTorch tensors
+X_tensor = torch.tensor(X, dtype=torch.float32)
+y_tensor = torch.tensor(y, dtype=torch.float32).view(-1, 1)
+ 
+# Create DataLoader for training
+train_data = TensorDataset(X_tensor, y_tensor)
+train_loader = DataLoader(train_data, batch_size=16, shuffle=True)
+ 
+# Initialize the neural network model, optimizer, and loss function
+model = SimpleNN()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+criterion = nn.BCEWithLogitsLoss()  # Binary Cross Entropy Loss
+ 
+# Train the neural network on the data
+for epoch in range(100):  # Training for 100 epochs
+    model.train()
+    total_loss = 0
+    for data, target in train_loader:
+        optimizer.zero_grad()
+        output = model(data).squeeze()  # Get model predictions
+        loss = criterion(output, target.squeeze())  # Calculate loss
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+ 
+    if epoch % 10 == 0:
+        print(f"Epoch {epoch+1}, Loss: {total_loss / len(train_loader)}")
+ 
+# Test the model and apply symbolic reasoning
+model.eval()
+with torch.no_grad():
+    test_data = torch.tensor([[0.7, 0.3], [0.2, 0.9], [0.5, 0.5]], dtype=torch.float32)  # Some test inputs
+    predictions = model(test_data)
+    print("Predictions:", predictions)
+ 
+    # Apply symbolic reasoning
+    reasoned_results = symbolic_reasoning(predictions)
+    print("Symbolic Reasoning Results (1 for True, 0 for False):", reasoned_results)
+Key Concepts Covered:
+Neuro-symbolic AI: Combines neural networks for learning and symbolic reasoning (logical rules) for decision-making.
+
+Neural Networks for Feature Learning: The network learns useful features from data.
+
+Symbolic Reasoning: The system applies logical rules (e.g., "if condition then action") to the predictions made by the neural network.
+
+Combining Learning and Logic: This allows for combining data-driven learning with human-readable symbolic reasoning.
+
+
+
+Project 986: Hybrid AI Systems
+Description
+Hybrid AI systems combine multiple AI approaches, such as symbolic reasoning and machine learning, to leverage the strengths of each. This hybrid approach allows the system to handle both complex, data-driven tasks and tasks requiring explicit reasoning or logic. In this project, we will implement a hybrid AI system that combines machine learning with rule-based reasoning to solve a simple classification task.
+
+Python Implementation with Comments (Hybrid AI System combining ML and Symbolic Rules)
+We will implement a hybrid AI system where the machine learning model (neural network) makes predictions, and symbolic rules are applied to refine or adjust those predictions.
+
+Here’s the basic implementation:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.datasets import make_classification
+from torch.utils.data import DataLoader, TensorDataset
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# Define a simple neural network model (machine learning component)
+class SimpleMLModel(nn.Module):
+    def __init__(self):
+        super(SimpleMLModel, self).__init__()
+        self.fc1 = nn.Linear(2, 64)  # First layer with 2 input features
+        self.fc2 = nn.Linear(64, 1)  # Output layer (binary classification)
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))  # Activation function for non-linearity
+        x = torch.sigmoid(self.fc2(x))  # Output layer with sigmoid for binary classification
+        return x
+ 
+# Generate synthetic classification data (binary)
+X, y = make_classification(n_samples=1000, n_features=2, n_informative=2, n_redundant=0, random_state=42)
+ 
+# Convert data to PyTorch tensors
+X_tensor = torch.tensor(X, dtype=torch.float32)
+y_tensor = torch.tensor(y, dtype=torch.float32).view(-1, 1)
+ 
+# Create DataLoader for training
+dataset = TensorDataset(X_tensor, y_tensor)
+train_loader = DataLoader(dataset, batch_size=32, shuffle=True)
+ 
+# Initialize the machine learning model, optimizer, and loss function
+ml_model = SimpleMLModel()
+optimizer = optim.Adam(ml_model.parameters(), lr=0.001)
+criterion = nn.BCELoss()  # Binary Cross Entropy Loss for binary classification
+ 
+# Train the machine learning model
+for epoch in range(5):  # Training for 5 epochs
+    ml_model.train()
+    total_loss = 0
+    for data, target in train_loader:
+        optimizer.zero_grad()
+        output = ml_model(data)  # Make predictions
+        loss = criterion(output, target)  # Calculate loss
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+ 
+    print(f"Epoch {epoch+1}, Loss: {total_loss / len(train_loader)}")
+ 
+# Define symbolic rules for decision refinement (symbolic AI component)
+def symbolic_rules(predictions):
+    """
+    Apply symbolic rules to adjust or refine model predictions.
+    For example, if the prediction is greater than 0.8, classify as 1 (True).
+    """
+    adjusted_predictions = torch.where(predictions > 0.8, torch.ones_like(predictions), predictions)
+    return adjusted_predictions
+ 
+# Evaluate the model with symbolic rules
+ml_model.eval()
+with torch.no_grad():
+    test_data = torch.tensor([[0.3, 0.4], [0.8, 0.9], [0.2, 0.7]], dtype=torch.float32)
+    raw_predictions = ml_model(test_data)  # Get raw predictions from the model
+    print(f"Raw Predictions: {raw_predictions.squeeze().numpy()}")
+ 
+    # Apply symbolic rules to adjust the predictions
+    refined_predictions = symbolic_rules(raw_predictions)
+    print(f"Refined Predictions after Symbolic Rules: {refined_predictions.squeeze().numpy()}")
+ 
+# Plot the decision boundary before and after symbolic reasoning
+plt.figure(figsize=(10, 6))
+plt.scatter(X[:, 0], X[:, 1], c=y, cmap='coolwarm', s=25, edgecolors='k', alpha=0.6)
+plt.title("Data Points with Hybrid AI Decision Boundaries")
+ 
+# Plot the decision boundary of the machine learning model (before symbolic rules)
+xx, yy = np.meshgrid(np.linspace(X[:, 0].min(), X[:, 0].max(), 100), np.linspace(X[:, 1].min(), X[:, 1].max(), 100))
+grid = torch.tensor(np.c_[xx.ravel(), yy.ravel()], dtype=torch.float32)
+predictions = ml_model(grid).detach().numpy().reshape(xx.shape)
+plt.contourf(xx, yy, predictions, levels=np.linspace(0, 1, 11), cmap='coolwarm', alpha=0.3)
+ 
+plt.show()
+Key Concepts Covered:
+Hybrid AI Systems: Combining machine learning (data-driven) and symbolic reasoning (logic and rules) to solve tasks more effectively.
+
+Neural Networks for Learning: The neural network learns data representations and makes predictions based on the data.
+
+Symbolic Reasoning: Symbolic rules (e.g., threshold-based decision-making) refine or adjust the predictions from the neural network, enhancing interpretability and decision-making.
+
+
+
+Project 987: Ensemble Learning Methods
+Description
+Ensemble learning combines multiple models to improve performance, stability, and generalization. The core idea is to leverage the diversity of multiple models, reducing overfitting and bias. In this project, we will implement common ensemble learning methods such as Bagging, Boosting, and Stacking. We’ll use Random Forests (for Bagging) and Gradient Boosting (for Boosting) as examples.
+
+Python Implementation with Comments (Ensemble Learning with Bagging, Boosting, and Stacking)
+We will implement three types of ensemble learning methods:
+
+Bagging (Bootstrap Aggregating): Using Random Forests to average predictions from multiple decision trees.
+
+Boosting: Using Gradient Boosting to combine weak models sequentially, improving performance.
+
+Stacking: Combining multiple models (e.g., Random Forest and Gradient Boosting) using a meta-learner.
+
+First, install the necessary libraries:
+
+pip install scikit-learn
+Here’s the implementation using Random Forests, Gradient Boosting, and Stacking:
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, StackingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from sklearn.tree import DecisionTreeClassifier
+ 
+# Load dataset
+data = load_breast_cancer()
+X = data.data
+y = data.target
+ 
+# Split data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# 1. Bagging: Random Forest Classifier
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+ 
+# 2. Boosting: Gradient Boosting Classifier
+gb_model = GradientBoostingClassifier(n_estimators=100, random_state=42)
+ 
+# 3. Stacking: Using Random Forest and Gradient Boosting as base models, with Logistic Regression as meta-model
+base_learners = [
+    ('rf', RandomForestClassifier(n_estimators=50, random_state=42)),
+    ('gb', GradientBoostingClassifier(n_estimators=50, random_state=42))
+]
+stacking_model = StackingClassifier(estimators=base_learners, final_estimator=LogisticRegression())
+ 
+# Train models
+rf_model.fit(X_train, y_train)
+gb_model.fit(X_train, y_train)
+stacking_model.fit(X_train, y_train)
+ 
+# Make predictions
+rf_pred = rf_model.predict(X_test)
+gb_pred = gb_model.predict(X_test)
+stacking_pred = stacking_model.predict(X_test)
+ 
+# Evaluate models
+rf_acc = accuracy_score(y_test, rf_pred)
+gb_acc = accuracy_score(y_test, gb_pred)
+stacking_acc = accuracy_score(y_test, stacking_pred)
+ 
+print(f"Random Forest Accuracy: {rf_acc:.4f}")
+print(f"Gradient Boosting Accuracy: {gb_acc:.4f}")
+print(f"Stacking Model Accuracy: {stacking_acc:.4f}")
+Key Concepts Covered:
+Bagging (Bootstrap Aggregating): This method creates multiple models from random subsets of the training data and averages their predictions. It reduces variance and helps with overfitting. Random Forests are a popular example of bagging.
+
+Boosting: Boosting combines weak learners sequentially, with each model focusing on the errors of the previous model. Gradient Boosting is a widely used boosting method.
+
+Stacking: Stacking involves combining different models (base learners) by training a meta-model on their predictions. This often improves performance by utilizing the strengths of multiple models.
+
+
+
+Project 988: Stacking Ensemble Implementation
+Description
+Stacking is an ensemble learning technique where multiple base models (diverse algorithms) are trained, and their predictions are combined using a meta-model (often a simple model like logistic regression or another machine learning algorithm). The goal is to leverage the strengths of different models to improve predictive performance.
+
+In this project, we will implement a stacking ensemble using base models like Random Forest and Gradient Boosting, and combine them using a Logistic Regression meta-model.
+
+Python Implementation with Comments (Stacking Ensemble Learning)
+We will use scikit-learn to implement the stacking ensemble with Random Forest, Gradient Boosting, and Logistic Regression as the meta-model.
+
+First, install the necessary libraries if you haven’t already:
+
+pip install scikit-learn
+Now, here’s the implementation:
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, StackingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+ 
+# Load the breast cancer dataset
+data = load_breast_cancer()
+X = data.data
+y = data.target
+ 
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Define the base learners (Random Forest and Gradient Boosting)
+base_learners = [
+    ('rf', RandomForestClassifier(n_estimators=100, random_state=42)),
+    ('gb', GradientBoostingClassifier(n_estimators=100, random_state=42))
+]
+ 
+# Define the meta-learner (Logistic Regression)
+meta_learner = LogisticRegression()
+ 
+# Create the stacking ensemble model
+stacking_model = StackingClassifier(estimators=base_learners, final_estimator=meta_learner)
+ 
+# Train the stacking model
+stacking_model.fit(X_train, y_train)
+ 
+# Make predictions with the stacking model
+stacking_pred = stacking_model.predict(X_test)
+ 
+# Evaluate the performance of the stacking model
+stacking_acc = accuracy_score(y_test, stacking_pred)
+print(f"Stacking Ensemble Accuracy: {stacking_acc:.4f}")
+Key Concepts Covered:
+Stacking: Stacking combines the predictions of multiple base models by training a meta-model (often called a blender or final estimator) to learn the best way to combine those predictions. It’s one of the most powerful ensemble learning methods.
+
+Base Models: These are the individual models (e.g., Random Forest and Gradient Boosting) that make predictions.
+
+Meta-model: This is the model that combines the predictions from the base models. In our case, we used Logistic Regression.
+
+Diversity of Models: By combining different algorithms, stacking can leverage the strengths of each model, often leading to improved predictive accuracy.
+
+
+
+Project 989: Bayesian Model Averaging
+Description
+Bayesian Model Averaging (BMA) is a method for combining multiple models based on their posterior probabilities. Instead of picking a single "best" model, BMA takes the weighted average of the predictions of all candidate models, where the weight for each model is proportional to its posterior probability. This approach improves predictive performance by accounting for model uncertainty.
+
+In this project, we will implement Bayesian Model Averaging using a simple example with different models and weight their predictions based on their posterior probabilities.
+
+Python Implementation with Comments (Bayesian Model Averaging)
+We'll use scikit-learn models and compute the posterior probability of each model using its performance (e.g., cross-validation accuracy). We'll then combine their predictions using these weights.
+
+Here's the implementation:
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from sklearn.base import clone
+ 
+# Load the dataset
+data = load_breast_cancer()
+X = data.data
+y = data.target
+ 
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Define base models for Bayesian Model Averaging
+models = [
+    ('rf', RandomForestClassifier(n_estimators=100, random_state=42)),
+    ('gb', GradientBoostingClassifier(n_estimators=100, random_state=42)),
+    ('lr', LogisticRegression(max_iter=1000, random_state=42))
+]
+ 
+# Step 1: Compute model performance (posterior probability) via cross-validation
+model_scores = {}
+for name, model in models:
+    score = cross_val_score(model, X_train, y_train, cv=5, scoring='accuracy')
+    model_scores[name] = np.mean(score)
+ 
+# Step 2: Compute posterior probabilities (normalize the scores)
+total_score = sum(model_scores.values())
+model_weights = {name: score / total_score for name, score in model_scores.items()}
+ 
+# Step 3: Train each model on the full training set
+trained_models = {}
+for name, model in models:
+    trained_models[name] = clone(model).fit(X_train, y_train)
+ 
+# Step 4: Make predictions using each model and combine predictions using weights
+def weighted_prediction(models, weights, X):
+    # Weighted average of predictions
+    weighted_preds = np.zeros((X.shape[0], len(models)))
+    for i, (name, model) in enumerate(models):
+        pred = trained_models[name].predict_proba(X)[:, 1]  # Get probability for class 1
+        weighted_preds[:, i] = pred * weights[name]
+    
+    # Combine predictions (sum of weighted predictions)
+    final_prediction = np.sum(weighted_preds, axis=1)
+    return (final_prediction > 0.5).astype(int)  # Convert to binary class prediction
+ 
+# Step 5: Make predictions on the test set
+y_pred = weighted_prediction(models, model_weights, X_test)
+ 
+# Step 6: Evaluate the accuracy of the Bayesian Model Averaging
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Accuracy of Bayesian Model Averaging: {accuracy:.4f}")
+Key Concepts Covered:
+Bayesian Model Averaging (BMA): A method that combines the predictions of multiple models weighted by their posterior probabilities. It accounts for uncertainty in model selection.
+
+Posterior Probability: In BMA, the posterior probability is often estimated based on model performance (e.g., cross-validation accuracy).
+
+Weighted Averaging: The predictions of different models are weighted by their posterior probabilities, and these predictions are combined for final output.
+
+
+
+Project 990: Mixture of Experts Implementation
+Description
+A Mixture of Experts (MoE) model is a type of ensemble model where different "expert" models are trained on different parts of the input space. The model uses a gating mechanism to decide which expert should make the prediction for each input. This allows the model to allocate resources to different tasks efficiently and improve performance on a variety of problems. In this project, we will implement a Mixture of Experts model using a gating network to combine the predictions of multiple expert models.
+
+Python Implementation with Comments (Mixture of Experts)
+In this implementation, we’ll create a gating network that chooses between multiple expert models (e.g., Random Forest and Gradient Boosting) to predict the target variable. We’ll use scikit-learn for the expert models and train a simple neural network as the gating mechanism.
+
+Here’s the implementation:
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from sklearn.neural_network import MLPClassifier
+ 
+# Load the dataset
+data = load_breast_cancer()
+X = data.data
+y = data.target
+ 
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Define expert models
+experts = [
+    ('rf', RandomForestClassifier(n_estimators=100, random_state=42)),
+    ('gb', GradientBoostingClassifier(n_estimators=100, random_state=42)),
+]
+ 
+# Train each expert model
+for name, model in experts:
+    model.fit(X_train, y_train)
+ 
+# Define the gating model (simple logistic regression for simplicity)
+gating_model = LogisticRegression()
+gating_model.fit(X_train, y_train)
+ 
+# Get the predictions from each expert
+expert_predictions = np.zeros((len(X_test), len(experts)))
+for i, (name, model) in enumerate(experts):
+    expert_predictions[:, i] = model.predict_proba(X_test)[:, 1]  # Probability for class 1
+ 
+# Use the gating model to predict which expert's prediction to trust for each instance
+gating_preds = gating_model.predict_proba(X_test)[:, 1]
+ 
+# Combine expert predictions using gating model's output
+final_predictions = np.zeros(len(X_test))
+for i in range(len(X_test)):
+    expert_idx = np.argmax(expert_predictions[i, :])  # Choose the expert with highest confidence
+    final_predictions[i] = expert_predictions[i, expert_idx]  # Trust the selected expert's prediction
+ 
+# Evaluate the Mixture of Experts model
+accuracy = accuracy_score(y_test, final_predictions.round())  # Convert probabilities to binary predictions
+print(f"Accuracy of Mixture of Experts model: {accuracy:.4f}")
+Key Concepts Covered:
+Mixture of Experts (MoE): An ensemble learning technique where multiple expert models specialize in different parts of the input space. A gating mechanism decides which expert is best suited for each input.
+
+Gating Network: A model (often simple) that learns to assign inputs to the correct expert based on features.
+
+Ensemble Learning: MoE is a type of ensemble method where the "experts" collaborate based on the gating network's decision, leading to better predictions than individual models.
+
+
+
+Project 991: Automated Data Augmentation
+Description
+Data augmentation is a technique used to artificially expand the size of a dataset by generating modified versions of data points through transformations (e.g., rotations, translations, noise). Automated data augmentation techniques can help improve model generalization by increasing the diversity of training examples. In this project, we will implement automated data augmentation using deep learning techniques, where we automatically generate augmented data for a given task.
+
+Python Implementation with Comments (Automated Data Augmentation using albumentations)
+We will use the albumentations library, a fast image augmentation library, to apply a variety of transformations (e.g., flipping, scaling, rotations) on images for data augmentation. This implementation will focus on augmenting images for a classification task.
+
+First, install the necessary libraries:
+
+pip install albumentations opencv-python
+Now, here’s the implementation of automated data augmentation:
+
+import numpy as np
+import pandas as pd
+import cv2
+import torch
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms
+from sklearn.model_selection import train_test_split
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+ 
+# Define an example image dataset
+class CustomDataset(Dataset):
+    def __init__(self, images, labels, transform=None):
+        self.images = images
+        self.labels = labels
+        self.transform = transform
+ 
+    def __len__(self):
+        return len(self.images)
+ 
+    def __getitem__(self, idx):
+        image = self.images[idx]
+        label = self.labels[idx]
+ 
+        # Apply the transformations if any
+        if self.transform:
+            image = self.transform(image=image)["image"]
+        
+        return image, label
+ 
+# Define the automated data augmentation pipeline using albumentations
+augmentation = A.Compose([
+    A.RandomRotate90(p=0.5),
+    A.Flip(p=0.5),
+    A.Transpose(p=0.5),
+    A.RandomBrightnessContrast(p=0.2),
+    A.GaussianBlur(blur_limit=3, p=0.2),
+    A.HueSaturationValue(p=0.3),
+    A.CLAHE(clip_limit=2.0, p=0.3),
+    A.Resize(256, 256),
+    ToTensorV2(),  # Convert the image to tensor format suitable for PyTorch
+])
+ 
+# Load a sample image dataset (e.g., CIFAR-10)
+from torchvision import datasets
+ 
+# Download the CIFAR-10 dataset (or use your own images)
+train_dataset = datasets.CIFAR10(root='./data', train=True, download=True)
+ 
+# Convert images to numpy arrays for compatibility with albumentations
+train_images = np.array([np.array(image) for image in train_dataset.data])
+train_labels = train_dataset.targets
+ 
+# Split into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(train_images, train_labels, test_size=0.2, random_state=42)
+ 
+# Create custom dataset and DataLoader
+train_data = CustomDataset(X_train, y_train, transform=augmentation)
+train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
+ 
+# Visualize a few augmented images from the dataset
+import matplotlib.pyplot as plt
+ 
+def show_images(loader):
+    data_iter = iter(loader)
+    images, labels = next(data_iter)
+    grid = torchvision.utils.make_grid(images[:8], nrow=4)
+    plt.figure(figsize=(12, 12))
+    plt.imshow(grid.permute(1, 2, 0))
+    plt.show()
+ 
+# Show some augmented images
+show_images(train_loader)
+Key Concepts Covered:
+Data Augmentation: Generating new data points by applying various transformations (e.g., rotations, flips, brightness adjustments) to the original dataset.
+
+Albumentations: A fast and flexible library for image augmentation in machine learning tasks.
+
+Automated Data Augmentation: Automatically applying a predefined set of augmentation techniques to generate new training data, helping to improve the model's robustness and generalization.
+
+
+
+Project 992: Automated Feature Engineering
+Description
+Feature engineering is the process of using domain knowledge to extract relevant features from raw data that improve model performance. Automated feature engineering automates this process, allowing us to discover and generate new features without manual intervention. In this project, we will use automated methods to generate meaningful features from raw data, which will be fed into a machine learning model.
+
+Python Implementation with Comments (Automated Feature Engineering using Feature-engine)
+We'll use the Feature-engine library to perform automated feature engineering. It provides functions for automatic feature generation, including transformations such as discretization, log transformations, missing value imputation, and feature scaling.
+
+First, install the necessary libraries:
+
+pip install feature-engine pandas scikit-learn
+Now, here’s the implementation of automated feature engineering:
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.datasets import load_boston
+from feature_engine.transformation import LogTransformer, PowerTransformer
+from feature_engine.imputation import MeanMedianImputer
+from feature_engine.discretisation import EqualFrequencyDiscretiser
+from feature_engine.scaling import StandardScaler
+ 
+# Load a sample dataset (Boston housing dataset)
+boston = load_boston()
+X = pd.DataFrame(boston.data, columns=boston.feature_names)
+y = pd.Series(boston.target, name='Target')
+ 
+# Add some missing values to simulate a real-world scenario
+X.iloc[5:10, 0] = np.nan
+ 
+# Step 1: Impute missing values (mean imputation)
+imputer = MeanMedianImputer(imputation_method='mean', variables=['CRIM'])
+X_imputed = imputer.fit_transform(X)
+ 
+# Step 2: Apply Log Transformation (for right-skewed features)
+log_transformer = LogTransformer(variables=['CRIM', 'ZN', 'INDUS'])
+X_log_transformed = log_transformer.fit_transform(X_imputed)
+ 
+# Step 3: Apply Power Transformation (for normalization)
+power_transformer = PowerTransformer(variables=['TAX', 'RAD'])
+X_power_transformed = power_transformer.fit_transform(X_log_transformed)
+ 
+# Step 4: Discretize a continuous feature (discretization into equal-frequency bins)
+discretiser = EqualFrequencyDiscretiser(q=4, variables=['AGE'])
+X_discretized = discretiser.fit_transform(X_power_transformed)
+ 
+# Step 5: Feature Scaling (Standardize features)
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X_discretized)
+ 
+# Step 6: Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# Example output showing the effect of feature engineering on a few rows
+print("Original Features (first 5 rows):")
+print(X.head())
+ 
+print("\nTransformed Features (first 5 rows):")
+print(pd.DataFrame(X_scaled, columns=X.columns).head())
+Key Concepts Covered:
+Automated Feature Engineering: Automatically creating new features or transforming existing features to improve the performance of machine learning models.
+
+Imputation: Filling missing values in the dataset using strategies such as mean, median, or mode imputation.
+
+Log Transformation: Applying a logarithmic transformation to variables that have a skewed distribution, improving model performance.
+
+Power Transformation: Applying transformations (e.g., Box-Cox or Yeo-Johnson) to normalize features.
+
+Discretization: Converting continuous variables into discrete bins or intervals to make the feature more informative.
+
+Feature Scaling: Standardizing or normalizing features so they are on the same scale, preventing models from being biased toward larger-scale features.
+
+
+
+Project 993: Automated Model Selection
+Description
+Automated model selection is a process where the best model for a given dataset is selected automatically based on the dataset's characteristics. This process evaluates multiple machine learning algorithms, tunes their hyperparameters, and selects the best-performing model. In this project, we will use TPOT (Tree-based Pipeline Optimization Tool), an automated machine learning (AutoML) library that performs hyperparameter tuning and model selection efficiently.
+
+Python Implementation with Comments (Automated Model Selection using TPOT)
+We will use TPOT to perform automated model selection on a classification task using the Iris dataset. TPOT will evaluate various models, perform hyperparameter optimization, and select the best model based on cross-validation accuracy.
+
+First, install the necessary libraries:
+
+pip install tpot
+Now, here’s the implementation using TPOT for automated model selection:
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from tpot import TPOTClassifier
+from sklearn.metrics import accuracy_score
+ 
+# Load the Iris dataset
+iris = load_iris()
+X = pd.DataFrame(iris.data, columns=iris.feature_names)
+y = iris.target
+ 
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Initialize the TPOTClassifier with a generation of 5 and population size of 20
+# This means it will create 5 generations with 20 models in each generation
+tpot = TPOTClassifier(Generations=5, Population_size=20, random_state=42, verbosity=2)
+ 
+# Fit the TPOTClassifier to the training data (automated model selection)
+tpot.fit(X_train, y_train)
+ 
+# Evaluate the model on the test data
+y_pred = tpot.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Accuracy of the best model found by TPOT: {accuracy:.4f}")
+ 
+# Export the best model pipeline found by TPOT
+tpot.export('best_model_pipeline.py')
+ 
+Key Concepts Covered:
+Automated Model Selection: Using libraries like TPOT, we automatically search through various models and their hyperparameters to select the one that performs best for the given data.
+
+Hyperparameter Tuning: In addition to selecting the best model, TPOT also optimizes hyperparameters using genetic algorithms to improve performance.
+
+AutoML: Automated Machine Learning (AutoML) frameworks like TPOT allow non-experts to quickly build effective machine learning models without manually tuning hyperparameters or selecting algorithms.
+
+
+
+Project 994: Explainable AutoML
+Description
+Explainable AI (XAI) seeks to make machine learning models more transparent and interpretable. In Explainable AutoML, we integrate explainability methods into the AutoML pipeline to provide insight into how models make predictions. In this project, we will use TPOT (AutoML) along with explainability techniques like SHAP (SHapley Additive exPlanations) to understand the decision-making process of the automatically selected model.
+
+Python Implementation with Comments (Explainable AutoML using TPOT and SHAP)
+We will use TPOT for automated model selection and SHAP to explain the predictions made by the best model selected by TPOT. SHAP provides interpretable explanations by computing the contribution of each feature to the model’s output.
+
+First, install the necessary libraries:
+
+pip install tpot shap
+Here’s the implementation using TPOT and SHAP:
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from tpot import TPOTClassifier
+import shap
+import matplotlib.pyplot as plt
+ 
+# Load the Iris dataset
+iris = load_iris()
+X = pd.DataFrame(iris.data, columns=iris.feature_names)
+y = iris.target
+ 
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Initialize the TPOTClassifier with a generation of 5 and population size of 20
+tpot = TPOTClassifier(generations=5, population_size=20, random_state=42, verbosity=2)
+ 
+# Fit the TPOTClassifier to the training data (automated model selection)
+tpot.fit(X_train, y_train)
+ 
+# Evaluate the model on the test data
+y_pred = tpot.predict(X_test)
+ 
+# Accuracy of the best model found by TPOT
+from sklearn.metrics import accuracy_score
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Accuracy of the best model found by TPOT: {accuracy:.4f}")
+ 
+# Export the best model pipeline found by TPOT
+tpot.export('best_model_pipeline.py')
+ 
+# Step 2: Use SHAP to explain the predictions of the best model
+# Create the explainer object for the model (using the best model found by TPOT)
+explainer = shap.KernelExplainer(tpot.fitted_pipeline_.predict_proba, X_train)
+ 
+# Explain the predictions for the test set
+shap_values = explainer.shap_values(X_test)
+ 
+# Plot the SHAP summary plot to understand feature importance
+shap.summary_plot(shap_values, X_test)
+ 
+# Plot the SHAP values for the first instance in the test set (local explanation)
+shap.initjs()  # Initialize JavaScript for SHAP plots
+shap.force_plot(explainer.expected_value[0], shap_values[0][0], X_test.iloc[0,:])
+Key Concepts Covered:
+AutoML with Explainability: Integrating explainability into automated machine learning workflows to make the results interpretable and transparent.
+
+SHAP: SHAP provides a game-theoretic approach to explain the output of machine learning models, helping to understand how each feature contributes to the predictions.
+
+Interpretability: In this case, the focus is on interpreting the predictions of the best model selected by AutoML and providing visual insights into model decision-making.
+
+
+
+Project 995: Human-in-the-loop Learning
+Description
+Human-in-the-loop (HITL) learning refers to the process of integrating human feedback into the machine learning model's training loop. This approach is particularly useful when automated systems make decisions that require human judgment or when the model needs to continuously improve with human input. In this project, we will create a human-in-the-loop system where a machine learning model actively learns from human-provided feedback to improve its predictions over time.
+
+Python Implementation with Comments (Human-in-the-loop Learning using a Simple Classification Task)
+We will implement a simple classification model where the model initially makes predictions, and the human (or user) provides feedback on those predictions. The model will then use that feedback to adjust and improve its decision-making process.
+
+Here’s how you can implement a basic human-in-the-loop system for a classification task:
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+import random
+ 
+# Load the Iris dataset
+iris = load_iris()
+X = pd.DataFrame(iris.data, columns=iris.feature_names)
+y = iris.target
+ 
+# Split into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Initialize a simple Logistic Regression model
+model = LogisticRegression(max_iter=1000)
+ 
+# Train the model on the initial training data
+model.fit(X_train, y_train)
+ 
+# Evaluate the model's initial accuracy
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Initial Accuracy: {accuracy:.4f}")
+ 
+# Human-in-the-loop: Feedback Loop
+# Let's simulate human feedback by allowing a user to correct the model's predictions.
+# The model will be retrained with the corrected data (feedback).
+# For simplicity, we'll randomly simulate whether the human agrees with the model's prediction.
+ 
+# Function to simulate human feedback
+def get_human_feedback(model, X_data, y_data):
+    predictions = model.predict(X_data)
+    feedback = []
+    for i in range(len(predictions)):
+        # Simulate feedback (e.g., random feedback for this example)
+        human_agrees = random.choice([True, False])
+        if not human_agrees:
+            # If the human disagrees, assume they provide the correct label
+            feedback.append(y_data.iloc[i])
+        else:
+            # If the human agrees, no correction is needed
+            feedback.append(predictions[i])
+    return feedback
+ 
+# Simulate feedback on the model's predictions for the test set
+feedback = get_human_feedback(model, X_test, y_test)
+ 
+# Retrain the model using the feedback
+model.fit(X_train.append(X_test), y_train.append(feedback))
+ 
+# Reevaluate the model after incorporating human feedback
+y_pred_new = model.predict(X_test)
+accuracy_new = accuracy_score(y_test, y_pred_new)
+print(f"Accuracy After Human Feedback: {accuracy_new:.4f}")
+Key Concepts Covered:
+Human-in-the-loop (HITL): In HITL learning, human feedback is used to correct or improve a machine learning model’s predictions, especially when the model is unsure or incorrect.
+
+Active Learning: HITL is often paired with active learning, where the model queries for human feedback on uncertain predictions.
+
+Continuous Improvement: The model continuously learns and adapts based on human corrections, improving over time.
+
+
+
+Project 996: Interactive Machine Learning
+Description
+Interactive machine learning (IML) allows users to actively participate in the learning process. It is designed to make the machine learning process more collaborative, where the system can ask for feedback or input from a user, and use that input to refine the model in real-time. This project will demonstrate a simple interactive machine learning system where the user provides feedback on the model’s predictions, and the model learns and improves over time.
+
+Python Implementation with Comments (Interactive Machine Learning using Active User Feedback)
+In this implementation, we will use a simple classification task (e.g., Iris dataset) where the model makes predictions, and the user actively provides feedback on the model's predictions. The model will then update its understanding based on that feedback.
+
+Here’s the implementation:
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+import random
+ 
+# Load the Iris dataset
+iris = load_iris()
+X = pd.DataFrame(iris.data, columns=iris.feature_names)
+y = iris.target
+ 
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Initialize a Logistic Regression model
+model = LogisticRegression(max_iter=1000)
+ 
+# Train the model on the initial training data
+model.fit(X_train, y_train)
+ 
+# Evaluate the model's accuracy on the test set
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Initial Accuracy: {accuracy:.4f}")
+ 
+# Function to simulate interactive feedback from the user
+def get_user_feedback(X_data, y_data, model):
+    """
+    Simulate user feedback where the user might agree or correct the model’s prediction.
+    For simplicity, feedback is simulated by random chance.
+    If the model's prediction is wrong, the user provides the correct label.
+    """
+    feedback = []
+    for i in range(len(X_data)):
+        prediction = model.predict([X_data.iloc[i]])[0]
+        true_label = y_data.iloc[i]
+        
+        # Simulate user feedback
+        if prediction != true_label:
+            feedback.append(true_label)  # If wrong, the user provides the correct label
+        else:
+            feedback.append(prediction)  # If correct, no change needed
+    
+    return feedback
+ 
+# Simulate user feedback on the model's predictions for the test set
+feedback = get_user_feedback(X_test, y_test, model)
+ 
+# Retrain the model using the feedback from the user
+model.fit(X_train.append(X_test), y_train.append(feedback))
+ 
+# Evaluate the model after incorporating user feedback
+y_pred_new = model.predict(X_test)
+accuracy_new = accuracy_score(y_test, y_pred_new)
+print(f"Accuracy After User Feedback: {accuracy_new:.4f}")
+Key Concepts Covered:
+Interactive Machine Learning (IML): IML allows users to provide feedback on model predictions in real-time, enhancing the learning process.
+
+Active Learning: The model queries the user to correct predictions, improving its performance over time.
+
+User-Centric Learning: The model continuously adapts based on the user’s input, creating a dynamic learning environment.
+
+
+
+Project 997: Online Learning Implementation
+Description
+Online learning is a machine learning paradigm where the model is trained incrementally on data as it arrives. This is particularly useful for applications where data is continuously generated or when the dataset is too large to fit into memory. In this project, we will implement an online learning system using a simple model that is updated incrementally as new data arrives, instead of training on the entire dataset at once.
+
+Python Implementation with Comments (Online Learning using Scikit-learn's SGDClassifier)
+We will implement online learning using Stochastic Gradient Descent (SGD), which updates the model’s parameters incrementally as it processes each new data point.
+
+Here’s the implementation:
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import SGDClassifier
+from sklearn.metrics import accuracy_score
+import random
+ 
+# Load the Iris dataset
+iris = load_iris()
+X = pd.DataFrame(iris.data, columns=iris.feature_names)
+y = iris.target
+ 
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Initialize the SGDClassifier for online learning
+online_model = SGDClassifier(loss='log', max_iter=1000, random_state=42)
+ 
+# Train the model incrementally using mini-batches (simulating the arrival of data in chunks)
+for i in range(0, len(X_train), 10):  # Using mini-batches of size 10
+    batch_X = X_train.iloc[i:i+10]
+    batch_y = y_train.iloc[i:i+10]
+    
+    # Update the model with the new mini-batch of data
+    online_model.partial_fit(batch_X, batch_y, classes=np.unique(y))
+ 
+# Evaluate the model on the test set
+y_pred = online_model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Accuracy after Online Learning: {accuracy:.4f}")
+ 
+# Simulate new incoming data (e.g., after model deployment)
+new_data_X = pd.DataFrame([[5.7, 3.0, 4.2, 1.2]])  # New data point
+new_data_y = [1]  # True label for the new data point
+ 
+# Update the model incrementally with the new data
+online_model.partial_fit(new_data_X, new_data_y)
+ 
+# Evaluate the model again after learning from the new data
+y_pred_new = online_model.predict(X_test)
+accuracy_new = accuracy_score(y_test, y_pred_new)
+print(f"Accuracy after learning from new data: {accuracy_new:.4f}")
+Key Concepts Covered:
+Online Learning: In online learning, the model is updated incrementally as new data points arrive, without needing to retrain on the entire dataset.
+
+Stochastic Gradient Descent (SGD): A type of online learning where the model's parameters are updated after each mini-batch or individual data point.
+
+Incremental Model Update: The model is updated using the partial_fit method, which allows learning from data in batches or one point at a time.
+
+
+
+Project 998: Incremental Learning System
+Description
+Incremental learning is a machine learning approach where the model is trained progressively as new data arrives. This is especially useful in dynamic environments where the data distribution may change over time. In this project, we will implement an incremental learning system where the model continuously learns from incoming batches of data and adapts to changes in the data distribution.
+
+Python Implementation with Comments (Incremental Learning using scikit-learn)
+We’ll use the SGDClassifier from scikit-learn for incremental learning. This classifier allows us to update the model progressively using mini-batches and the partial_fit method.
+
+Here’s how to implement incremental learning:
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import SGDClassifier
+from sklearn.metrics import accuracy_score
+import random
+ 
+# Load the Iris dataset
+iris = load_iris()
+X = pd.DataFrame(iris.data, columns=iris.feature_names)
+y = iris.target
+ 
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Initialize the SGDClassifier for incremental learning
+incremental_model = SGDClassifier(loss='log', max_iter=1000, random_state=42)
+ 
+# Simulate incremental learning by updating the model with mini-batches
+# We will process the data in batches of 15 samples
+for i in range(0, len(X_train), 15):
+    batch_X = X_train.iloc[i:i+15]
+    batch_y = y_train.iloc[i:i+15]
+    
+    # Incrementally update the model with each batch of data
+    incremental_model.partial_fit(batch_X, batch_y, classes=np.unique(y))
+ 
+# Evaluate the model on the test set
+y_pred = incremental_model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Accuracy after Incremental Learning: {accuracy:.4f}")
+ 
+# Simulate incoming data (e.g., new instances for the model to learn)
+new_data_X = pd.DataFrame([[5.8, 2.6, 4.0, 1.2]])  # New data point
+new_data_y = [1]  # True label for the new data point
+ 
+# Incrementally update the model with the new data
+incremental_model.partial_fit(new_data_X, new_data_y)
+ 
+# Evaluate the model after learning from the new data
+y_pred_new = incremental_model.predict(X_test)
+accuracy_new = accuracy_score(y_test, y_pred_new)
+print(f"Accuracy after learning from new data: {accuracy_new:.4f}")
+Key Concepts Covered:
+Incremental Learning: The model is updated progressively with new data. It allows for continuous adaptation to new patterns without retraining from scratch.
+
+Partial Fit: The partial_fit method is used to update the model incrementally by learning from new data points or mini-batches.
+
+Online Learning: Incremental learning is often used in online learning scenarios, where the data arrives in streams and cannot all be stored at once.
+
+
+
+Project 999: Evolutionary Algorithms for AI
+Description
+Evolutionary algorithms (EAs) are a family of optimization algorithms inspired by the process of natural selection. These algorithms are used to solve complex optimization problems by evolving a population of potential solutions over time. In this project, we will implement an evolutionary algorithm to optimize the hyperparameters of a machine learning model, demonstrating how evolutionary strategies can be used for model selection and optimization.
+
+Python Implementation with Comments (Evolutionary Algorithm for Hyperparameter Optimization)
+We’ll use a basic genetic algorithm for hyperparameter optimization. The genetic algorithm will evolve a population of solutions, each representing a set of hyperparameters for a machine learning model, and select the best-performing ones.
+
+Here’s the implementation using a genetic algorithm to optimize a Random Forest model:
+
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+import random
+ 
+# Generate a population of hyperparameters for RandomForest
+def generate_population(pop_size, param_ranges):
+    population = []
+    for _ in range(pop_size):
+        individual = {
+            'n_estimators': random.randint(param_ranges['n_estimators'][0], param_ranges['n_estimators'][1]),
+            'max_depth': random.randint(param_ranges['max_depth'][0], param_ranges['max_depth'][1]),
+            'min_samples_split': random.randint(param_ranges['min_samples_split'][0], param_ranges['min_samples_split'][1])
+        }
+        population.append(individual)
+    return population
+ 
+# Evaluate a set of hyperparameters (individual) using cross-validation
+def evaluate_individual(individual, X_train, y_train, X_test, y_test):
+    # Create RandomForest model with the individual's hyperparameters
+    model = RandomForestClassifier(n_estimators=individual['n_estimators'],
+                                   max_depth=individual['max_depth'],
+                                   min_samples_split=individual['min_samples_split'])
+    model.fit(X_train, y_train)
+    # Evaluate model on the test set
+    y_pred = model.predict(X_test)
+    return accuracy_score(y_test, y_pred)
+ 
+# Select two parents from the population based on their fitness (accuracy)
+def select_parents(population, X_train, y_train, X_test, y_test):
+    fitness_scores = [evaluate_individual(individual, X_train, y_train, X_test, y_test) for individual in population]
+    # Select two parents based on their fitness (higher fitness = better chance of selection)
+    parents = np.random.choice(population, size=2, p=np.array(fitness_scores) / np.sum(fitness_scores))
+    return parents
+ 
+# Perform crossover between two parents to create offspring
+def crossover(parents):
+    parent1, parent2 = parents
+    offspring = {}
+    for param in parent1:
+        # Choose randomly from the two parents
+        offspring[param] = random.choice([parent1[param], parent2[param]])
+    return offspring
+ 
+# Perform mutation on an offspring (randomly change one hyperparameter)
+def mutate(offspring, param_ranges):
+    mutation_param = random.choice(list(offspring.keys()))
+    # Mutate the selected parameter by randomly changing its value
+    offspring[mutation_param] = random.randint(param_ranges[mutation_param][0], param_ranges[mutation_param][1])
+    return offspring
+ 
+# Genetic Algorithm for optimizing hyperparameters
+def genetic_algorithm(X_train, y_train, X_test, y_test, generations=10, pop_size=10):
+    param_ranges = {
+        'n_estimators': (50, 200),
+        'max_depth': (3, 20),
+        'min_samples_split': (2, 10)
+    }
+    
+    # Generate initial population
+    population = generate_population(pop_size, param_ranges)
+    
+    for generation in range(generations):
+        print(f"Generation {generation + 1}")
+        # Select parents
+        parents = select_parents(population, X_train, y_train, X_test, y_test)
+        
+        # Crossover to generate offspring
+        offspring = crossover(parents)
+        
+        # Mutation
+        offspring = mutate(offspring, param_ranges)
+        
+        # Evaluate the new offspring
+        offspring_fitness = evaluate_individual(offspring, X_train, y_train, X_test, y_test)
+        
+        # Replace the worst-performing individual with the new offspring
+        fitness_scores = [evaluate_individual(individual, X_train, y_train, X_test, y_test) for individual in population]
+        worst_individual_idx = np.argmin(fitness_scores)
+        population[worst_individual_idx] = offspring
+        
+        print(f"Best Accuracy in Generation {generation + 1}: {max(fitness_scores):.4f}")
+    
+    # Return the best individual after all generations
+    best_individual_idx = np.argmax(fitness_scores)
+    best_individual = population[best_individual_idx]
+    print(f"Best Hyperparameters: {best_individual}")
+    return best_individual
+ 
+# Load the Iris dataset
+iris = load_iris()
+X = pd.DataFrame(iris.data, columns=iris.feature_names)
+y = iris.target
+ 
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Run the Genetic Algorithm for hyperparameter optimization
+best_params = genetic_algorithm(X_train, y_train, X_test, y_test, generations=10, pop_size=10)
+ 
+# Train the final model with the best hyperparameters
+final_model = RandomForestClassifier(n_estimators=best_params['n_estimators'],
+                                     max_depth=best_params['max_depth'],
+                                     min_samples_split=best_params['min_samples_split'])
+final_model.fit(X_train, y_train)
+ 
+# Evaluate the final model
+y_pred_final = final_model.predict(X_test)
+final_accuracy = accuracy_score(y_test, y_pred_final)
+print(f"Final Model Accuracy: {final_accuracy:.4f}")
+Key Concepts Covered:
+Evolutionary Algorithms: An optimization technique inspired by natural selection, where a population of potential solutions evolves over generations.
+
+Genetic Algorithm: A type of evolutionary algorithm that uses crossover (combining solutions) and mutation (randomly altering solutions) to explore the solution space.
+
+Hyperparameter Optimization: Using evolutionary algorithms to find the best set of hyperparameters for a machine learning model.
+
+
+
+Project 1000: Hybrid Deep Learning Architecture
+Description
+Hybrid deep learning architectures combine different neural network types, each specializing in a certain aspect of the learning task. This can involve combining Convolutional Neural Networks (CNNs) for feature extraction, Recurrent Neural Networks (RNNs) for sequence learning, or Transformer-based models for attention-based learning. In this project, we will build a hybrid architecture that combines a CNN for feature extraction and a RNN (LSTM) for sequence prediction.
+
+Python Implementation with Comments (Hybrid CNN-LSTM Architecture)
+We’ll build a hybrid CNN-LSTM model for time series prediction or sequence learning tasks. The CNN will be used to extract spatial features from the input, and the LSTM will be used to learn the temporal relationships from these features.
+
+First, install the necessary libraries:
+
+pip install torch torchvision
+Now, here’s the implementation of a CNN-LSTM hybrid architecture:
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, Dataset
+import numpy as np
+ 
+# Define the hybrid CNN-LSTM model
+class CNN_LSTM(nn.Module):
+    def __init__(self, input_channels, output_size, cnn_filters=32, lstm_units=64):
+        super(CNN_LSTM, self).__init__()
+        
+        # Convolutional Layer for feature extraction
+        self.conv1 = nn.Conv2d(input_channels, cnn_filters, kernel_size=3, padding=1)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        
+        # LSTM Layer for sequence learning
+        self.lstm = nn.LSTM(input_size=cnn_filters * 8 * 8, hidden_size=lstm_units, batch_first=True)
+        
+        # Fully Connected Layer for final classification or prediction
+        self.fc = nn.Linear(lstm_units, output_size)
+ 
+    def forward(self, x):
+        # Apply convolutional layers to extract spatial features
+        x = self.pool(torch.relu(self.conv1(x)))
+        x = x.view(x.size(0), -1, x.size(1) * x.size(2))  # Flatten to pass to LSTM
+        
+        # Apply LSTM to capture temporal patterns
+        lstm_out, (hn, cn) = self.lstm(x)
+        
+        # Use the final hidden state to predict output
+        out = self.fc(hn[-1])  # Taking the last hidden state
+        
+        return out
+ 
+# Dataset creation (For demonstration, we will use random data)
+class RandomTimeSeriesDataset(Dataset):
+    def __init__(self, num_samples=1000, input_channels=1, sequence_length=30):
+        self.num_samples = num_samples
+        self.input_channels = input_channels
+        self.sequence_length = sequence_length
+        self.data = torch.randn(num_samples, input_channels, 30, 30)  # Random 30x30 images as sequences
+        self.labels = torch.randint(0, 2, (num_samples,))  # Random binary labels (0 or 1)
+    
+    def __len__(self):
+        return self.num_samples
+    
+    def __getitem__(self, idx):
+        return self.data[idx], self.labels[idx]
+ 
+# Hyperparameters
+input_channels = 1  # Grayscale images
+output_size = 2  # Binary classification
+batch_size = 32
+learning_rate = 0.001
+epochs = 5
+ 
+# Create the dataset and DataLoader
+train_dataset = RandomTimeSeriesDataset(num_samples=1000, input_channels=input_channels)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+ 
+# Initialize the model, loss function, and optimizer
+model = CNN_LSTM(input_channels=input_channels, output_size=output_size)
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+ 
+# Training loop
+for epoch in range(epochs):
+    model.train()
+    total_loss = 0
+    correct_predictions = 0
+    
+    for data, labels in train_loader:
+        optimizer.zero_grad()
+        
+        # Forward pass
+        outputs = model(data)
+        
+        # Compute the loss
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        
+        total_loss += loss.item()
+        
+        # Calculate accuracy
+        _, predicted = torch.max(outputs, 1)
+        correct_predictions += (predicted == labels).sum().item()
+    
+    accuracy = 100 * correct_predictions / len(train_loader.dataset)
+    print(f"Epoch [{epoch+1}/{epochs}], Loss: {total_loss/len(train_loader):.4f}, Accuracy: {accuracy:.2f}%")
+ 
+# Save the trained model
+torch.save(model.state_dict(), "cnn_lstm_model.pth")
+Key Concepts Covered:
+Hybrid Deep Learning Models: Combining different types of neural networks, such as CNNs for spatial feature extraction and RNNs (LSTMs) for sequence learning.
+
+CNN: Convolutional Neural Networks are used for extracting hierarchical features from image or time-series data.
+
+LSTM: Long Short-Term Memory (LSTM) networks are used for learning temporal dependencies and sequences.
+
+End-to-End Learning: The model learns spatial features through CNNs and temporal features through LSTMs, combining both into a robust architecture.
+
+
+
+Course content
+Start
+576. Project 281. ARIMA for stock price prediction
+1min
+Start
+577. Project 282. Exponential smoothing methods
+1min
+Start
+578. Project 283. Prophet for time series forecasting
+1min
+Start
+579. Project 284. LSTM for time series prediction
+1min
+Start
+580. Project 285. GRU for sequence modeling
+1min
+Start
+581. Project 286. Time series classification
+1min
+Start
+582. Project 287. Anomaly detection in time series
+2min
+Start
+583. Project 288. Trend analysis in time series
+1min
+Start
+584. Project 289. Seasonality decomposition
+1min
+Start
+585. Project 290. Multivariate time series analysis
+1min
+Start
+586. Project 291. Vector autoregression models
+1min
+Start
+587. Project 292. Dynamic time warping implementation
+1min
+Start
+588. Project 293. Fourier transform for time series
+1min
+Start
+589. Project 294. Wavelet transform for time series
+1min
+Start
+590. Project 295. Kalman filter implementation
+1min
+Start
+591. Project 296. Hidden Markov models for sequences
+1min
+Start
+592. Project 297. State space models
+1min
+Start
+593. Project 298. Bayesian structural time series
+1min
+Start
+594. Project 299. Long-range dependencies modeling
+1min
+Start
+595. Project 300. Temporal convolutional networks
+2min
+Start
+596. Project 301. Attention mechanisms for time series
+1min
+Start
+597. Project 302. Transformers for time series
+1min
+Start
+598. Project 303. Neural ordinary differential equations
+1min
+Start
+599. Project 304. Time series clustering
+1min
+Start
+600. Project 305. Time series segmentation
+1min
+Start
+601. Project 306. Change point detection
+1min
+Start
+602. Project 307. Causal inference in time series
+1min
+Start
+603. Project 308. Transfer learning for time series
+2min
+Start
+604. Project 309. Few-shot learning for time series
+1min
+Start
+605. Project 310. Self-supervised learning for time series
+2min
+Start
+606. Project 311. Multivariate anomaly detection
+1min
+Start
+607. Project 312. Hierarchical time series forecasting
+1min
+Start
+608. Project 313. Probabilistic forecasting
+1min
+Start
+609. Project 314. Quantile regression for time series
+1min
+Start
+610. Project 315. Ensemble methods for time series
+2min
+Start
+611. Project 316. Feature extraction from time series
+1min
+Start
+612. Project 317. Time series imputation techniques
+1min
+Start
+613. Project 318. Time series visualization tools
+1min
+Start
+614. Project 319. Real-time time series analysis
+1min
+Start
+615. Project 320. Online learning for time series
+1min
+Start
+776. Projects 481-520: Finance and Economics Projects
+1hr 7min
+Start
+777. Projects 521-560: Natural Language Processing - Advanced Projects
+28min
+Start
+778. Projects 561-600: Computer Vision - Advanced Projects
+45min
+Start
+779. Projects 601-640: Reinforcement Learning - Advanced Projects
+1hr 18min
+Start
+780. Projects 641-680: Robotics and Control Projects
+1hr 20min
+Start
+781. Projects 681-720: Audio and Speech Processing Projects
+1hr 20min
+Start
+782. Projects 721-760: Explainable AI and Interpretability Projects
+1hr 47min
+Start
+783. Projects 761-800: Edge AI and IoT Projects
+48min
+Start
+784. Projects 801-840: Business and Operations Projects
+41min
+Start
+785. Projects 841-880: Environmental and Social Applications Projects
+48min
+Start
+786. Projects 881-920: Security and Privacy Projects
+38min
+Start
+787. Projects 921-960: Multi-modal AI Projects
+1hr 6min
+Start
+788. Projects 961-1000: Meta and Hybrid AI Projects
+1hr 20min
