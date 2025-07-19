@@ -1,0 +1,2695 @@
+
+Project 841: Air Quality Prediction Model
+Description
+Air quality prediction helps identify pollution hotspots, issue public health alerts, and guide urban planning. In this project, we simulate environmental sensor data (e.g., temperature, humidity, PM2.5, NO2 levels) and build a regression model to predict the Air Quality Index (AQI), which is a standard measure of pollution severity.
+
+Python Implementation with Comments (AQI Regression Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate sensor inputs: PM2.5, PM10, NO2, CO, temperature, humidity
+np.random.seed(42)
+n_samples = 1000
+ 
+pm25 = np.random.normal(40, 10, n_samples)        # μg/m3
+pm10 = np.random.normal(60, 15, n_samples)        # μg/m3
+no2 = np.random.normal(30, 8, n_samples)          # ppb
+co = np.random.normal(0.7, 0.2, n_samples)        # ppm
+temperature = np.random.normal(25, 5, n_samples)  # °C
+humidity = np.random.normal(60, 10, n_samples)    # %
+ 
+# Simulate AQI using a weighted combination + noise
+aqi = (0.4 * pm25 + 0.3 * pm10 + 0.15 * no2 + 0.1 * co * 100 + 
+       0.02 * temperature - 0.01 * humidity + np.random.normal(0, 5, n_samples))
+ 
+# Feature matrix
+X = np.stack([pm25, pm10, no2, co, temperature, humidity], axis=1)
+y = aqi
+ 
+# Split into training and testing
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build regression model
+model = models.Sequential([
+    layers.Input(shape=(6,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # Output: AQI value
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Air Quality Model MAE: {mae:.2f} AQI units")
+ 
+# Predict and plot comparison
+predicted = model.predict(X_test[:50]).flatten()
+actual = y_test[:50]
+ 
+plt.figure(figsize=(10, 4))
+plt.plot(actual, label="Actual AQI")
+plt.plot(predicted, label="Predicted AQI")
+plt.title("Air Quality Prediction")
+plt.xlabel("Sample")
+plt.ylabel("AQI")
+plt.legend()
+plt.grid(True)
+plt.show()
+This model can be trained with real-world data from:
+
+UCI Air Quality Dataset
+
+OpenAQ API
+
+Local government pollution sensors
+
+
+
+Project 842: Water Quality Monitoring System
+Description
+Water quality monitoring is essential for public health, agriculture, and environmental safety. AI can help analyze sensor data to assess whether water is safe or contaminated. In this project, we simulate water parameters (pH, turbidity, dissolved oxygen, etc.) and build a binary classifier to predict water suitability for use.
+
+Python Implementation with Comments (Water Quality Classification Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate water quality parameters
+np.random.seed(42)
+n_samples = 1000
+ 
+pH = np.random.normal(7.0, 0.5, n_samples)                     # Ideal range: 6.5–8.5
+turbidity = np.random.normal(3, 1.5, n_samples)                # NTU: lower is better
+dissolved_oxygen = np.random.normal(7.5, 1.5, n_samples)       # mg/L
+nitrate = np.random.normal(5, 2, n_samples)                    # mg/L
+temperature = np.random.normal(25, 3, n_samples)               # °C
+ 
+# Label as suitable (1) or unsuitable (0) for drinking
+# Simple rule: too high nitrate, low oxygen, or high turbidity = unsafe
+suitable = ((pH >= 6.5) & (pH <= 8.5) &
+            (turbidity < 5) &
+            (dissolved_oxygen > 5) &
+            (nitrate < 10)).astype(int)
+ 
+# Features and labels
+X = np.stack([pH, turbidity, dissolved_oxygen, nitrate, temperature], axis=1)
+y = suitable
+ 
+# Split into train/test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build binary classification model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(16, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Output: 1 = suitable, 0 = not suitable
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Water Quality Model Accuracy: {acc:.4f}")
+ 
+# Predict for a few samples
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Sample {i+1}: {'✅ Suitable' if preds[i] else '❌ Unsuitable'} (Actual: {'✅' if y_test[i] else '❌'})")
+This model can be extended with:
+
+Real sensor data from field devices (e.g., IoT water sensors)
+
+Integrated into rural water safety dashboards or early alert systems
+
+
+
+Project 843: Climate Change Impact Assessment
+Description
+Climate change impacts various environmental and socio-economic factors, including temperature, precipitation, crop yield, and sea level rise. In this project, we simulate climate indicators over time and build a multi-output regression model to assess potential impacts such as temperature anomaly and crop productivity loss, based on rising greenhouse gas (GHG) levels and other environmental indicators.
+
+Python Implementation with Comments (Multi-Output Climate Impact Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate global climate indicators
+np.random.seed(42)
+n_samples = 1000
+ 
+# Features: CO2 (ppm), Methane (CH4 in ppb), Nitrous Oxide (N2O in ppb), Deforestation rate (%), Sea ice loss (%)
+co2 = np.random.normal(420, 20, n_samples)
+ch4 = np.random.normal(1900, 150, n_samples)
+n2o = np.random.normal(330, 15, n_samples)
+deforestation = np.random.normal(1.5, 0.5, n_samples)
+sea_ice_loss = np.random.normal(3, 1, n_samples)
+ 
+# Outputs: temperature anomaly (°C), crop productivity loss (%)
+temp_anomaly = 0.01 * co2 + 0.005 * ch4 + 0.008 * deforestation + np.random.normal(0, 0.2, n_samples)
+crop_loss = 0.03 * deforestation + 0.02 * temp_anomaly + 0.01 * sea_ice_loss + np.random.normal(0, 1, n_samples)
+ 
+# Input features and output targets
+X = np.stack([co2, ch4, n2o, deforestation, sea_ice_loss], axis=1)
+y = np.stack([temp_anomaly, crop_loss], axis=1)
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-output regression model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(2)  # 2 outputs: temperature anomaly and crop loss
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Climate Impact Model MAE (Temp Anomaly, Crop Loss): {mae}")
+ 
+# Predict for first 5 samples
+preds = model.predict(X_test[:5])
+for i in range(5):
+    print(f"Sample {i+1}: Predicted Temp Anomaly = {preds[i][0]:.2f}°C, Predicted Crop Loss = {preds[i][1]:.2f}%")
+This model can be:
+
+Expanded with real-world climate data (e.g., from NASA, IPCC, NOAA)
+
+Adapted for geospatial visualization, policy simulation, or agricultural planning
+
+
+
+Project 844: Renewable Energy Forecasting
+Description
+Renewable energy forecasting is crucial for integrating solar, wind, and hydro power into the grid. It helps balance supply-demand, reduce energy waste, and stabilize grids. In this project, we simulate environmental factors and build a regression model to forecast renewable energy output (in MW), assuming a mixed source system (solar + wind).
+
+Python Implementation with Comments (Renewable Energy Output Forecast Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate environmental features: solar irradiance (W/m²), wind speed (m/s), temperature (°C), humidity (%)
+np.random.seed(42)
+n_samples = 1000
+ 
+solar_irradiance = np.random.normal(600, 100, n_samples)
+wind_speed = np.random.normal(7, 2, n_samples)
+temperature = np.random.normal(25, 5, n_samples)
+humidity = np.random.normal(50, 10, n_samples)
+ 
+# Simulate renewable energy output (MW)
+# solar output mainly depends on irradiance and temperature; wind depends on speed
+energy_output = (
+    0.015 * solar_irradiance +
+    0.2 * wind_speed ** 3 -  # wind power ~ cube of speed
+    0.05 * (temperature - 25) +
+    np.random.normal(0, 2, n_samples)  # noise
+)
+ 
+# Feature matrix and labels
+X = np.stack([solar_irradiance, wind_speed, temperature, humidity], axis=1)
+y = energy_output
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build regression model
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # output: energy forecast (MW)
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate performance
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Renewable Energy Forecast MAE: {mae:.2f} MW")
+ 
+# Predict and plot
+predictions = model.predict(X_test[:50]).flatten()
+plt.figure(figsize=(10, 4))
+plt.plot(y_test[:50], label="Actual")
+plt.plot(predictions, label="Predicted")
+plt.title("Renewable Energy Output Forecast")
+plt.xlabel("Sample Index")
+plt.ylabel("Energy Output (MW)")
+plt.legend()
+plt.grid(True)
+plt.show()
+✅ This type of model powers:
+
+Smart grid controllers
+
+Renewable farm operation tools
+
+Demand-response systems for sustainability and cost reduction
+
+
+
+Project 845: Solar Power Output Prediction
+Description
+Solar power output prediction helps manage energy generation, storage, and grid integration. It depends heavily on weather factors like solar irradiance, cloud cover, and temperature. In this project, we simulate these inputs and build a regression model to predict solar energy output (in kWh) from a solar panel array.
+
+Python Implementation with Comments (Solar Output Regression Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate solar input features
+np.random.seed(42)
+n_samples = 1000
+ 
+solar_irradiance = np.random.normal(700, 100, n_samples)      # W/m²
+temperature = np.random.normal(30, 5, n_samples)               # °C
+cloud_cover = np.random.uniform(0, 1, n_samples)               # 0 (clear) to 1 (fully cloudy)
+panel_efficiency = np.random.normal(0.18, 0.01, n_samples)     # % efficiency
+ 
+# Simulate solar energy output (kWh)
+# Output decreases with cloud cover and excessive heat
+solar_output = (
+    solar_irradiance * panel_efficiency * (1 - 0.6 * cloud_cover) -
+    0.05 * np.maximum(temperature - 35, 0) +
+    np.random.normal(0, 5, n_samples)
+) / 100  # Scale down to kWh for a single panel
+ 
+# Feature matrix
+X = np.stack([solar_irradiance, temperature, cloud_cover, panel_efficiency], axis=1)
+y = solar_output
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build the regression model
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # Predicted solar output in kWh
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Solar Output Prediction MAE: {mae:.2f} kWh")
+ 
+# Plot predictions
+preds = model.predict(X_test[:50]).flatten()
+plt.figure(figsize=(10, 4))
+plt.plot(y_test[:50], label="Actual Output")
+plt.plot(preds, label="Predicted Output")
+plt.title("Solar Power Output Prediction")
+plt.xlabel("Sample Index")
+plt.ylabel("Output (kWh)")
+plt.legend()
+plt.grid(True)
+plt.show()
+This model is useful for:
+
+Off-grid solar management systems
+
+Solar farm planning tools
+
+Smart home energy dashboards
+
+
+
+Project 846: Wind Power Generation Prediction
+Description
+Wind power generation prediction enables better planning and integration of wind energy into the grid. It depends on factors like wind speed, air density, blade length, and temperature. In this project, we simulate relevant inputs and build a regression model to estimate wind turbine power output in kilowatts (kW).
+
+Python Implementation with Comments (Wind Power Output Regression Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate input features
+np.random.seed(42)
+n_samples = 1000
+ 
+wind_speed = np.random.normal(8, 2, n_samples)                # m/s
+air_density = np.random.normal(1.225, 0.05, n_samples)        # kg/m³ (standard at sea level)
+blade_length = np.random.normal(40, 5, n_samples)             # meters
+temperature = np.random.normal(15, 5, n_samples)              # °C
+ 
+# Wind power formula (simplified): P = 0.5 * ρ * A * v³
+swept_area = np.pi * blade_length**2
+power_output = 0.5 * air_density * swept_area * wind_speed**3 * 0.4  # assuming 40% efficiency
+power_output = power_output / 1000  # convert to kW
+power_output += np.random.normal(0, 100, n_samples)  # add noise
+ 
+# Feature matrix and labels
+X = np.stack([wind_speed, air_density, blade_length, temperature], axis=1)
+y = power_output
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build regression model
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # Output: wind power in kW
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Wind Power Prediction MAE: {mae:.2f} kW")
+ 
+# Predict and plot results
+preds = model.predict(X_test[:50]).flatten()
+plt.figure(figsize=(10, 4))
+plt.plot(y_test[:50], label="Actual Power")
+plt.plot(preds, label="Predicted Power")
+plt.title("Wind Power Generation Prediction")
+plt.xlabel("Sample Index")
+plt.ylabel("Power Output (kW)")
+plt.legend()
+plt.grid(True)
+plt.show()
+This model supports:
+
+Wind turbine monitoring
+
+Grid supply forecasting
+
+Hybrid solar-wind energy management systems
+
+
+
+Project 847: Weather Forecasting System
+Description
+Weather forecasting uses historical meteorological data to predict future conditions like temperature, humidity, rainfall, and wind. In this project, we simulate daily weather data and build a multi-output regression model to forecast next day’s weather (temperature, humidity, wind speed, and rainfall).
+
+Python Implementation with Comments (Next-Day Weather Prediction Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate daily weather conditions
+np.random.seed(42)
+n_samples = 1000
+ 
+# Current day weather features
+temp_today = np.random.normal(25, 5, n_samples)
+humidity_today = np.random.normal(60, 10, n_samples)
+wind_today = np.random.normal(10, 2, n_samples)
+rain_today = np.random.normal(2, 1.5, n_samples)
+ 
+# Simulate next-day values with a bit of trend and noise
+temp_next = temp_today + np.random.normal(0, 1.5, n_samples)
+humidity_next = humidity_today + np.random.normal(0, 5, n_samples)
+wind_next = wind_today + np.random.normal(0, 1, n_samples)
+rain_next = rain_today + np.random.normal(0, 1, n_samples)
+ 
+# Feature matrix and multi-output labels
+X = np.stack([temp_today, humidity_today, wind_today, rain_today], axis=1)
+y = np.stack([temp_next, humidity_next, wind_next, rain_next], axis=1)
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-output regression model
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(4)  # Output: temperature, humidity, wind, rainfall
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate performance
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Weather Forecasting MAE (Temp, Humidity, Wind, Rain): {mae}")
+ 
+# Predict and display 5 samples
+preds = model.predict(X_test[:5])
+for i in range(5):
+    print(f"Sample {i+1}:")
+    print(f"  🌡️ Temp: {preds[i][0]:.1f}°C | 💧 Humidity: {preds[i][1]:.1f}% | 🌬️ Wind: {preds[i][2]:.1f} km/h | 🌧️ Rain: {preds[i][3]:.1f} mm")
+✅ Uses of this model:
+
+Smart farming tools
+
+Local weather station dashboards
+
+Energy optimization (solar, wind, HVAC)
+
+
+
+Project 848: Natural Disaster Prediction
+Description
+Predicting natural disasters like earthquakes, hurricanes, or landslides helps save lives and reduce damage. In this project, we simulate environmental and geophysical features and build a binary classification model to predict the likelihood of a natural disaster event (yes/no), based on regional sensor data.
+
+Python Implementation with Comments (Natural Disaster Risk Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate sensor-based environmental data
+np.random.seed(42)
+n_samples = 1000
+ 
+seismic_activity = np.random.normal(3.0, 1.0, n_samples)      # Richter scale
+rainfall = np.random.normal(100, 50, n_samples)               # mm
+wind_speed = np.random.normal(40, 20, n_samples)              # km/h
+soil_saturation = np.random.uniform(0, 1, n_samples)          # 0 to 1
+temperature = np.random.normal(30, 5, n_samples)              # °C
+ 
+# Label: 1 = disaster if high seismic + heavy rain + soil saturation or strong winds
+disaster = ((seismic_activity > 5) | 
+            ((rainfall > 150) & (soil_saturation > 0.8)) | 
+            (wind_speed > 80)).astype(int)
+ 
+# Feature matrix and labels
+X = np.stack([seismic_activity, rainfall, wind_speed, soil_saturation, temperature], axis=1)
+y = disaster
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build binary classifier model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Output: 1 = likely disaster
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Natural Disaster Prediction Accuracy: {acc:.4f}")
+ 
+# Predict and display results for 5 locations
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Location {i+1}: {'⚠️ Disaster Likely' if preds[i] else '✅ Normal'} (Actual: {'⚠️' if y_test[i] else '✅'})")
+✅ Real-world use cases:
+
+Disaster early warning systems
+
+Emergency response automation
+
+Smart cities & climate-resilient infrastructure planning
+
+
+
+Project 849: Flood Prediction System
+Description
+Flood prediction systems help anticipate flash floods and river overflows, enabling timely evacuation and resource allocation. In this project, we simulate hydrological and meteorological data (e.g., rainfall, river level, soil moisture) and build a binary classifier to predict the likelihood of flooding in a given region.
+
+Python Implementation with Comments (Flood Risk Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate relevant flood predictors
+np.random.seed(42)
+n_samples = 1000
+ 
+rainfall = np.random.normal(120, 40, n_samples)              # mm
+river_level = np.random.normal(3.5, 1.0, n_samples)          # meters
+soil_moisture = np.random.uniform(0, 1, n_samples)           # 0 = dry, 1 = saturated
+runoff_rate = np.random.normal(50, 15, n_samples)            # mm/hr
+catchment_slope = np.random.normal(10, 5, n_samples)         # degrees
+ 
+# Label: 1 = flood likely if high rain + high river + saturated soil or high runoff
+flood = ((rainfall > 150) & (river_level > 4) & (soil_moisture > 0.8) |
+         (runoff_rate > 70)).astype(int)
+ 
+# Combine features
+X = np.stack([rainfall, river_level, soil_moisture, runoff_rate, catchment_slope], axis=1)
+y = flood
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build binary classifier
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Output: 1 = flood risk
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Flood Prediction Model Accuracy: {acc:.4f}")
+ 
+# Predict risk for first 5 locations
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Region {i+1}: {'🌊 Flood Likely' if preds[i] else '✅ Safe'} (Actual: {'🌊' if y_test[i] else '✅'})")
+✅ This type of system supports:
+
+Real-time flood alerts from IoT water level sensors
+
+Disaster preparedness tools
+
+Integration with GIS dashboards and rescue team dispatch systems
+
+
+
+Project 850: Wildfire Risk Assessment
+Description
+Wildfire risk assessment predicts the likelihood of fires based on weather, vegetation, and land conditions. This helps governments and forest managers deploy resources and issue early warnings. In this project, we simulate key environmental factors and build a binary classification model to predict wildfire risk (yes/no).
+
+Python Implementation with Comments (Wildfire Risk Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate environmental features
+np.random.seed(42)
+n_samples = 1000
+ 
+temperature = np.random.normal(35, 5, n_samples)          # °C
+humidity = np.random.normal(30, 10, n_samples)            # %
+wind_speed = np.random.normal(20, 5, n_samples)           # km/h
+vegetation_dryness = np.random.uniform(0, 1, n_samples)   # 0 = wet, 1 = dry
+recent_rain = np.random.normal(5, 3, n_samples)           # mm in last 7 days
+ 
+# Label: wildfire likely if high temp + low humidity + dryness + low rainfall + high wind
+fire_risk = (
+    (temperature > 35) &
+    (humidity < 25) &
+    (vegetation_dryness > 0.7) &
+    (recent_rain < 5) &
+    (wind_speed > 20)
+).astype(int)
+ 
+# Stack features and labels
+X = np.stack([temperature, humidity, wind_speed, vegetation_dryness, recent_rain], axis=1)
+y = fire_risk
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build binary classification model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Output: fire risk (yes/no)
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Wildfire Risk Model Accuracy: {acc:.4f}")
+ 
+# Predict for sample areas
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Zone {i+1}: {'🔥 High Risk' if preds[i] else '✅ Low Risk'} (Actual: {'🔥' if y_test[i] else '✅'})")
+✅ Real-world applications include:
+
+Forest fire early warning systems
+
+Satellite + sensor data fusion
+
+Integration with drones or fire watch towers for real-time decision-making
+
+
+
+Project 851: Earthquake Early Warning System
+Description
+An Earthquake Early Warning System (EEWS) analyzes seismic signals in real time to detect earthquakes and issue alerts before destructive waves arrive. In this project, we simulate seismic sensor readings and build a binary classification model to determine whether a seismic signal indicates an impending earthquake.
+
+Python Implementation with Comments (Seismic Event Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate seismic sensor readings
+np.random.seed(42)
+n_samples = 1000
+ 
+p_wave_amplitude = np.random.normal(0.3, 0.2, n_samples)    # primary wave
+s_wave_amplitude = np.random.normal(0.5, 0.3, n_samples)    # secondary wave
+ground_acceleration = np.random.normal(0.05, 0.02, n_samples)  # g-force
+event_duration = np.random.normal(10, 3, n_samples)         # seconds
+depth = np.random.normal(10, 5, n_samples)                  # km
+ 
+# Label: Earthquake likely if p-wave & s-wave high, with high acceleration and shallow depth
+earthquake = (
+    (p_wave_amplitude > 0.4) &
+    (s_wave_amplitude > 0.6) &
+    (ground_acceleration > 0.06) &
+    (depth < 15)
+).astype(int)
+ 
+# Feature matrix
+X = np.stack([p_wave_amplitude, s_wave_amplitude, ground_acceleration, event_duration, depth], axis=1)
+y = earthquake
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build a binary classifier
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Output: Earthquake? (Yes/No)
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate performance
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Earthquake Detection Accuracy: {acc:.4f}")
+ 
+# Predict for 5 recent events
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Event {i+1}: {'🌐 Earthquake Likely' if preds[i] else '✅ No Threat'} (Actual: {'🌐' if y_test[i] else '✅'})")
+✅ This system mimics real-world EEWS like:
+
+Japan’s JMA EEW
+
+USGS ShakeAlert
+
+Can be integrated with seismic IoT sensors or accelerometers in smart buildings
+
+
+
+Project 852: Crop Yield Prediction
+Description
+Crop yield prediction helps farmers and policymakers make data-driven decisions about planting, irrigation, and resource allocation. In this project, we simulate agricultural features (soil quality, rainfall, temperature, etc.) and build a regression model to predict crop yield (tons/hectare).
+
+Python Implementation with Comments (Crop Yield Regression Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate agricultural data
+np.random.seed(42)
+n_samples = 1000
+ 
+soil_quality = np.random.normal(7, 1.5, n_samples)          # 1–10 scale
+rainfall = np.random.normal(300, 50, n_samples)             # mm/month
+temperature = np.random.normal(25, 3, n_samples)            # °C
+fertilizer_use = np.random.normal(150, 30, n_samples)       # kg/hectare
+pesticide_use = np.random.normal(1.2, 0.3, n_samples)       # liters/hectare
+ 
+# Simulate crop yield (tons/hectare)
+yield_output = (
+    0.4 * soil_quality +
+    0.02 * rainfall -
+    0.1 * abs(temperature - 25) +
+    0.05 * fertilizer_use -
+    0.2 * pesticide_use +
+    np.random.normal(0, 1, n_samples)  # noise
+)
+ 
+# Combine features
+X = np.stack([soil_quality, rainfall, temperature, fertilizer_use, pesticide_use], axis=1)
+y = yield_output
+ 
+# Split into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build regression model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # Predicted yield
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate the model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Crop Yield Prediction MAE: {mae:.2f} tons/hectare")
+ 
+# Predict for a few samples and plot
+predictions = model.predict(X_test[:50]).flatten()
+plt.figure(figsize=(10, 4))
+plt.plot(y_test[:50], label="Actual Yield")
+plt.plot(predictions, label="Predicted Yield")
+plt.title("Crop Yield Prediction")
+plt.xlabel("Sample Index")
+plt.ylabel("Yield (tons/hectare)")
+plt.legend()
+plt.grid(True)
+plt.show()
+✅ This model can:
+
+Be integrated with drone or satellite data
+
+Feed into agriculture dashboards
+
+Guide precision farming practices
+
+
+
+Project 853: Plant Disease Detection
+Description
+Plant disease detection helps prevent crop loss by identifying issues early. Using AI vision models, we can detect diseases from leaf images. In this project, we simulate a basic image classification pipeline using a CNN model to detect whether a plant leaf is healthy or diseased.
+
+Python Implementation with Comments (Plant Leaf Disease Classifier – CNN)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# Simulate leaf images as 64x64 grayscale (you can replace with real image dataset like PlantVillage)
+np.random.seed(42)
+n_samples = 1000
+image_size = 64
+ 
+# Healthy leaves: more uniform texture
+healthy_images = np.random.normal(loc=0.5, scale=0.1, size=(n_samples // 2, image_size, image_size, 1))
+ 
+# Diseased leaves: add localized noise to simulate spots/patches
+diseased_images = healthy_images.copy()
+for img in diseased_images:
+    x, y = np.random.randint(0, image_size, 10), np.random.randint(0, image_size, 10)
+    img[x, y] += np.random.normal(loc=0.3, scale=0.2)
+ 
+# Combine and label
+X = np.vstack([healthy_images, diseased_images])
+y = np.array([0] * (n_samples // 2) + [1] * (n_samples // 2))  # 0 = healthy, 1 = diseased
+ 
+# Split into train/test
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build a simple CNN model
+model = models.Sequential([
+    layers.Input(shape=(image_size, image_size, 1)),
+    layers.Conv2D(32, 3, activation='relu'),
+    layers.MaxPooling2D(),
+    layers.Conv2D(64, 3, activation='relu'),
+    layers.MaxPooling2D(),
+    layers.Flatten(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Binary output
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=5, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Plant Disease Detection Accuracy: {acc:.4f}")
+ 
+# Predict for 5 leaf images
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    status = "🌿 Healthy" if preds[i] == 0 else "⚠️ Diseased"
+    actual = "🌿" if y_test[i] == 0 else "⚠️"
+    print(f"Leaf {i+1}: Predicted = {status} | Actual = {actual}")
+✅ This model can be trained with:
+
+Real leaf datasets like PlantVillage
+
+Mobile-friendly models (e.g., TFLite, MobileNet) for farmers' phones or drones
+
+
+
+Project 854: Sustainable Farming Recommendation
+Description
+A Sustainable Farming Recommendation System suggests eco-friendly practices based on land, crop type, climate, and resource usage. In this project, we simulate agricultural and environmental inputs and build a multi-class classification model to recommend a sustainable farming strategy, such as organic practices, crop rotation, drip irrigation, etc.
+
+Python Implementation with Comments (Farming Practice Recommender - Multi-Class Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+ 
+# Simulate input features: soil type index (0–4), water availability (%), average temp (°C), crop type index (0–4)
+np.random.seed(42)
+n_samples = 1000
+ 
+soil_type = np.random.randint(0, 5, n_samples)
+water_availability = np.random.normal(60, 20, n_samples)      # %
+avg_temperature = np.random.normal(26, 3, n_samples)          # °C
+crop_type = np.random.randint(0, 5, n_samples)
+ 
+# Simulate 4 recommendations based on heuristic logic
+# 0 = crop rotation, 1 = organic farming, 2 = drip irrigation, 3 = compost use
+recommendation = np.where(
+    (soil_type == 2) & (water_availability < 50), 2,
+    np.where((crop_type == 1) & (avg_temperature > 28), 1,
+    np.where((soil_type == 4) & (water_availability > 70), 0, 3))
+)
+ 
+# Stack features
+X = np.stack([soil_type, water_availability, avg_temperature, crop_type], axis=1)
+y = recommendation
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build model for multi-class classification
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(4, activation='softmax')  # 4 classes
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Sustainable Farming Recommender Accuracy: {acc:.4f}")
+ 
+# Predict for a few samples
+recommend_map = {
+    0: "🌾 Crop Rotation",
+    1: "🍀 Organic Farming",
+    2: "💧 Drip Irrigation",
+    3: "🌱 Compost Usage"
+}
+preds = np.argmax(model.predict(X_test[:5]), axis=1)
+for i in range(5):
+    print(f"Sample {i+1}: Recommended = {recommend_map[preds[i]]} (Actual: {recommend_map[y_test[i]]})")
+✅ Real-world integrations:
+
+Farmer advisory apps
+
+Government agri-portals
+
+AI-powered smart farming systems
+
+
+
+Project 855: Biodiversity Monitoring System
+Description
+A biodiversity monitoring system helps track species presence, population trends, and ecosystem health using data from camera traps, audio sensors, or environmental DNA. In this project, we simulate ecological observations and build a multi-label classification model to detect the presence of multiple species in a given area.
+
+Python Implementation with Comments (Multi-Label Species Presence Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate environmental observation data (e.g., sound level, vegetation index, time of day, temp)
+np.random.seed(42)
+n_samples = 1000
+ 
+sound_activity = np.random.normal(50, 15, n_samples)        # dB
+vegetation_index = np.random.normal(0.6, 0.1, n_samples)     # NDVI
+time_of_day = np.random.randint(0, 24, n_samples)            # hour
+temperature = np.random.normal(22, 5, n_samples)             # °C
+ 
+# Simulate presence/absence of 3 species: bird, monkey, insect
+# Multi-label (each species is a binary label)
+bird_present = ((sound_activity > 40) & (time_of_day < 10)).astype(int)
+monkey_present = ((vegetation_index > 0.65) & (time_of_day > 6) & (time_of_day < 18)).astype(int)
+insect_present = ((temperature > 20) & (time_of_day >= 18)).astype(int)
+ 
+# Stack features and labels
+X = np.stack([sound_activity, vegetation_index, time_of_day, temperature], axis=1)
+y = np.stack([bird_present, monkey_present, insect_present], axis=1)
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-label classification model
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(3, activation='sigmoid')  # 3 species, independent outputs
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Biodiversity Model Accuracy: {acc:.4f}")
+ 
+# Predict species presence for 5 regions
+preds = (model.predict(X_test[:5]) > 0.5).astype(int)
+species = ['🕊️ Bird', '🐒 Monkey', '🦗 Insect']
+for i in range(5):
+    print(f"\nRegion {i+1} Species Detected:")
+    for j in range(3):
+        status = '✅ Present' if preds[i][j] else '❌ Absent'
+        print(f"  {species[j]}: {status} (Actual: {'✅' if y_test[i][j] else '❌'})")
+✅ This model can be deployed with:
+
+Acoustic monitoring devices
+
+Camera trap image pipelines
+
+Environmental sensors in conservation areas
+
+
+
+Project 856: Wildlife Conservation Tools
+Description
+Wildlife conservation tools leverage AI to track endangered species, detect poaching risks, and allocate ranger patrols. In this project, we simulate ecological, human activity, and terrain data to build a binary classification model that predicts conservation threat level (Low or High) in a region — helping prioritize monitoring and intervention.
+
+Python Implementation with Comments (Conservation Threat Risk Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate ecological data
+np.random.seed(42)
+n_samples = 1000
+ 
+animal_density = np.random.normal(20, 5, n_samples)         # animals/km²
+human_activity = np.random.normal(30, 10, n_samples)        # vehicles/day or movement events
+vegetation_cover = np.random.normal(0.7, 0.1, n_samples)    # NDVI index
+distance_to_road = np.random.normal(15, 7, n_samples)       # km
+protection_score = np.random.normal(0.6, 0.2, n_samples)    # 0 = no protection, 1 = high
+ 
+# Label: High risk if human activity is high, animal density is high, and protection is low
+threat_level = (
+    (animal_density > 22) &
+    (human_activity > 35) &
+    (protection_score < 0.5)
+).astype(int)
+ 
+# Stack features
+X = np.stack([animal_density, human_activity, vegetation_cover, distance_to_road, protection_score], axis=1)
+y = threat_level
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build binary classifier model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Output: 1 = High threat
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Wildlife Threat Assessment Accuracy: {acc:.4f}")
+ 
+# Predict for 5 regions
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Region {i+1}: {'🚨 High Risk' if preds[i] else '✅ Low Risk'} (Actual: {'🚨' if y_test[i] else '✅'})")
+✅ This model supports:
+
+Ranger patrol route planning
+
+Automated alerts in protected zones
+
+Integration with satellite imagery and geofencing tools
+
+
+
+Project 857: Species Identification System
+Description
+A species identification system classifies animals or plants based on images, audio, or environmental features. In this project, we simulate a vision-based classifier that takes in an image of an animal and predicts its species (e.g., tiger, deer, elephant, etc.), using a CNN model.
+
+Python Implementation with Comments (Species Classifier Using CNN on Simulated Images)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate small grayscale image data (e.g., from camera traps)
+np.random.seed(42)
+n_samples = 1200
+image_size = 64
+n_classes = 3  # e.g., 0 = Tiger, 1 = Deer, 2 = Elephant
+ 
+# Simulate species images with slight pattern differences (you'd replace this with real images)
+def generate_species_images(label, pattern_shift):
+    base = np.random.normal(loc=0.4 + pattern_shift, scale=0.1, size=(n_samples // n_classes, image_size, image_size, 1))
+    return base, [label] * (n_samples // n_classes)
+ 
+tiger_imgs, tiger_labels = generate_species_images(0, 0.1)
+deer_imgs, deer_labels = generate_species_images(1, 0.0)
+elephant_imgs, elephant_labels = generate_species_images(2, -0.1)
+ 
+# Combine dataset
+X = np.vstack([tiger_imgs, deer_imgs, elephant_imgs])
+y = np.array(tiger_labels + deer_labels + elephant_labels)
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build CNN model for image classification
+model = models.Sequential([
+    layers.Input(shape=(image_size, image_size, 1)),
+    layers.Conv2D(32, 3, activation='relu'),
+    layers.MaxPooling2D(),
+    layers.Conv2D(64, 3, activation='relu'),
+    layers.MaxPooling2D(),
+    layers.Flatten(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(n_classes, activation='softmax')  # Multi-class output
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=5, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Species Identification Accuracy: {acc:.4f}")
+ 
+# Predict for 5 animal images
+preds = np.argmax(model.predict(X_test[:5]), axis=1)
+species_map = {0: "🐯 Tiger", 1: "🦌 Deer", 2: "🐘 Elephant"}
+ 
+for i in range(5):
+    print(f"Image {i+1}: Predicted = {species_map[preds[i]]}, Actual = {species_map[y_test[i]]}")
+✅ This model supports:
+
+Automated camera trap analysis
+
+Mobile wildlife identification tools
+
+Integration with conservation databases (e.g., iNaturalist, GBIF)
+
+
+
+Project 858: Habitat Mapping System
+Description
+A habitat mapping system uses environmental and geospatial data to classify land areas into habitat types (e.g., forest, grassland, wetland). It helps with land use planning, conservation, and biodiversity tracking. In this project, we simulate remote sensing features and build a multi-class classifier to predict habitat type.
+
+Python Implementation with Comments (Habitat Type Classification Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate remote sensing features
+np.random.seed(42)
+n_samples = 1000
+ 
+ndvi = np.random.normal(0.6, 0.2, n_samples)              # Vegetation index
+elevation = np.random.normal(300, 100, n_samples)         # meters
+soil_moisture = np.random.uniform(0, 1, n_samples)        # 0–1 scale
+proximity_to_water = np.random.normal(1.5, 0.8, n_samples)  # km
+surface_temp = np.random.normal(28, 3, n_samples)         # °C
+ 
+# Habitat type: 0 = Forest, 1 = Grassland, 2 = Wetland
+habitat_type = np.where(
+    (ndvi > 0.7) & (soil_moisture > 0.5), 0,      # Forest
+    np.where((ndvi < 0.4) & (elevation > 350), 1, # Grassland
+    2)                                           # Wetland (default)
+)
+ 
+# Feature matrix
+X = np.stack([ndvi, elevation, soil_moisture, proximity_to_water, surface_temp], axis=1)
+y = habitat_type
+ 
+# Split into train/test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-class classifier
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(3, activation='softmax')  # 3 habitat classes
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Habitat Mapping Model Accuracy: {acc:.4f}")
+ 
+# Predict habitat type for 5 locations
+preds = np.argmax(model.predict(X_test[:5]), axis=1)
+habitat_map = {0: "🌲 Forest", 1: "🌾 Grassland", 2: "🌊 Wetland"}
+ 
+for i in range(5):
+    print(f"Location {i+1}: Predicted = {habitat_map[preds[i]]}, Actual = {habitat_map[y_test[i]]}")
+✅ This model supports:
+
+Land use classification
+
+Conservation area zoning
+
+Integration with drone/satellite imagery and GIS systems
+
+
+
+Project 859: Deforestation Monitoring
+Description
+Deforestation monitoring helps track forest loss over time using satellite imagery and vegetation indices. It enables early intervention to combat illegal logging and protect biodiversity. In this project, we simulate remote sensing data across time and build a binary classifier to detect deforestation events in a given region.
+
+Python Implementation with Comments (Deforestation Detection Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate satellite data for forest regions
+np.random.seed(42)
+n_samples = 1000
+ 
+# Features: NDVI drop, surface temp rise, logging activity, time since last rain, proximity to roads
+ndvi_change = np.random.normal(-0.1, 0.2, n_samples)           # NDVI drop over time
+surface_temp_rise = np.random.normal(1.5, 0.5, n_samples)      # °C rise
+logging_index = np.random.normal(0.4, 0.3, n_samples)          # 0–1 (higher = more logging)
+days_since_rain = np.random.normal(15, 5, n_samples)           # days
+distance_to_road = np.random.normal(5, 2, n_samples)           # km
+ 
+# Label: 1 = deforested area, based on sharp NDVI drop + logging + dryness + road proximity
+deforested = (
+    (ndvi_change < -0.2) &
+    (logging_index > 0.5) &
+    (days_since_rain > 10) &
+    (distance_to_road < 6)
+).astype(int)
+ 
+# Feature matrix and labels
+X = np.stack([ndvi_change, surface_temp_rise, logging_index, days_since_rain, distance_to_road], axis=1)
+y = deforested
+ 
+# Split into train and test
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build binary classifier
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # 1 = deforestation
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Deforestation Detection Accuracy: {acc:.4f}")
+ 
+# Predict for 5 sample areas
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Area {i+1}: {'🌲 Deforested' if preds[i] else '✅ Forest Intact'} (Actual: {'🌲' if y_test[i] else '✅'})")
+✅ This model can be extended with:
+
+NDVI time-series from Landsat/Sentinel satellites
+
+Geo-tagged logging activity
+
+Integrated into real-time deforestation alert platforms like Global Forest Watch
+
+
+
+Project 860: Ocean Health Monitoring
+Description
+Monitoring ocean health involves tracking variables like sea surface temperature, chlorophyll concentration, pH levels, and dissolved oxygen. This helps detect coral bleaching, algal blooms, or dead zones. In this project, we simulate oceanographic data and build a multi-class classifier to assess the health status of ocean regions (Healthy, Moderate Risk, Critical).
+
+Python Implementation with Comments (Ocean Health Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate ocean sensor data
+np.random.seed(42)
+n_samples = 1000
+ 
+sea_temp = np.random.normal(26, 2, n_samples)               # °C
+chlorophyll = np.random.normal(1.5, 0.5, n_samples)         # mg/m³
+ph_level = np.random.normal(8.1, 0.1, n_samples)            # pH
+dissolved_oxygen = np.random.normal(6, 1, n_samples)        # mg/L
+salinity = np.random.normal(35, 1, n_samples)               # PSU
+ 
+# Label: 0 = Healthy, 1 = Moderate Risk, 2 = Critical
+# Based on thresholds of temp, oxygen, and chlorophyll
+health_status = np.where(
+    (sea_temp > 28) | (chlorophyll > 2.5) | (dissolved_oxygen < 4.5), 2,  # Critical
+    np.where((sea_temp > 27) | (chlorophyll > 2.0) | (dissolved_oxygen < 5.5), 1,  # Moderate Risk
+    0)  # Healthy
+)
+ 
+# Stack features
+X = np.stack([sea_temp, chlorophyll, ph_level, dissolved_oxygen, salinity], axis=1)
+y = health_status
+ 
+# Split into training and testing
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-class classification model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(3, activation='softmax')  # 3 ocean health classes
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate performance
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Ocean Health Monitoring Accuracy: {acc:.4f}")
+ 
+# Predict for 5 ocean regions
+preds = np.argmax(model.predict(X_test[:5]), axis=1)
+health_map = {0: "✅ Healthy", 1: "⚠️ Moderate Risk", 2: "🚨 Critical Condition"}
+ 
+for i in range(5):
+    print(f"Region {i+1}: Predicted = {health_map[preds[i]]}, Actual = {health_map[y_test[i]]}")
+✅ Use Cases:
+
+Satellite + buoy sensor fusion
+
+Marine conservation dashboards
+
+Early warning for coral bleaching, red tides, or low-oxygen zones
+
+
+
+Project 861: Pollution Source Identification
+Description
+Identifying the source of pollution is critical for effective environmental management. This project simulates environmental sensor data (e.g., air, water, or soil readings) from multiple zones and builds a multi-class classification model to predict the type of pollution source (e.g., Industrial, Agricultural, Urban Runoff, Natural).
+
+Python Implementation with Comments (Pollution Source Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate environmental readings
+np.random.seed(42)
+n_samples = 1000
+ 
+# Features: nitrate level, phosphate level, heavy metals, turbidity, BOD (biochemical oxygen demand)
+nitrate = np.random.normal(5, 2, n_samples)            # mg/L
+phosphate = np.random.normal(0.5, 0.3, n_samples)      # mg/L
+heavy_metals = np.random.normal(0.05, 0.03, n_samples) # mg/L
+turbidity = np.random.normal(20, 10, n_samples)        # NTU
+bod = np.random.normal(3, 1.5, n_samples)              # mg/L
+ 
+# Labels: 0 = Industrial, 1 = Agricultural, 2 = Urban Runoff, 3 = Natural
+source_type = np.where(
+    (heavy_metals > 0.08), 0,  # Industrial
+    np.where((nitrate > 7) & (phosphate > 0.7), 1,  # Agricultural
+    np.where((turbidity > 25) & (bod > 4), 2, 3))   # Urban or Natural
+)
+ 
+# Combine features
+X = np.stack([nitrate, phosphate, heavy_metals, turbidity, bod], axis=1)
+y = source_type
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-class classification model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(4, activation='softmax')  # 4 pollution sources
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate the model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Pollution Source Identification Accuracy: {acc:.4f}")
+ 
+# Predict for 5 environmental samples
+preds = np.argmax(model.predict(X_test[:5]), axis=1)
+source_map = {
+    0: "🏭 Industrial",
+    1: "🌾 Agricultural",
+    2: "🏙️ Urban Runoff",
+    3: "🌿 Natural"
+}
+ 
+for i in range(5):
+    print(f"Sample {i+1}: Predicted = {source_map[preds[i]]}, Actual = {source_map[y_test[i]]}")
+✅ This model supports:
+
+Environmental audit systems
+
+Government pollution tracking
+
+Smart sensor grids across rivers, lakes, or air quality zones
+
+
+
+Project 862: Waste Management Optimization
+Description
+Optimizing waste collection routes and bin servicing helps reduce fuel costs, emissions, and overflow incidents. In this project, we simulate data from smart waste bins and build a regression model to predict optimal pickup priority, helping schedule efficient waste collection.
+
+Python Implementation with Comments (Pickup Priority Prediction Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate smart bin sensor data
+np.random.seed(42)
+n_samples = 1000
+ 
+fill_level = np.random.uniform(0, 1, n_samples)             # 0 (empty) to 1 (full)
+last_collected_days = np.random.randint(1, 10, n_samples)   # days
+bin_location_density = np.random.normal(50, 20, n_samples)  # people/km²
+organic_ratio = np.random.uniform(0, 1, n_samples)          # % organic waste
+temperature = np.random.normal(30, 5, n_samples)            # °C (affects odor)
+ 
+# Target: pickup priority score (0 to 1) based on fill, time, population, and organic % in heat
+priority_score = (
+    0.4 * fill_level +
+    0.3 * (last_collected_days / 10) +
+    0.1 * (bin_location_density / 100) +
+    0.1 * organic_ratio * (temperature / 40) +
+    np.random.normal(0, 0.05, n_samples)
+)
+ 
+priority_score = np.clip(priority_score, 0, 1)
+ 
+# Combine features
+X = np.stack([fill_level, last_collected_days, bin_location_density, organic_ratio, temperature], axis=1)
+y = priority_score
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build regression model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # Predict pickup priority (0–1)
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Waste Pickup Priority Prediction MAE: {mae:.2f}")
+ 
+# Predict for a few bins
+preds = model.predict(X_test[:5]).flatten()
+for i in range(5):
+    print(f"Bin {i+1}: Pickup Priority Score = {preds[i]:.2f} (Actual: {y_test[i]:.2f})")
+✅ This model can be integrated with:
+
+Smart bin networks in cities
+
+Routing algorithms for waste trucks
+
+Municipal dashboards for sustainability planning
+
+
+
+Project 863: Recycling Sorting System
+Description
+A recycling sorting system uses computer vision to classify waste materials (plastic, metal, paper, organic, etc.) for automated or assisted recycling. In this project, we simulate image inputs and build a CNN-based multi-class classifier to predict the waste category of an item from its visual features.
+
+Python Implementation with Comments (Waste Image Classifier – CNN)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate image data (replace with real dataset like TrashNet for production)
+np.random.seed(42)
+n_samples = 1000
+image_size = 64
+n_classes = 4  # 0: Plastic, 1: Metal, 2: Paper, 3: Organic
+ 
+# Create dummy image data for each class
+def generate_waste_images(label, pattern_shift):
+    images = np.random.normal(loc=0.3 + pattern_shift, scale=0.1, size=(n_samples // n_classes, image_size, image_size, 1))
+    labels = [label] * (n_samples // n_classes)
+    return images, labels
+ 
+plastic_imgs, plastic_labels = generate_waste_images(0, 0.05)
+metal_imgs, metal_labels = generate_waste_images(1, 0.15)
+paper_imgs, paper_labels = generate_waste_images(2, 0.25)
+organic_imgs, organic_labels = generate_waste_images(3, -0.05)
+ 
+# Combine dataset
+X = np.vstack([plastic_imgs, metal_imgs, paper_imgs, organic_imgs])
+y = np.array(plastic_labels + metal_labels + paper_labels + organic_labels)
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build CNN model for classification
+model = models.Sequential([
+    layers.Input(shape=(image_size, image_size, 1)),
+    layers.Conv2D(32, 3, activation='relu'),
+    layers.MaxPooling2D(),
+    layers.Conv2D(64, 3, activation='relu'),
+    layers.MaxPooling2D(),
+    layers.Flatten(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(n_classes, activation='softmax')  # Output: 4 categories
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=5, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Recycling Sorting Accuracy: {acc:.4f}")
+ 
+# Predict and show class for a few items
+preds = np.argmax(model.predict(X_test[:5]), axis=1)
+class_map = {0: "♳ Plastic", 1: "♴ Metal", 2: "📄 Paper", 3: "🍎 Organic"}
+ 
+for i in range(5):
+    print(f"Item {i+1}: Predicted = {class_map[preds[i]]}, Actual = {class_map[y_test[i]]}")
+✅ This model can be deployed in:
+
+Smart sorting bins
+
+Recycling plant conveyor systems
+
+Educational tools to teach waste segregation
+
+
+
+Project 864: Carbon Footprint Calculation
+Description
+Carbon footprint calculators help estimate CO₂ emissions from daily activities—like transportation, energy usage, and diet. In this project, we simulate lifestyle data and build a regression model to estimate a user’s monthly carbon footprint in kilograms of CO₂ equivalent (kg CO₂e).
+
+Python Implementation with Comments (Carbon Footprint Estimator – Regression)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate user lifestyle inputs
+np.random.seed(42)
+n_samples = 1000
+ 
+miles_driven = np.random.normal(800, 200, n_samples)            # km/month
+electricity_usage = np.random.normal(300, 100, n_samples)       # kWh/month
+meat_consumption = np.random.normal(15, 5, n_samples)           # kg/month
+flights = np.random.poisson(0.5, n_samples)                     # flights/month
+recycling_rate = np.random.uniform(0, 1, n_samples)             # 0–1 scale
+ 
+# Simulated carbon footprint in kg CO₂e (simple formula with noise)
+carbon_footprint = (
+    0.2 * miles_driven +
+    0.5 * electricity_usage +
+    27 * meat_consumption +
+    250 * flights -
+    100 * recycling_rate +
+    np.random.normal(0, 50, n_samples)
+)
+ 
+# Combine features and targets
+X = np.stack([miles_driven, electricity_usage, meat_consumption, flights, recycling_rate], axis=1)
+y = carbon_footprint
+ 
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build regression model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # Output: carbon footprint in kg CO₂e
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Carbon Footprint Estimation MAE: {mae:.2f} kg CO₂e")
+ 
+# Predict for 5 users
+preds = model.predict(X_test[:5]).flatten()
+for i in range(5):
+    print(f"User {i+1}: Predicted Carbon Footprint = {preds[i]:.1f} kg CO₂e (Actual: {y_test[i]:.1f})")
+✅ This model can power:
+
+Carbon tracking apps
+
+Sustainability reports for individuals or companies
+
+Interactive “green living” dashboards
+
+
+
+Project 865: Energy Efficiency Recommendation System
+Description
+This system analyzes household energy usage patterns and recommends ways to save electricity, reduce bills, and lower environmental impact. In this project, we simulate energy consumption data and build a multi-class classification model to recommend an energy-saving action (e.g., switch to LED, improve insulation, upgrade appliances, etc.).
+
+Python Implementation with Comments (Energy Efficiency Recommender – Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate household data
+np.random.seed(42)
+n_samples = 1000
+ 
+monthly_kwh = np.random.normal(400, 100, n_samples)          # energy usage in kWh/month
+avg_temp = np.random.normal(22, 5, n_samples)                # average indoor temperature
+appliance_age = np.random.normal(8, 3, n_samples)            # years
+lighting_ratio = np.random.uniform(0, 1, n_samples)          # % LED bulbs
+insulation_score = np.random.uniform(0, 1, n_samples)        # 0 (poor) to 1 (excellent)
+ 
+# Recommendations:
+# 0 = Switch to LED
+# 1 = Improve Insulation
+# 2 = Upgrade Appliances
+# 3 = Use Smart Thermostat
+ 
+recommendation = np.where(
+    lighting_ratio < 0.3, 0,
+    np.where(insulation_score < 0.4, 1,
+    np.where(appliance_age > 10, 2, 3))
+)
+ 
+# Stack features
+X = np.stack([monthly_kwh, avg_temp, appliance_age, lighting_ratio, insulation_score], axis=1)
+y = recommendation
+ 
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-class classifier
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(4, activation='softmax')  # 4 recommendations
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate performance
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Energy Efficiency Recommender Accuracy: {acc:.4f}")
+ 
+# Predict for 5 households
+preds = np.argmax(model.predict(X_test[:5]), axis=1)
+rec_map = {
+    0: "💡 Switch to LED",
+    1: "🏠 Improve Insulation",
+    2: "🔌 Upgrade Appliances",
+    3: "🌡️ Use Smart Thermostat"
+}
+ 
+for i in range(5):
+    print(f"Home {i+1}: Recommended = {rec_map[preds[i]]}, Actual = {rec_map[y_test[i]]}")
+✅ Great for:
+
+Home energy audit apps
+
+Smart home dashboards
+
+Sustainability-focused utility tools
+
+
+
+Project 866: Sustainable Transportation Planning
+Description
+Sustainable transportation planning involves analyzing commuting patterns, emissions, and access to public transport to promote greener alternatives. In this project, we simulate transportation data and build a multi-class classification model to recommend a sustainable commute option (e.g., Bike, Bus, EV Car, Walk).
+
+Python Implementation with Comments (Sustainable Commute Recommender – Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate commuter profiles
+np.random.seed(42)
+n_samples = 1000
+ 
+commute_distance = np.random.normal(10, 5, n_samples)        # km
+emissions_per_km = np.random.normal(0.15, 0.05, n_samples)   # kg CO2/km
+public_transport_access = np.random.uniform(0, 1, n_samples) # 0–1 scale
+bike_lane_score = np.random.uniform(0, 1, n_samples)         # 0–1 scale
+walking_feasibility = np.random.uniform(0, 1, n_samples)     # 0–1 scale
+ 
+# Recommendations:
+# 0 = 🚲 Bike
+# 1 = 🚌 Public Transit
+# 2 = 🚗 Switch to EV
+# 3 = 🚶 Walk
+ 
+recommendation = np.where(
+    (commute_distance < 5) & (walking_feasibility > 0.7), 3,
+    np.where((commute_distance < 8) & (bike_lane_score > 0.6), 0,
+    np.where((public_transport_access > 0.5), 1, 2))
+)
+ 
+# Feature matrix
+X = np.stack([
+    commute_distance,
+    emissions_per_km,
+    public_transport_access,
+    bike_lane_score,
+    walking_feasibility
+], axis=1)
+ 
+y = recommendation
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(4, activation='softmax')  # 4 commute recommendations
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Sustainable Commute Recommender Accuracy: {acc:.4f}")
+ 
+# Predict commute suggestions
+preds = np.argmax(model.predict(X_test[:5]), axis=1)
+rec_map = {
+    0: "🚲 Bike",
+    1: "🚌 Public Transit",
+    2: "🚗 Switch to EV",
+    3: "🚶 Walk"
+}
+ 
+for i in range(5):
+    print(f"Commuter {i+1}: Suggested = {rec_map[preds[i]]}, Actual = {rec_map[y_test[i]]}")
+✅ Useful for:
+
+Urban mobility planning
+
+Green commuting apps
+
+Sustainable workplace travel dashboards
+
+
+
+Project 867: Traffic Optimization for Emissions Reduction
+Description
+Traffic congestion increases fuel usage and air pollution. In this project, we simulate traffic flow data and build a regression model to estimate emissions levels and identify optimal traffic signal timing or rerouting recommendations for reducing carbon output.
+
+Python Implementation with Comments (Traffic Emission Predictor – Regression Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate traffic sensor data
+np.random.seed(42)
+n_samples = 1000
+ 
+vehicle_count = np.random.poisson(50, n_samples)              # vehicles per intersection per cycle
+avg_speed = np.random.normal(30, 10, n_samples)               # km/h
+idle_time = np.random.normal(20, 10, n_samples)               # seconds
+signal_cycle_time = np.random.normal(90, 20, n_samples)       # seconds
+intersection_density = np.random.normal(5, 2, n_samples)      # intersections/km²
+ 
+# Simulate emissions (kg CO₂ per intersection per hour)
+emissions = (
+    0.2 * vehicle_count +
+    0.5 * (signal_cycle_time / 90) +
+    0.3 * (idle_time / 60) -
+    0.1 * avg_speed +
+    0.2 * intersection_density +
+    np.random.normal(0, 1, n_samples)
+)
+ 
+# Feature matrix
+X = np.stack([vehicle_count, avg_speed, idle_time, signal_cycle_time, intersection_density], axis=1)
+y = emissions
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build regression model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # Output: CO₂ emissions
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Traffic Emissions Prediction MAE: {mae:.2f} kg CO₂/hr")
+ 
+# Predict for 5 intersections
+preds = model.predict(X_test[:5]).flatten()
+for i in range(5):
+    print(f"Intersection {i+1}: Predicted Emissions = {preds[i]:.2f} kg CO₂/hr (Actual: {y_test[i]:.2f})")
+✅ This model powers:
+
+Smart traffic signal timing
+
+Urban carbon footprint analysis
+
+Green navigation systems for vehicles and public buses
+
+
+
+Project 868: Urban Planning Assistance
+Description
+Urban planning assistance tools help cities make data-driven decisions on zoning, infrastructure, and amenities. In this project, we simulate demographic and spatial features to build a multi-output regression model that predicts population density, infrastructure need, and green space requirement in city zones.
+
+Python Implementation with Comments (Urban Planning Model – Multi-Output Regression)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate urban zone data
+np.random.seed(42)
+n_samples = 1000
+ 
+avg_income = np.random.normal(30000, 8000, n_samples)          # USD
+distance_to_center = np.random.normal(8, 4, n_samples)         # km
+current_density = np.random.normal(1000, 300, n_samples)       # people/km²
+public_transport_score = np.random.uniform(0, 1, n_samples)    # 0–1
+school_access_score = np.random.uniform(0, 1, n_samples)       # 0–1
+ 
+# Simulated urban outputs:
+# 1. Projected population density (people/km²)
+# 2. Infrastructure need index (0–100)
+# 3. Recommended green space (hectares)
+pop_density = current_density + np.random.normal(50, 30, n_samples)
+infra_need = (1 - public_transport_score) * 50 + (1 - school_access_score) * 50 + np.random.normal(0, 5, n_samples)
+green_space = np.maximum(10 - (current_density / 200) + (distance_to_center / 2), 0) + np.random.normal(0, 1, n_samples)
+ 
+# Stack features and labels
+X = np.stack([avg_income, distance_to_center, current_density, public_transport_score, school_access_score], axis=1)
+y = np.stack([pop_density, infra_need, green_space], axis=1)
+ 
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-output regression model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(3)  # 3 outputs: population, infra, green space
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Urban Planning Model MAE (Pop, Infra, Green): {mae}")
+ 
+# Predict for 5 urban zones
+preds = model.predict(X_test[:5])
+for i in range(5):
+    print(f"\nZone {i+1} Predictions:")
+    print(f"  🏙️ Projected Density: {preds[i][0]:.1f} ppl/km²")
+    print(f"  🏗️ Infrastructure Need: {preds[i][1]:.1f}")
+    print(f"  🌳 Green Space Required: {preds[i][2]:.1f} ha")
+✅ This tool can support:
+
+City master plans
+
+Data-driven zoning proposals
+
+Green infrastructure and sustainability mapping
+
+
+
+Project 869: Green Building Optimization
+Description
+Green building optimization focuses on reducing energy consumption, water usage, and emissions in architecture. In this project, we simulate building features and build a multi-output regression model to estimate annual energy usage, water consumption, and carbon emissions, helping identify efficiency improvements.
+
+Python Implementation with Comments (Green Building Performance Estimator)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate building parameters
+np.random.seed(42)
+n_samples = 1000
+ 
+floor_area = np.random.normal(250, 75, n_samples)             # m²
+window_ratio = np.random.uniform(0.1, 0.6, n_samples)         # % of window area
+insulation_score = np.random.uniform(0, 1, n_samples)         # 0–1
+occupancy_rate = np.random.normal(0.75, 0.15, n_samples)      # 0–1
+appliance_efficiency = np.random.uniform(0.5, 1, n_samples)   # 0.5–1.0
+ 
+# Outputs to predict:
+# - Annual energy use (kWh)
+# - Water consumption (liters)
+# - Carbon emissions (kg CO₂e)
+ 
+energy_use = (
+    floor_area * 20 * (1 - insulation_score) +
+    5000 * (1 - appliance_efficiency) +
+    np.random.normal(0, 500, n_samples)
+)
+ 
+water_use = (
+    floor_area * 10 * occupancy_rate +
+    np.random.normal(0, 200, n_samples)
+)
+ 
+carbon_emissions = energy_use * 0.45 + water_use * 0.002 + np.random.normal(0, 50, n_samples)
+ 
+# Feature matrix and target outputs
+X = np.stack([floor_area, window_ratio, insulation_score, occupancy_rate, appliance_efficiency], axis=1)
+y = np.stack([energy_use, water_use, carbon_emissions], axis=1)
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-output regression model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(3)  # Outputs: energy, water, emissions
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Green Building Model MAE (kWh, L, CO₂e): {mae}")
+ 
+# Predict for 5 buildings
+preds = model.predict(X_test[:5])
+for i in range(5):
+    print(f"\nBuilding {i+1}:")
+    print(f"  ⚡ Energy Use: {preds[i][0]:.0f} kWh")
+    print(f"  💧 Water Use: {preds[i][1]:.0f} L")
+    print(f"  🌍 CO₂ Emissions: {preds[i][2]:.0f} kg CO₂e")
+✅ This model supports:
+
+LEED/BREEAM score simulations
+
+Architectural design feedback loops
+
+Carbon-neutral building initiatives
+
+
+
+Project 870: Water Resource Management
+Description
+Water resource management systems forecast demand and monitor usage to ensure efficient distribution across urban, agricultural, and industrial sectors. In this project, we simulate sector-wise water usage data and build a multi-output regression model to predict future water demand for domestic, agricultural, and industrial use.
+
+Python Implementation with Comments (Water Demand Forecasting Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate region-level resource data
+np.random.seed(42)
+n_samples = 1000
+ 
+population = np.random.normal(100000, 20000, n_samples)         # people
+avg_temp = np.random.normal(30, 5, n_samples)                   # °C
+crop_area = np.random.normal(1500, 500, n_samples)              # hectares
+industry_units = np.random.normal(200, 50, n_samples)           # factories/plants
+precipitation = np.random.normal(80, 20, n_samples)             # mm/month
+ 
+# Targets: Water demand by sector (liters/day)
+domestic_use = population * 150 + np.random.normal(0, 50000, n_samples)       # 150 L/person/day
+agricultural_use = crop_area * 5000 - precipitation * crop_area * 10          # adjust by rain
+industrial_use = industry_units * 20000 + avg_temp * 500
+ 
+# Feature matrix and targets
+X = np.stack([population, avg_temp, crop_area, industry_units, precipitation], axis=1)
+y = np.stack([domestic_use, agricultural_use, industrial_use], axis=1)
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-output regression model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(3)  # Output: domestic, agri, industrial
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Water Demand Forecast MAE: {mae}")
+ 
+# Predict for 5 regions
+preds = model.predict(X_test[:5])
+for i in range(5):
+    print(f"\nRegion {i+1} Water Demand Forecast:")
+    print(f"  🏠 Domestic: {preds[i][0]:,.0f} L/day")
+    print(f"  🌾 Agricultural: {preds[i][1]:,.0f} L/day")
+    print(f"  🏭 Industrial: {preds[i][2]:,.0f} L/day")
+✅ This model is useful for:
+
+Water utilities and supply networks
+
+Agricultural planning tools
+
+Drought resilience dashboards
+
+
+
+Project 871: Public Health Monitoring System
+Description
+A public health monitoring system detects trends in disease symptoms, environmental risks, and healthcare usage to support early response and resource planning. In this project, we simulate demographic and health signals and build a multi-output classification model to predict health risk categories (e.g., respiratory, waterborne, or chronic risks) across different zones.
+
+Python Implementation with Comments (Health Risk Predictor – Multi-Label Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate region-wise health and environment data
+np.random.seed(42)
+n_samples = 1000
+ 
+air_quality_index = np.random.normal(120, 40, n_samples)       # AQI
+water_contamination_index = np.random.normal(0.3, 0.2, n_samples)  # 0–1 scale
+population_density = np.random.normal(3000, 1000, n_samples)   # people/km²
+elderly_ratio = np.random.normal(0.12, 0.05, n_samples)        # % elderly
+healthcare_access_score = np.random.uniform(0, 1, n_samples)   # 0–1
+ 
+# Multi-label targets:
+# - Respiratory risk (high AQI + elderly + dense pop)
+# - Waterborne disease risk (contaminated water + low healthcare)
+# - Chronic disease risk (high elderly + low access)
+ 
+resp_risk = ((air_quality_index > 150) & (elderly_ratio > 0.1) & (population_density > 3500)).astype(int)
+water_risk = ((water_contamination_index > 0.4) & (healthcare_access_score < 0.5)).astype(int)
+chronic_risk = ((elderly_ratio > 0.15) & (healthcare_access_score < 0.4)).astype(int)
+ 
+# Features and labels
+X = np.stack([air_quality_index, water_contamination_index, population_density, elderly_ratio, healthcare_access_score], axis=1)
+y = np.stack([resp_risk, water_risk, chronic_risk], axis=1)
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-label classification model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(3, activation='sigmoid')  # 3 health risk outputs
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Public Health Monitoring Accuracy: {acc:.4f}")
+ 
+# Predict risk for 5 regions
+preds = (model.predict(X_test[:5]) > 0.5).astype(int)
+risk_labels = ['🫁 Respiratory', '💧 Waterborne', '❤️ Chronic']
+ 
+for i in range(5):
+    print(f"\nRegion {i+1} Risks:")
+    for j in range(3):
+        print(f"  {risk_labels[j]}: {'⚠️ Risk' if preds[i][j] else '✅ Safe'} (Actual: {'⚠️' if y_test[i][j] else '✅'})")
+✅ This model supports:
+
+City-level health dashboards
+
+Mobile disease surveillance
+
+Proactive public health response systems
+
+
+
+Project 872: Disease Outbreak Prediction
+Description
+Early outbreak prediction helps public health officials respond before widespread transmission occurs. In this project, we simulate environmental, mobility, and health indicators to build a binary classification model that predicts the likelihood of a disease outbreak in a given region and time window.
+
+Python Implementation with Comments (Outbreak Risk Predictor – Binary Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate region-wise features
+np.random.seed(42)
+n_samples = 1000
+ 
+recent_case_rate = np.random.normal(20, 10, n_samples)         # cases per 10,000 people
+population_density = np.random.normal(3000, 1000, n_samples)   # people/km²
+mobility_index = np.random.normal(1.2, 0.4, n_samples)         # avg contacts/person/day
+vaccination_rate = np.random.uniform(0, 1, n_samples)          # 0–1 scale
+temp_anomaly = np.random.normal(0.5, 0.3, n_samples)           # °C deviation from normal
+ 
+# Label: 1 = outbreak if high case rate + mobility + low vax + high density or temperature anomaly
+outbreak = (
+    (recent_case_rate > 25) &
+    (mobility_index > 1.5) &
+    (vaccination_rate < 0.4) &
+    ((population_density > 3500) | (temp_anomaly > 0.6))
+).astype(int)
+ 
+# Stack features
+X = np.stack([recent_case_rate, population_density, mobility_index, vaccination_rate, temp_anomaly], axis=1)
+y = outbreak
+ 
+# Split into train/test
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build binary classifier
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # Output: outbreak risk
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Disease Outbreak Prediction Accuracy: {acc:.4f}")
+ 
+# Predict risk for 5 regions
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Region {i+1}: {'🚨 Outbreak Likely' if preds[i] else '✅ No Outbreak'} (Actual: {'🚨' if y_test[i] else '✅'})")
+✅ Applications include:
+
+Early warning dashboards
+
+NGO/public health planning
+
+Epidemic modeling & simulation platforms
+
+
+
+Project 873: Vaccine Distribution Optimization
+Description
+Efficient vaccine distribution is crucial during pandemics or routine immunization campaigns. In this project, we simulate health, logistics, and demographic data and build a regression model to predict the optimal daily vaccine allocation per region, balancing demand, risk, and cold-chain capacity.
+
+Python Implementation with Comments (Vaccine Allocation Predictor – Regression Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate region-level data
+np.random.seed(42)
+n_samples = 1000
+ 
+population = np.random.normal(100000, 20000, n_samples)            # people
+infection_rate = np.random.normal(0.02, 0.01, n_samples)           # cases per capita
+elderly_ratio = np.random.normal(0.15, 0.05, n_samples)            # % elderly
+logistics_score = np.random.uniform(0, 1, n_samples)               # 0–1 (1 = excellent)
+cold_chain_capacity = np.random.normal(5000, 1000, n_samples)      # vaccines/day
+ 
+# Target: vaccine allocation needed per day
+vaccine_demand = (
+    population * infection_rate * 0.4 +                     # 40% target coverage of infected
+    elderly_ratio * population * 0.3 +                      # prioritize elderly
+    cold_chain_capacity * 0.6 +                             # logistics-capable delivery
+    np.random.normal(0, 500, n_samples)                     # some randomness
+)
+ 
+# Feature matrix and labels
+X = np.stack([
+    population,
+    infection_rate,
+    elderly_ratio,
+    logistics_score,
+    cold_chain_capacity
+], axis=1)
+y = vaccine_demand
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build regression model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # Output: vaccine allocation per day
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate performance
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Vaccine Distribution Model MAE: {mae:.0f} doses/day")
+ 
+# Predict for 5 regions
+preds = model.predict(X_test[:5]).flatten()
+for i in range(5):
+    print(f"Region {i+1}: Predicted Allocation = {preds[i]:,.0f} doses/day (Actual: {y_test[i]:,.0f})")
+✅ Practical uses:
+
+Vaccine logistics planning
+
+Cold-chain optimization
+
+Emergency health response simulation tools
+
+
+
+Project 874: Food Security Monitoring
+Description
+Food security monitoring helps identify regions at risk of hunger or malnutrition due to environmental, economic, or supply factors. In this project, we simulate socioeconomic and environmental indicators and build a binary classification model to flag regions as food secure or insecure.
+
+Python Implementation with Comments (Food Security Classifier – Binary Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate regional data
+np.random.seed(42)
+n_samples = 1000
+ 
+crop_yield = np.random.normal(2.5, 0.8, n_samples)               # tons/hectare
+rainfall = np.random.normal(100, 30, n_samples)                  # mm/month
+market_access_score = np.random.uniform(0, 1, n_samples)         # 0–1
+poverty_rate = np.random.normal(0.3, 0.1, n_samples)             # 0–1
+food_price_index = np.random.normal(120, 20, n_samples)          # relative price index
+ 
+# Label: 1 = food insecure if low yield, high poverty, poor access
+food_insecure = (
+    (crop_yield < 2.0) &
+    (poverty_rate > 0.35) &
+    (market_access_score < 0.4)
+).astype(int)
+ 
+# Combine features
+X = np.stack([
+    crop_yield,
+    rainfall,
+    market_access_score,
+    poverty_rate,
+    food_price_index
+], axis=1)
+y = food_insecure
+ 
+# Split into training/testing
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build binary classification model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1, activation='sigmoid')  # 1 = food insecure
+])
+ 
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Food Security Classifier Accuracy: {acc:.4f}")
+ 
+# Predict for 5 regions
+preds = (model.predict(X_test[:5]) > 0.5).astype(int).flatten()
+for i in range(5):
+    print(f"Region {i+1}: {'⚠️ Food Insecure' if preds[i] else '✅ Food Secure'} (Actual: {'⚠️' if y_test[i] else '✅'})")
+✅ Use Cases:
+
+UN food security dashboards
+
+Early warning systems
+
+Agricultural policy planning
+
+
+
+Project 875: Poverty Mapping System
+Description
+A poverty mapping system helps identify underdeveloped or at-risk regions based on socioeconomic indicators. In this project, we simulate regional data and build a regression model to estimate the poverty rate of each area, which can be visualized in geospatial dashboards for resource allocation and policy design.
+
+Python Implementation with Comments (Poverty Rate Predictor – Regression Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate regional development data
+np.random.seed(42)
+n_samples = 1000
+ 
+education_index = np.random.uniform(0, 1, n_samples)            # 0–1 (higher is better)
+employment_rate = np.random.normal(0.65, 0.1, n_samples)        # %
+access_to_services = np.random.uniform(0, 1, n_samples)         # 0–1
+infrastructure_score = np.random.uniform(0, 1, n_samples)       # 0–1
+healthcare_access = np.random.uniform(0, 1, n_samples)          # 0–1
+ 
+# Target variable: poverty rate (0 to 1)
+poverty_rate = (
+    1 - education_index * 0.3 -
+    employment_rate * 0.4 -
+    access_to_services * 0.1 -
+    infrastructure_score * 0.1 -
+    healthcare_access * 0.1 +
+    np.random.normal(0, 0.05, n_samples)
+)
+poverty_rate = np.clip(poverty_rate, 0, 1)
+ 
+# Combine features
+X = np.stack([
+    education_index,
+    employment_rate,
+    access_to_services,
+    infrastructure_score,
+    healthcare_access
+], axis=1)
+y = poverty_rate
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build regression model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # Output: predicted poverty rate (0–1)
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate performance
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Poverty Rate Prediction MAE: {mae:.4f}")
+ 
+# Predict for 5 sample regions
+preds = model.predict(X_test[:5]).flatten()
+for i in range(5):
+    print(f"Region {i+1}: Predicted Poverty Rate = {preds[i]:.2f} (Actual: {y_test[i]:.2f})")
+✅ Applications include:
+
+Government welfare planning
+
+Nonprofit development targeting
+
+Global inequality dashboards
+
+
+
+Project 876: Economic Development Indicators
+Description
+Tracking economic development helps evaluate regional progress and direct investments effectively. In this project, we simulate macro- and micro-economic features and build a multi-output regression model to predict key development indicators: GDP per capita, unemployment rate, and human development index (HDI).
+
+Python Implementation with Comments (Development Indicator Predictor – Multi-Output Regression)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate economic and infrastructure data
+np.random.seed(42)
+n_samples = 1000
+ 
+education_index = np.random.uniform(0.4, 1.0, n_samples)
+internet_penetration = np.random.normal(0.6, 0.15, n_samples)     # 0–1 scale
+industrial_index = np.random.normal(0.5, 0.2, n_samples)          # 0–1
+infrastructure_score = np.random.uniform(0.3, 1.0, n_samples)
+urbanization_rate = np.random.normal(0.65, 0.1, n_samples)        # 0–1
+ 
+# Simulate outputs:
+# GDP per capita (USD), Unemployment rate (%), HDI (0–1)
+gdp_per_capita = 3000 + 10000 * education_index + 5000 * industrial_index + np.random.normal(0, 500, n_samples)
+unemployment_rate = 0.3 - 0.1 * education_index - 0.05 * internet_penetration + np.random.normal(0, 0.02, n_samples)
+unemployment_rate = np.clip(unemployment_rate, 0, 1)
+hdi = 0.4 * education_index + 0.2 * internet_penetration + 0.2 * infrastructure_score + 0.2 * urbanization_rate + np.random.normal(0, 0.02, n_samples)
+hdi = np.clip(hdi, 0, 1)
+ 
+# Feature matrix and labels
+X = np.stack([education_index, internet_penetration, industrial_index, infrastructure_score, urbanization_rate], axis=1)
+y = np.stack([gdp_per_capita, unemployment_rate, hdi], axis=1)
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-output regression model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(3)  # Outputs: GDP per capita, Unemployment, HDI
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Development Indicator Prediction MAE: {mae}")
+ 
+# Predict for 5 sample regions
+preds = model.predict(X_test[:5])
+for i in range(5):
+    print(f"\nRegion {i+1} Predictions:")
+    print(f"  💰 GDP per capita: ${preds[i][0]:,.0f}")
+    print(f"  📉 Unemployment rate: {preds[i][1]*100:.1f}%")
+    print(f"  📊 HDI: {preds[i][2]:.3f}")
+✅ Great for:
+
+National development dashboards
+
+Global competitiveness indexes
+
+Aid and investment planning tools
+
+
+
+Project 877: Education Resource Allocation
+Description
+Education resource allocation helps ensure that regions with the highest need receive adequate funding, teachers, and infrastructure. In this project, we simulate demographic, infrastructure, and performance data and build a regression model to predict the optimal resource allocation for schools (e.g., teacher-student ratio, funding, infrastructure improvements).
+
+Python Implementation with Comments (Education Resource Allocation – Regression Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate education-related data
+np.random.seed(42)
+n_samples = 1000
+ 
+student_population = np.random.normal(500, 150, n_samples)     # number of students
+teacher_population = np.random.normal(30, 10, n_samples)        # number of teachers
+school_funding = np.random.normal(1000000, 300000, n_samples)  # USD
+classroom_space = np.random.uniform(0.4, 1.0, n_samples)        # % of ideal space
+internet_access_score = np.random.uniform(0, 1, n_samples)     # 0–1 scale
+ 
+# Simulate resource allocation needs (funding per student, teacher-student ratio, infrastructure)
+teacher_student_ratio = teacher_population / student_population
+funding_per_student = school_funding / student_population
+classroom_adequacy = (classroom_space * 100) - 40  # how much classroom space deviates from ideal
+tech_infrastructure_need = (1 - internet_access_score) * 50  # scale of digital infrastructure improvement needed
+ 
+# Combine features
+X = np.stack([student_population, teacher_population, school_funding, classroom_space, internet_access_score], axis=1)
+y = np.stack([funding_per_student, teacher_student_ratio, classroom_adequacy, tech_infrastructure_need], axis=1)
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build regression model for resource allocation
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(4)  # 4 outputs: funding/student, teacher-student ratio, classroom adequacy, tech need
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate the model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Education Resource Allocation MAE: {mae:.2f}")
+ 
+# Predict for 5 sample schools
+preds = model.predict(X_test[:5])
+for i in range(5):
+    print(f"\nSchool {i+1} Resource Allocation:")
+    print(f"  💸 Funding per Student: ${preds[i][0]:,.2f}")
+    print(f"  👩‍🏫 Teacher-Student Ratio: {preds[i][1]:.2f}")
+    print(f"  🏫 Classroom Adequacy: {preds[i][2]:.2f}%")
+    print(f"  💻 Tech Infrastructure Need: {preds[i][3]:.2f}")
+✅ This model can be used for:
+
+Education funding optimization
+
+School improvement planning
+
+Government education policies
+
+
+
+Project 878: Student Performance Prediction
+Description
+Predicting student performance helps identify at-risk students and guide personalized interventions. In this project, we simulate academic and demographic data and build a regression model to predict student scores based on features such as study time, parental involvement, and school facilities.
+
+Python Implementation with Comments (Student Performance Prediction – Regression Model)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate student academic and demographic data
+np.random.seed(42)
+n_samples = 1000
+ 
+study_time = np.random.normal(4, 2, n_samples)                 # hours/week
+parental_involvement = np.random.uniform(0, 1, n_samples)     # 0–1 scale
+school_quality_score = np.random.uniform(0, 1, n_samples)     # 0–1 scale
+sleep_hours = np.random.normal(7, 1.5, n_samples)             # hours/day
+previous_grades = np.random.normal(75, 10, n_samples)         # percentage
+ 
+# Simulate student performance (final exam score)
+performance_score = (
+    0.4 * previous_grades +
+    0.3 * study_time * 10 +  # study time * weight
+    0.2 * parental_involvement * 20 +
+    0.1 * school_quality_score * 30 +
+    np.random.normal(0, 5, n_samples)  # noise
+)
+ 
+# Feature matrix and labels
+X = np.stack([study_time, parental_involvement, school_quality_score, sleep_hours, previous_grades], axis=1)
+y = performance_score
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build regression model for student performance prediction
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(1)  # Output: predicted score
+])
+ 
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=0)
+ 
+# Evaluate the model
+loss, mae = model.evaluate(X_test, y_test)
+print(f"✅ Student Performance Prediction MAE: {mae:.2f} points")
+ 
+# Predict for 5 students
+preds = model.predict(X_test[:5]).flatten()
+for i in range(5):
+    print(f"\nStudent {i+1}: Predicted Score = {preds[i]:.1f} (Actual: {y_test[i]:.1f})")
+✅ This model can be used for:
+
+Personalized student intervention systems
+
+Early identification of at-risk students
+
+School performance evaluation dashboards
+
+
+
+Project 879: Personalized Learning System
+Description
+A personalized learning system adapts to each student’s learning pace, strengths, and weaknesses. In this project, we simulate student interaction data and build a recommendation model to suggest learning resources (e.g., videos, quizzes, articles) based on individual student performance and preferences.
+
+Python Implementation with Comments (Personalized Learning Recommender – Multi-Class Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate student learning profile data
+np.random.seed(42)
+n_samples = 1000
+ 
+study_time = np.random.normal(5, 1.5, n_samples)                  # hours/week
+learning_style_score = np.random.uniform(0, 1, n_samples)         # 0–1 (visual, auditory, kinesthetic)
+previous_performance = np.random.normal(80, 10, n_samples)        # score (0–100)
+engagement_score = np.random.uniform(0, 1, n_samples)             # 0–1 (activity participation)
+resource_preference = np.random.randint(0, 3, n_samples)          # 0=video, 1=quiz, 2=reading
+ 
+# Simulate recommended resource based on performance and preferences
+# 0 = Video, 1 = Quiz, 2 = Reading Article
+recommendation = np.where(
+    (previous_performance < 70) & (study_time < 4), 1,  # Recommend quiz for low performance and study time
+    np.where((learning_style_score > 0.5), 0,            # Recommend video for visual learners
+    np.where((engagement_score > 0.5), 2, 1)             # Recommend reading if engaged
+))
+ 
+# Feature matrix and labels
+X = np.stack([study_time, learning_style_score, previous_performance, engagement_score], axis=1)
+y = recommendation
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-class classification model
+model = models.Sequential([
+    layers.Input(shape=(4,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(3, activation='softmax')  # Output: 3 types of learning resources
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Personalized Learning System Accuracy: {acc:.4f}")
+ 
+# Predict for 5 students
+preds = np.argmax(model.predict(X_test[:5]), axis=1)
+resource_map = {0: "🎥 Video", 1: "📝 Quiz", 2: "📖 Reading Article"}
+ 
+for i in range(5):
+    print(f"Student {i+1}: Recommended Resource = {resource_map[preds[i]]}, Actual = {resource_map[y_test[i]]}")
+✅ This system supports:
+
+Adaptive learning platforms
+
+Automated curriculum planning
+
+Real-time student engagement tracking
+
+
+
+Project 880: Accessibility Tools for Disabilities
+Description
+Accessibility tools ensure that individuals with disabilities can navigate websites, mobile apps, or environments more easily. In this project, we simulate features for visual, auditory, and mobility disabilities and build a multi-modal recommendation system to suggest accessible tools (e.g., screen readers, voice assistants, text-to-speech) based on user needs.
+
+Python Implementation with Comments (Accessibility Tool Recommender – Multi-Class Classifier)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+ 
+# Simulate user profile data for accessibility needs
+np.random.seed(42)
+n_samples = 1000
+ 
+age = np.random.normal(35, 15, n_samples)                    # years
+disability_type = np.random.choice([0, 1, 2], n_samples)      # 0 = Visual, 1 = Auditory, 2 = Mobility
+tech_familiarity = np.random.uniform(0, 1, n_samples)         # 0–1 (low to high tech familiarity)
+screen_size = np.random.normal(5, 1.5, n_samples)             # inches (mobile screen size)
+internet_speed = np.random.uniform(5, 100, n_samples)         # Mbps
+ 
+# Simulated accessibility tools
+# 0 = Screen Reader, 1 = Voice Assistant, 2 = Text-to-Speech
+tool_recommendation = np.where(
+    (disability_type == 0) & (screen_size < 6), 0,   # Screen reader for visually impaired with small screen
+    np.where((disability_type == 1) & (internet_speed > 10), 1,  # Voice assistant for auditory with fast internet
+    np.where((disability_type == 2) & (tech_familiarity > 0.6), 2, 1)  # Text-to-speech for mobility, or voice assistant for others
+)
+ 
+# Feature matrix and labels
+X = np.stack([age, disability_type, tech_familiarity, screen_size, internet_speed], axis=1)
+y = tool_recommendation
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# Build multi-class classification model
+model = models.Sequential([
+    layers.Input(shape=(5,)),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
+    layers.Dense(3, activation='softmax')  # 3 tools: Screen Reader, Voice Assistant, Text-to-Speech
+])
+ 
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=15, batch_size=32, verbose=0)
+ 
+# Evaluate model
+loss, acc = model.evaluate(X_test, y_test)
+print(f"✅ Accessibility Tool Recommendation Accuracy: {acc:.4f}")
+ 
+# Predict for 5 users
+preds = np.argmax(model.predict(X_test[:5]), axis=1)
+tool_map = {0: "Screen Reader", 1: "Voice Assistant", 2: "Text-to-Speech"}
+ 
+for i in range(5):
+    print(f"User {i+1}: Recommended Tool = {tool_map[preds[i]]}, Actual = {tool_map[y_test[i]]}")
+✅ This model supports:
+
+Personalized assistive technology recommendations
+
+Disability-inclusive tech solutions
+
+Accessible web and app design
