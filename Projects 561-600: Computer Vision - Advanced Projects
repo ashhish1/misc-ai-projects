@@ -1,0 +1,2093 @@
+
+Project 561: Face Recognition with One-Shot Learning
+Description:
+One-shot learning allows a model to learn to recognize a concept (e.g., a person’s face) from a single example. In this project, we will implement face recognition using one-shot learning techniques with a pre-trained model like Siamese Networks or Matching Networks.
+
+🧪 Python Implementation (Face Recognition with One-Shot Learning using Siamese Networks)
+from keras.models import Model
+from keras.layers import Input, Conv2D, Lambda, Flatten, Dense
+import tensorflow as tf
+import numpy as np
+from tensorflow.keras import backend as K
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Siamese network architecture
+def initialize_base_network(input_shape):
+    input = Input(input_shape)
+    x = Conv2D(64, (10, 10), activation='relu')(input)
+    x = Flatten()(x)
+    x = Dense(128, activation='relu')(x)
+    return Model(input, x)
+ 
+# 2. Define the function to compute the distance between the embeddings
+def euclidean_distance(vects):
+    x, y = vects
+    return K.sqrt(K.sum(K.square(x - y), axis=1, keepdims=True))
+ 
+# 3. Define the input shape for the model
+input_shape = (105, 105, 3)
+ 
+# 4. Initialize the base network
+base_network = initialize_base_network(input_shape)
+ 
+# 5. Define the inputs
+input_a = Input(input_shape)
+input_b = Input(input_shape)
+ 
+# 6. Process the inputs using the base network
+processed_a = base_network(input_a)
+processed_b = base_network(input_b)
+ 
+# 7. Calculate the Euclidean distance between the embeddings
+distance = Lambda(euclidean_distance)([processed_a, processed_b])
+ 
+# 8. Define the final model
+model = Model(inputs=[input_a, input_b], outputs=distance)
+ 
+# 9. Compile the model
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+ 
+# 10. Example usage: Recognize faces with one shot
+# For simplicity, using dummy data (replace with actual face images)
+# Assume "image_a" and "image_b" are two images of faces
+image_a = np.random.rand(1, 105, 105, 3)
+image_b = np.random.rand(1, 105, 105, 3)
+ 
+# Predict the similarity
+similarity = model.predict([image_a, image_b])
+print(f"Similarity between the two faces: {similarity[0][0]:.4f}")
+Project 562: Few-shot Object Detection
+Description:
+Few-shot object detection involves detecting objects in images with very few labeled examples. This is a challenging problem in computer vision as most object detection models require a large amount of labeled data to perform well. In this project, we will explore techniques for few-shot learning in object detection, using models such as Meta-RCNN or Detection Transformers (DETR).
+
+🧪 Python Implementation (Few-shot Object Detection using Detectron2)
+import torch
+from detectron2.engine import DefaultPredictor
+from detectron2.config import get_cfg
+from detectron2 import model_zoo
+from detectron2.utils.visualizer import Visualizer
+from detectron2.data import MetadataCatalog
+import cv2
+ 
+# 1. Setup configuration for Detectron2
+cfg = get_cfg()
+cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # Set the score threshold for predictions
+cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml")
+cfg.MODEL.ROI_HEADS.NUM_CLASSES = 80  # Number of object classes in COCO
+ 
+# 2. Initialize the predictor
+predictor = DefaultPredictor(cfg)
+ 
+# 3. Load an image for object detection
+image_path = "path_to_image.jpg"  # Replace with an actual image path
+image = cv2.imread(image_path)
+ 
+# 4. Perform object detection on the image
+outputs = predictor(image)
+ 
+# 5. Visualize the results
+v = Visualizer(image[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
+v = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+result_image = v.get_image()[:, :, ::-1]
+ 
+# 6. Show the result
+cv2.imshow("Few-shot Object Detection", result_image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+Project 563: Zero-shot Image Classification
+Description:
+Zero-shot image classification allows a model to classify images into categories without having seen any labeled data from those categories during training. Instead, it uses a semantic understanding of the categories (e.g., word embeddings or descriptions). In this project, we will implement zero-shot image classification using pre-trained models like CLIP (Contrastive Language-Image Pretraining).
+
+🧪 Python Implementation (Zero-shot Image Classification using CLIP)
+from transformers import CLIPProcessor, CLIPModel
+import torch
+from PIL import Image
+ 
+# 1. Load pre-trained CLIP model and processor
+model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+ 
+# 2. Load the image to classify
+image = Image.open("path_to_image.jpg")  # Replace with an actual image path
+ 
+# 3. Define candidate labels for classification
+labels = ["a photo of a dog", "a photo of a cat", "a photo of a person"]
+ 
+# 4. Preprocess the image and the labels
+inputs = processor(text=labels, images=image, return_tensors="pt", padding=True)
+ 
+# 5. Perform zero-shot classification
+outputs = model(**inputs)
+logits_per_image = outputs.logits_per_image # this is the image-text similarity
+probs = logits_per_image.softmax(dim=1) # we can get the label probabilities
+ 
+# 6. Display the result
+label = labels[torch.argmax(probs)]
+print(f"Predicted label: {label} with confidence {100 * torch.max(probs).item():.2f}%")
+Project 564: Self-supervised Visual Representation Learning
+Description:
+Self-supervised learning in computer vision aims to learn useful representations of data without relying on labeled data. In this project, we will implement a self-supervised learning approach for visual representation learning, using models such as SimCLR or MoCo. These models learn representations by predicting context or augmentations of the input image without using labeled data.
+
+🧪 Python Implementation (Self-supervised Learning for Visual Representations using SimCLR)
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+from torchvision import datasets, models
+from torch.utils.data import DataLoader
+from torchvision.datasets import CIFAR10
+ 
+# 1. Define the SimCLR model (a simplified version)
+class SimCLR(nn.Module):
+    def __init__(self, base_model):
+        super(SimCLR, self).__init__()
+        self.base_model = base_model
+        self.fc = nn.Sequential(
+            nn.Linear(2048, 512),
+            nn.ReLU(),
+            nn.Linear(512, 128)
+        )
+ 
+    def forward(self, x):
+        x = self.base_model(x)
+        x = self.fc(x)
+        return x
+ 
+# 2. Load a pre-trained ResNet model and use it as the base model for SimCLR
+resnet = models.resnet18(pretrained=True)
+resnet.fc = nn.Identity()  # Remove the final classification layer
+simclr_model = SimCLR(resnet)
+ 
+# 3. Set up dataset and data loaders with augmentation (for self-supervised learning)
+transform = transforms.Compose([
+    transforms.RandomResizedCrop(224),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+ 
+train_dataset = CIFAR10(root='./data', train=True, download=True, transform=transform)
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+ 
+# 4. Define contrastive loss function (NT-Xent Loss)
+def contrastive_loss(x1, x2, temperature=0.07):
+    cosine_similarity = nn.functional.cosine_similarity(x1.unsqueeze(1), x2.unsqueeze(0), dim=-1)
+    labels = torch.arange(x1.size(0)).long().to(x1.device)
+    logits = cosine_similarity / temperature
+    loss = nn.CrossEntropyLoss()(logits, labels)
+    return loss
+ 
+# 5. Train the model (simplified version)
+optimizer = torch.optim.Adam(simclr_model.parameters(), lr=0.001)
+ 
+# Simulated training loop
+for epoch in range(10):  # For simplicity, run for 10 epochs
+    simclr_model.train()
+    total_loss = 0
+    for images, _ in train_loader:
+        optimizer.zero_grad()
+ 
+        # Generate augmented views (here, using the same batch for simplicity)
+        x1, x2 = images, images  # In practice, augment the images
+ 
+        # Forward pass through SimCLR
+        z1, z2 = simclr_model(x1), simclr_model(x2)
+ 
+        # Compute the contrastive loss
+        loss = contrastive_loss(z1, z2)
+        loss.backward()
+        optimizer.step()
+ 
+        total_loss += loss.item()
+ 
+    print(f"Epoch {epoch+1}, Loss: {total_loss / len(train_loader)}")
+Project 565: Unsupervised Image Segmentation
+Description:
+Unsupervised image segmentation involves dividing an image into meaningful segments or regions without using labeled data. This task is often used to identify objects or regions of interest within images. In this project, we will use clustering techniques such as K-means or Self-organizing maps (SOM) to perform unsupervised segmentation.
+
+🧪 Python Implementation (Unsupervised Image Segmentation using K-means Clustering)
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+ 
+# 1. Load the image
+image = cv2.imread("path_to_image.jpg")  # Replace with an actual image path
+image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+ 
+# 2. Reshape the image for clustering
+pixels = image.reshape(-1, 3)  # Reshape to (num_pixels, num_channels)
+ 
+# 3. Apply K-means clustering
+kmeans = KMeans(n_clusters=3, random_state=42)
+kmeans.fit(pixels)
+ 
+# 4. Reshape the cluster labels to match the original image shape
+segmented_image = kmeans.cluster_centers_[kmeans.labels_].reshape(image.shape)
+ 
+# 5. Display the original and segmented image
+plt.figure(figsize=(10, 5))
+ 
+plt.subplot(1, 2, 1)
+plt.imshow(image)
+plt.title("Original Image")
+ 
+plt.subplot(1, 2, 2)
+plt.imshow(segmented_image.astype(np.uint8))
+plt.title("Segmented Image")
+ 
+plt.show()
+Project 566: Contrastive Learning for Images
+Description:
+Contrastive learning is a self-supervised learning approach where the model learns by comparing similar and dissimilar pairs of images. The goal is to bring similar images (or views of the same object) closer together in the feature space and push dissimilar images further apart. In this project, we will implement contrastive learning using techniques like SimCLR or MoCo.
+
+🧪 Python Implementation (Contrastive Learning for Images using SimCLR)
+import torch
+import torch.nn as nn
+import torchvision.models as models
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
+from torchvision import datasets
+import matplotlib.pyplot as plt
+ 
+# 1. Define a simple SimCLR model (similar to the one used in self-supervised learning)
+class SimCLR(nn.Module):
+    def __init__(self):
+        super(SimCLR, self).__init__()
+        self.resnet = models.resnet18(pretrained=True)
+        self.resnet.fc = nn.Identity()  # Remove the fully connected layer
+        self.fc = nn.Sequential(
+            nn.Linear(512, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64)
+        )
+ 
+    def forward(self, x):
+        x = self.resnet(x)
+        x = self.fc(x)
+        return x
+ 
+# 2. Set up dataset and data loaders with augmentation for contrastive learning
+transform = transforms.Compose([
+    transforms.RandomResizedCrop(224),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+ 
+# Use CIFAR-10 for simplicity (replace with a more complex dataset if needed)
+dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+ 
+# 3. Initialize the SimCLR model
+model = SimCLR()
+ 
+# 4. Define contrastive loss (NT-Xent loss)
+def contrastive_loss(x1, x2, temperature=0.07):
+    cosine_similarity = nn.functional.cosine_similarity(x1.unsqueeze(1), x2.unsqueeze(0), dim=-1)
+    labels = torch.arange(x1.size(0)).long().to(x1.device)
+    logits = cosine_similarity / temperature
+    loss = nn.CrossEntropyLoss()(logits, labels)
+    return loss
+ 
+# 5. Set up optimizer
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+ 
+# 6. Training loop (simplified for illustration)
+for epoch in range(5):  # 5 epochs for illustration
+    model.train()
+    total_loss = 0
+    for images, _ in dataloader:
+        optimizer.zero_grad()
+ 
+        # Simulate augmentations: Here we use the same batch, but typically we'd augment each image
+        x1, x2 = images, images  # Replace with different augmentations for each image pair
+ 
+        # Forward pass
+        z1, z2 = model(x1), model(x2)
+ 
+        # Compute the contrastive loss
+        loss = contrastive_loss(z1, z2)
+        loss.backward()
+        optimizer.step()
+ 
+        total_loss += loss.item()
+ 
+    print(f"Epoch {epoch+1}, Loss: {total_loss / len(dataloader)}")
+ 
+# 7. Visualizing a sample image from the dataset (optional)
+plt.imshow(images[0].numpy().transpose(1, 2, 0))
+plt.title("Sample Image from Dataset")
+plt.show()
+Project 567: Multi-modal Vision-Language Models
+Description:
+Multi-modal vision-language models combine visual information (e.g., images, videos) with textual data to enable more advanced understanding and interaction with the world. These models are capable of tasks like image captioning, visual question answering, and image-text alignment. In this project, we will use pre-trained models such as CLIP or VisualBERT to perform tasks that require understanding both images and text.
+
+🧪 Python Implementation (Multi-modal Vision-Language Model using CLIP)
+from transformers import CLIPProcessor, CLIPModel
+import torch
+from PIL import Image
+ 
+# 1. Load pre-trained CLIP model and processor
+model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+ 
+# 2. Load an image to be processed
+image = Image.open("path_to_image.jpg")  # Replace with an actual image path
+ 
+# 3. Define candidate text labels
+text = ["a photo of a cat", "a photo of a dog", "a picture of a person"]
+ 
+# 4. Preprocess the image and text
+inputs = processor(text=text, images=image, return_tensors="pt", padding=True)
+ 
+# 5. Perform zero-shot classification
+outputs = model(**inputs)
+logits_per_image = outputs.logits_per_image  # Image-text similarity
+probs = logits_per_image.softmax(dim=1)  # Get the probabilities
+ 
+# 6. Display the result
+label = text[torch.argmax(probs)]
+print(f"Predicted label: {label} with confidence {100 * torch.max(probs).item():.2f}%")
+Project 568: Visual Reasoning Systems
+Description:
+Visual reasoning systems combine both visual input (images or videos) and textual input to perform reasoning tasks. These systems aim to answer complex questions about the visual content, such as "What is the person doing in the image?" or "How many cars are visible in the scene?" In this project, we will explore visual reasoning tasks using pre-trained models like VisualBERT or UNITER, which integrate both visual and textual data.
+
+🧪 Python Implementation (Visual Reasoning with VisualBERT)
+from transformers import VisualBertForQuestionAnswering, VisualBertTokenizer
+from PIL import Image
+import torch
+ 
+# 1. Load pre-trained VisualBERT model and tokenizer
+model_name = "uclanlp/visualbert-nlvr2"
+model = VisualBertForQuestionAnswering.from_pretrained(model_name)
+tokenizer = VisualBertTokenizer.from_pretrained(model_name)
+ 
+# 2. Load an image for visual reasoning (e.g., question answering about the image)
+image = Image.open("path_to_image.jpg")  # Replace with an actual image path
+ 
+# 3. Define a question to ask about the image
+question = "How many people are in the image?"
+ 
+# 4. Preprocess the image and question
+inputs = tokenizer(
+    question, 
+    return_tensors="pt", 
+    image=image, 
+    padding=True, 
+    truncation=True
+)
+ 
+# 5. Perform visual reasoning to get an answer
+outputs = model(**inputs)
+answer = torch.argmax(outputs.logits)
+ 
+# 6. Map the output to an actual answer
+answer_map = {0: "No", 1: "Yes"}  # Simplified map for binary answers (extend for more complex answers)
+print(f"Answer: {answer_map[answer.item()]}")
+Project 569: Scene Graph Generation
+Description:
+Scene graph generation involves extracting objects, attributes, and relationships from images and representing them in a graph format. This is useful for tasks like visual question answering and image captioning. In this project, we will generate scene graphs from images using deep learning models to extract objects and their relationships.
+
+🧪 Python Implementation (Scene Graph Generation using Pre-trained Model)
+import torch
+from transformers import ViltProcessor, ViltForObjectDetection
+from PIL import Image
+ 
+# 1. Load pre-trained model and processor for scene graph generation
+model_name = "dandelin/vilt-b32-mlm"
+model = ViltForObjectDetection.from_pretrained(model_name)
+processor = ViltProcessor.from_pretrained(model_name)
+ 
+# 2. Load an image for scene graph generation
+image = Image.open("path_to_image.jpg")  # Replace with an actual image path
+ 
+# 3. Define object detection task
+inputs = processor(images=image, return_tensors="pt")
+ 
+# 4. Generate the scene graph (objects and their relationships)
+outputs = model(**inputs)
+labels = outputs.logits.argmax(dim=-1)  # Predicted object classes
+ 
+# 5. Visualize the results (simplified version)
+objects = ["person", "dog", "car", "tree", "cat"]  # Example object classes
+predicted_objects = [objects[label.item()] for label in labels[0]]
+ 
+# 6. Display the scene graph
+print("Detected objects in the scene:")
+for obj in predicted_objects:
+    print(f"- {obj}")
+Project 570: Visual Relationship Detection
+Description:
+Visual relationship detection involves identifying relationships between objects in an image, such as "person riding a bike" or "dog sitting on a chair." This task is crucial for understanding complex scenes and is widely used in applications like scene understanding and image captioning. In this project, we will use a pre-trained model to detect relationships between objects in images.
+
+🧪 Python Implementation (Visual Relationship Detection using Pre-trained Model)
+from transformers import DetrImageProcessor, DetrForObjectDetection
+import torch
+from PIL import Image
+import matplotlib.pyplot as plt
+import numpy as np
+ 
+# 1. Load pre-trained DETR (DEtection TRansformer) model and processor for relationship detection
+processor = DetrImageProcessor.from_pretrained("facebook/detr-resnet-50")
+model = DetrForObjectDetection.from_pretrained("facebook/detr-resnet-50")
+ 
+# 2. Load an image to detect objects and relationships
+image = Image.open("path_to_image.jpg")  # Replace with an actual image path
+ 
+# 3. Preprocess the image
+inputs = processor(images=image, return_tensors="pt")
+ 
+# 4. Perform object detection to find objects in the image
+outputs = model(**inputs)
+logits = outputs.logits  # Object detection logits
+boxes = outputs.pred_boxes  # Bounding box coordinates for each object
+ 
+# 5. Get the predicted labels (e.g., person, dog, cat) from the object detection model
+predicted_labels = logits.argmax(-1).squeeze().tolist()
+ 
+# 6. Map object IDs to actual labels (for simplicity, using a predefined set of object classes)
+labels = ["person", "dog", "cat", "car", "bicycle", "tree"]  # Example object classes
+predicted_objects = [labels[label] for label in predicted_labels]
+ 
+# 7. Display the detected objects and their relationships
+for obj in predicted_objects:
+    print(f"Detected object: {obj}")
+ 
+# Optionally, visualize the image and the detected bounding boxes (simplified example)
+plt.imshow(image)
+for box in boxes[0]:
+    x_min, y_min, x_max, y_max = box.tolist()
+    plt.gca().add_patch(plt.Rectangle((x_min, y_min), x_max - x_min, y_max - y_min, linewidth=2, edgecolor="r", facecolor="none"))
+plt.show()
+Project 571: Visual Common Sense Reasoning
+Description:
+Visual common sense reasoning involves making inferences about the world based on visual inputs. For example, reasoning about how objects interact in a scene or understanding implicit relationships like "a person is likely to sit on a chair." This project aims to use a pre-trained model to perform reasoning tasks on images that require common sense understanding.
+
+🧪 Python Implementation (Visual Common Sense Reasoning using CLIP)
+from transformers import CLIPProcessor, CLIPModel
+import torch
+from PIL import Image
+ 
+# 1. Load pre-trained CLIP model and processor
+model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+ 
+# 2. Load an image for visual reasoning
+image = Image.open("path_to_image.jpg")  # Replace with an actual image path
+ 
+# 3. Define possible reasoning prompts based on common sense (e.g., "a person is sitting on a chair")
+prompts = [
+    "a person is sitting on a chair",
+    "a dog is running in the park",
+    "a cat is sleeping on the couch"
+]
+ 
+# 4. Preprocess the image and prompts
+inputs = processor(text=prompts, images=image, return_tensors="pt", padding=True)
+ 
+# 5. Perform common sense reasoning to evaluate which prompt matches the image best
+outputs = model(**inputs)
+logits_per_image = outputs.logits_per_image  # Image-text similarity
+probs = logits_per_image.softmax(dim=1)  # Get the probabilities
+ 
+# 6. Display the result
+predicted_prompt = prompts[torch.argmax(probs)]
+print(f"Visual Common Sense Reasoning: {predicted_prompt} with confidence {100 * torch.max(probs).item():.2f}%")
+Project 572: Referring Expression Comprehension
+Description:
+Referring expression comprehension involves identifying and understanding objects in an image based on natural language descriptions. For example, given the phrase "the red ball on the table," the model needs to locate the red ball in the image. In this project, we will use a pre-trained vision-and-language model to perform referring expression comprehension.
+
+🧪 Python Implementation (Referring Expression Comprehension using CLIP)
+from transformers import CLIPProcessor, CLIPModel
+import torch
+from PIL import Image
+ 
+# 1. Load pre-trained CLIP model and processor
+model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+ 
+# 2. Load an image for referring expression comprehension
+image = Image.open("path_to_image.jpg")  # Replace with an actual image path
+ 
+# 3. Define a referring expression (e.g., "the red ball on the table")
+referring_expression = "the red ball on the table"
+ 
+# 4. Preprocess the image and referring expression
+inputs = processor(text=[referring_expression], images=image, return_tensors="pt", padding=True)
+ 
+# 5. Perform referring expression comprehension (image-text similarity)
+outputs = model(**inputs)
+logits_per_image = outputs.logits_per_image  # Image-text similarity
+probs = logits_per_image.softmax(dim=1)  # Get the probabilities
+ 
+# 6. Display the result
+print(f"Referring Expression Comprehension: {referring_expression} with confidence {100 * torch.max(probs).item():.2f}%")
+Project 573: Vision-and-Language Navigation
+Description:
+Vision-and-language navigation involves navigating an environment based on instructions given in natural language while using visual input (e.g., a map or a scene from a camera). This task requires both vision understanding and language comprehension. In this project, we will simulate vision-and-language navigation using a pre-trained model like VisualBERT or CLIP to understand and follow navigation instructions.
+
+🧪 Python Implementation (Vision-and-Language Navigation using CLIP)
+from transformers import CLIPProcessor, CLIPModel
+import torch
+from PIL import Image
+ 
+# 1. Load pre-trained CLIP model and processor
+model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+ 
+# 2. Load an image of the environment (e.g., scene captured by a camera in the navigation task)
+image = Image.open("path_to_image.jpg")  # Replace with an actual image path
+ 
+# 3. Define a navigation instruction (e.g., "Turn left and move towards the red car")
+navigation_instruction = "Turn left and move towards the red car"
+ 
+# 4. Preprocess the image and instruction
+inputs = processor(text=[navigation_instruction], images=image, return_tensors="pt", padding=True)
+ 
+# 5. Perform vision-and-language navigation (image-text similarity)
+outputs = model(**inputs)
+logits_per_image = outputs.logits_per_image  # Image-text similarity
+probs = logits_per_image.softmax(dim=1)  # Get the probabilities
+ 
+# 6. Display the result
+predicted_instruction = navigation_instruction
+print(f"Vision-and-Language Navigation: {predicted_instruction} with confidence {100 * torch.max(probs).item():.2f}%")
+Project 574: Visual Question Answering
+Description:
+Visual question answering (VQA) involves answering natural language questions about an image. The model needs to process both the visual content (image) and the textual content (question) to generate an appropriate answer. In this project, we will use a pre-trained model to answer questions about an image.
+
+🧪 Python Implementation (Visual Question Answering using VisualBERT)
+from transformers import VisualBertForQuestionAnswering, VisualBertTokenizer
+from PIL import Image
+import torch
+ 
+# 1. Load pre-trained VisualBERT model and tokenizer
+model_name = "uclanlp/visualbert-nlvr2"
+model = VisualBertForQuestionAnswering.from_pretrained(model_name)
+tokenizer = VisualBertTokenizer.from_pretrained(model_name)
+ 
+# 2. Load an image for visual question answering
+image = Image.open("path_to_image.jpg")  # Replace with an actual image path
+ 
+# 3. Define the question to ask about the image
+question = "How many people are in the image?"
+ 
+# 4. Preprocess the image and question
+inputs = tokenizer(
+    question, 
+    return_tensors="pt", 
+    image=image, 
+    padding=True, 
+    truncation=True
+)
+ 
+# 5. Perform visual question answering
+outputs = model(**inputs)
+answer = torch.argmax(outputs.logits)
+ 
+# 6. Map the output to an actual answer
+answer_map = {0: "No", 1: "Yes"}  # Simplified map for binary answers (extend for more complex answers)
+print(f"Answer: {answer_map[answer.item()]}")
+Project 575: Image Captioning with Attention
+Description:
+Image captioning with attention involves generating a natural language description of an image, where the attention mechanism helps the model focus on specific regions of the image while generating the caption. In this project, we will use a pre-trained model like Show, Attend and Tell to generate captions with an attention mechanism.
+
+🧪 Python Implementation (Image Captioning with Attention using Show, Attend and Tell)
+import torch
+from transformers import VisionEncoderDecoderModel, ViTImageProcessor, AutoTokenizer
+from PIL import Image
+ 
+# 1. Load pre-trained Vision-to-Text model (e.g., Show, Attend and Tell)
+model = VisionEncoderDecoderModel.from_pretrained("nlpconnect/vit-gpt2-image-captioning")
+processor = ViTImageProcessor.from_pretrained("nlpconnect/vit-gpt2-image-captioning")
+tokenizer = AutoTokenizer.from_pretrained("gpt2")
+ 
+# 2. Load an image for captioning
+image = Image.open("path_to_image.jpg")  # Replace with an actual image path
+ 
+# 3. Preprocess the image and prepare inputs
+inputs = processor(images=image, return_tensors="pt")
+ 
+# 4. Generate the caption using the model
+outputs = model.generate(input_ids=None, decoder_start_token_id=model.config.pad_token_id, 
+                         **inputs, max_length=50, num_beams=5, early_stopping=True)
+ 
+# 5. Decode and display the generated caption
+caption = tokenizer.decode(outputs[0], skip_special_tokens=True)
+print(f"Generated Caption: {caption}")
+Project 576: Dense Video Captioning
+Description:
+Dense video captioning involves generating captions for multiple events or actions within a video, rather than generating a single caption for the entire video. This task requires understanding the temporal and spatial dynamics of a video. In this project, we will use a pre-trained model to generate captions for events occurring at different points in a video.
+
+🧪 Python Implementation (Dense Video Captioning using Pre-trained Model)
+from transformers import VideoGPT2Tokenizer, VideoGPT2ForConditionalGeneration
+import torch
+from PIL import Image
+import cv2
+import numpy as np
+ 
+# 1. Load pre-trained VideoGPT2 model and tokenizer
+model_name = "huggingface/video-gpt2"
+model = VideoGPT2ForConditionalGeneration.from_pretrained(model_name)
+tokenizer = VideoGPT2Tokenizer.from_pretrained(model_name)
+ 
+# 2. Load a video (use a video file path or URL)
+video_path = "path_to_video.mp4"  # Replace with an actual video path
+cap = cv2.VideoCapture(video_path)
+ 
+# 3. Process frames from the video
+frame_list = []
+while(cap.isOpened()):
+    ret, frame = cap.read()
+    if not ret:
+        break
+    frame_list.append(frame)
+cap.release()
+ 
+# 4. Preprocess the frames and convert to text representation
+input_frames = [Image.fromarray(frame) for frame in frame_list]
+inputs = tokenizer(input_frames, return_tensors="pt", padding=True)
+ 
+# 5. Generate dense captions for the video
+outputs = model.generate(input_ids=None, decoder_start_token_id=model.config.pad_token_id, 
+                         **inputs, max_length=50, num_beams=5, early_stopping=True)
+ 
+# 6. Decode and display the generated captions
+captions = tokenizer.decode(outputs[0], skip_special_tokens=True)
+print(f"Generated Video Captions: {captions}")
+Project 577: Video Question Answering
+Description:
+Video question answering (VQA) involves answering questions related to a video by understanding both the visual and temporal information in the video. In this project, we will use a pre-trained vision-and-language model to answer questions related to the content of a video, leveraging both the visual features and the context provided by the question.
+
+🧪 Python Implementation (Video Question Answering using Pre-trained Model)
+from transformers import VideoQuestionAnsweringProcessor, VideoQuestionAnsweringModel
+import torch
+from PIL import Image
+import cv2
+import numpy as np
+ 
+# 1. Load pre-trained Video Q&A model and processor
+model_name = "facebook/maskformer-swin-large"
+model = VideoQuestionAnsweringModel.from_pretrained(model_name)
+processor = VideoQuestionAnsweringProcessor.from_pretrained(model_name)
+ 
+# 2. Load a video (use a video file path or URL)
+video_path = "path_to_video.mp4"  # Replace with an actual video path
+cap = cv2.VideoCapture(video_path)
+ 
+# 3. Process frames from the video
+frame_list = []
+while(cap.isOpened()):
+    ret, frame = cap.read()
+    if not ret:
+        break
+    frame_list.append(frame)
+cap.release()
+ 
+# 4. Convert the frames to a format compatible with the processor
+input_frames = [Image.fromarray(frame) for frame in frame_list]
+ 
+# 5. Define a question related to the video
+question = "What action is happening in the video?"
+ 
+# 6. Preprocess the frames and question for the model
+inputs = processor(text=question, images=input_frames, return_tensors="pt", padding=True)
+ 
+# 7. Perform Video Question Answering
+outputs = model(**inputs)
+ 
+# 8. Get the answer and display it
+answer = outputs["logits"]
+predicted_answer = torch.argmax(answer)
+print(f"Predicted Answer: {predicted_answer.item()}")
+Project 578: Video Dialogue Systems
+Description:
+Video dialogue systems allow users to interact with a system by asking questions or giving commands related to video content. These systems need to understand the visual and temporal dynamics of the video, as well as natural language. In this project, we will implement a video dialogue system that enables users to interact with video content using both text and visual cues.
+
+🧪 Python Implementation (Video Dialogue System using Pre-trained Model)
+from transformers import VideoGPT2ForConditionalGeneration, VideoGPT2Tokenizer
+import torch
+from PIL import Image
+import cv2
+import numpy as np
+ 
+# 1. Load pre-trained VideoGPT2 model and tokenizer
+model_name = "huggingface/video-gpt2"
+model = VideoGPT2ForConditionalGeneration.from_pretrained(model_name)
+tokenizer = VideoGPT2Tokenizer.from_pretrained(model_name)
+ 
+# 2. Load a video (use a video file path or URL)
+video_path = "path_to_video.mp4"  # Replace with an actual video path
+cap = cv2.VideoCapture(video_path)
+ 
+# 3. Process frames from the video
+frame_list = []
+while(cap.isOpened()):
+    ret, frame = cap.read()
+    if not ret:
+        break
+    frame_list.append(frame)
+cap.release()
+ 
+# 4. Convert frames to Image objects
+input_frames = [Image.fromarray(frame) for frame in frame_list]
+ 
+# 5. Define dialogue interaction (e.g., user asks questions about the video)
+question = "What is happening in the video?"
+ 
+# 6. Preprocess the frames and the question
+inputs = tokenizer(text=question, images=input_frames, return_tensors="pt", padding=True)
+ 
+# 7. Generate dialogue response from the model
+outputs = model.generate(input_ids=None, decoder_start_token_id=model.config.pad_token_id, 
+                         **inputs, max_length=100, num_beams=5, early_stopping=True)
+ 
+# 8. Decode and display the response
+response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+print(f"Response: {response}")
+Project 579: Visual Storytelling
+Description:
+Visual storytelling is the task of generating coherent narratives from a sequence of images or a single image. This involves not just describing what is happening in the images, but also weaving the visual content into a narrative structure that makes sense. In this project, we will use a pre-trained model to generate stories from visual inputs (images or videos).
+
+🧪 Python Implementation (Visual Storytelling using Pre-trained Model)
+from transformers import VisionEncoderDecoderModel, ViTImageProcessor, AutoTokenizer
+from PIL import Image
+ 
+# 1. Load pre-trained Vision-to-Text model (for visual storytelling)
+model = VisionEncoderDecoderModel.from_pretrained("nlpconnect/vit-gpt2-image-captioning")
+processor = ViTImageProcessor.from_pretrained("nlpconnect/vit-gpt2-image-captioning")
+tokenizer = AutoTokenizer.from_pretrained("gpt2")
+ 
+# 2. Load an image for visual storytelling
+image = Image.open("path_to_image.jpg")  # Replace with an actual image path
+ 
+# 3. Preprocess the image
+inputs = processor(images=image, return_tensors="pt")
+ 
+# 4. Generate the story (caption and extended narrative)
+outputs = model.generate(input_ids=None, decoder_start_token_id=model.config.pad_token_id, 
+                         **inputs, max_length=100, num_beams=5, early_stopping=True)
+ 
+# 5. Decode and display the generated story
+story = tokenizer.decode(outputs[0], skip_special_tokens=True)
+print(f"Generated Story: {story}")
+Project 580: Video Moment Retrieval
+Description:
+Video moment retrieval involves searching for specific moments or events in a video based on a query or description. For example, given the query "Find the scene where the dog runs," the system should identify the corresponding segment in the video. This task requires both video understanding and text understanding. In this project, we will use a pre-trained model to implement video moment retrieval.
+
+🧪 Python Implementation (Video Moment Retrieval using Pre-trained Model)
+from transformers import CLIPProcessor, CLIPModel
+import torch
+from PIL import Image
+import cv2
+import numpy as np
+ 
+# 1. Load pre-trained CLIP model and processor for video-text matching
+model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+ 
+# 2. Load a video (use a video file path or URL)
+video_path = "path_to_video.mp4"  # Replace with an actual video path
+cap = cv2.VideoCapture(video_path)
+ 
+# 3. Process frames from the video (simulating moment retrieval)
+frame_list = []
+while(cap.isOpened()):
+    ret, frame = cap.read()
+    if not ret:
+        break
+    frame_list.append(frame)
+cap.release()
+ 
+# 4. Convert frames to Image objects
+input_frames = [Image.fromarray(frame) for frame in frame_list]
+ 
+# 5. Define a query (e.g., user requests to find a specific moment in the video)
+query = "The dog is running in the park"
+ 
+# 6. Preprocess the frames and query
+inputs = processor(text=[query], images=input_frames, return_tensors="pt", padding=True)
+ 
+# 7. Perform moment retrieval by evaluating the similarity between the video and the query
+outputs = model(**inputs)
+logits_per_image = outputs.logits_per_image  # Image-text similarity
+probs = logits_per_image.softmax(dim=1)  # Get the probabilities
+ 
+# 8. Display the result (retrieving the most relevant moment)
+retrieved_frame_index = torch.argmax(probs).item()
+print(f"Most relevant video moment found at frame index: {retrieved_frame_index}")
+Project 581: Human-Object Interaction Detection
+Description:
+Human-object interaction detection focuses on identifying the interactions between humans and objects within an image or video. This involves detecting both the human and the object, as well as the relationship between them (e.g., "person holding a cup"). In this project, we will use a pre-trained model to detect human-object interactions in images or videos.
+
+🧪 Python Implementation (Human-Object Interaction Detection using Detectron2)
+import torch
+from detectron2.engine import DefaultPredictor
+from detectron2.config import get_cfg
+from detectron2 import model_zoo
+from detectron2.utils.visualizer import Visualizer
+from detectron2.data import MetadataCatalog
+import cv2
+ 
+# 1. Setup configuration for Detectron2
+cfg = get_cfg()
+cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # Set the score threshold for predictions
+cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml")
+cfg.MODEL.ROI_HEADS.NUM_CLASSES = 80  # Number of object classes in COCO
+ 
+# 2. Initialize the predictor
+predictor = DefaultPredictor(cfg)
+ 
+# 3. Load an image for human-object interaction detection
+image_path = "path_to_image.jpg"  # Replace with an actual image path
+image = cv2.imread(image_path)
+ 
+# 4. Perform object detection on the image
+outputs = predictor(image)
+ 
+# 5. Visualize the results and the detected interactions
+v = Visualizer(image[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
+v = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+result_image = v.get_image()[:, :, ::-1]
+ 
+# 6. Display the result
+cv2.imshow("Human-Object Interaction Detection", result_image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+Project 582: Fine-grained Visual Categorization
+Description:
+Fine-grained visual categorization focuses on distinguishing subtle differences between objects of the same category, such as identifying different breeds of dogs or distinguishing between types of flowers. In this project, we will use a pre-trained model to perform fine-grained classification, leveraging the model's ability to learn detailed visual features.
+
+🧪 Python Implementation (Fine-grained Visual Categorization using Pre-trained ResNet Model)
+import torch
+import torchvision.transforms as transforms
+from torchvision import models
+from PIL import Image
+import matplotlib.pyplot as plt
+ 
+# 1. Load pre-trained ResNet model for fine-grained categorization
+model = models.resnet50(pretrained=True)
+model.eval()  # Set the model to evaluation mode
+ 
+# 2. Load and preprocess the image for fine-grained classification
+image_path = "path_to_image.jpg"  # Replace with an actual image path
+image = Image.open(image_path)
+ 
+transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+ 
+input_tensor = transform(image).unsqueeze(0)  # Add batch dimension
+ 
+# 3. Perform forward pass through the model
+with torch.no_grad():
+    outputs = model(input_tensor)
+ 
+# 4. Get the predicted class label
+_, predicted_class = torch.max(outputs, 1)
+ 
+# 5. Load ImageNet labels (for illustration, here we use the ImageNet labels)
+imagenet_labels = [line.strip() for line in open("imagenet_class_index.json")]
+ 
+# 6. Display the predicted label
+predicted_label = imagenet_labels[predicted_class.item()]
+print(f"Predicted fine-grained label: {predicted_label}")
+ 
+# 7. Display the image for reference
+plt.imshow(image)
+plt.title(f"Predicted: {predicted_label}")
+plt.show()
+Project 583: Weakly Supervised Object Localization
+Description:
+Weakly supervised object localization involves identifying the locations of objects within images without using full bounding box annotations. This task relies on class labels or image-level annotations to localize the objects. In this project, we will use a pre-trained model to perform weakly supervised localization of objects in images.
+
+🧪 Python Implementation (Weakly Supervised Object Localization using Grad-CAM)
+import torch
+import torchvision.transforms as transforms
+from torchvision import models
+from PIL import Image
+import numpy as np
+import cv2
+import matplotlib.pyplot as plt
+from torch.autograd import Variable
+ 
+# 1. Load pre-trained ResNet model for object localization
+model = models.resnet50(pretrained=True)
+model.eval()
+ 
+# 2. Load and preprocess the image
+image_path = "path_to_image.jpg"  # Replace with an actual image path
+image = Image.open(image_path)
+ 
+transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+ 
+input_tensor = transform(image).unsqueeze(0)  # Add batch dimension
+ 
+# 3. Get the class label prediction
+with torch.no_grad():
+    outputs = model(input_tensor)
+    _, predicted_class = torch.max(outputs, 1)
+ 
+# 4. Get the gradients for the class output
+class_idx = predicted_class.item()
+model.zero_grad()
+one_hot_output = torch.FloatTensor(1, outputs.size()[-1]).zero_()
+one_hot_output[0][class_idx] = 1
+outputs.backward(gradient=one_hot_output)
+ 
+# 5. Generate the heatmap (using Grad-CAM)
+grads = model.layer4[2].conv3.weight.grad
+target = model.layer4[2].conv3.output
+weights = grads.mean(dim=[0, 2, 3])  # Average gradients across the spatial dimensions
+activation_map = torch.sum(weights * target, dim=1).squeeze().detach().cpu().numpy()
+ 
+# 6. Visualize the heatmap
+activation_map = cv2.resize(activation_map, (image.size[0], image.size[1]))
+activation_map = np.maximum(activation_map, 0)
+activation_map = activation_map / activation_map.max()  # Normalize to [0, 1]
+ 
+# 7. Display the image with the heatmap overlaid
+plt.imshow(image)
+plt.imshow(activation_map, alpha=0.5, cmap='jet')  # Overlay the heatmap with transparency
+plt.title(f"Predicted Class: {imagenet_labels[predicted_class.item()]}")
+plt.show()
+Project 584: Semi-supervised Image Classification
+Description:
+Semi-supervised image classification involves using a small amount of labeled data alongside a large amount of unlabeled data to improve the performance of a model. In this project, we will implement a semi-supervised learning approach using pseudo-labeling or self-training techniques. The goal is to use the model's predictions on unlabeled data to enhance its training.
+
+🧪 Python Implementation (Semi-supervised Image Classification using Pseudo-labeling)
+import torch
+import torchvision.transforms as transforms
+from torchvision import models, datasets
+from torch.utils.data import DataLoader, Subset
+import torch.optim as optim
+import numpy as np
+from sklearn.metrics import accuracy_score
+ 
+# 1. Load a small labeled dataset and a large unlabeled dataset
+transform = transforms.Compose([
+    transforms.Resize(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+ 
+labeled_data = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+unlabeled_data = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+ 
+# 2. Subset labeled data for training (using a small portion of the dataset)
+labeled_subset = Subset(labeled_data, np.arange(1000))  # Using 1000 labeled samples
+unlabeled_subset = Subset(unlabeled_data, np.arange(5000))  # Using 5000 unlabeled samples
+ 
+labeled_loader = DataLoader(labeled_subset, batch_size=32, shuffle=True)
+unlabeled_loader = DataLoader(unlabeled_subset, batch_size=32, shuffle=False)
+ 
+# 3. Load a pre-trained model (ResNet50) for semi-supervised learning
+model = models.resnet50(pretrained=True)
+model.fc = torch.nn.Linear(model.fc.in_features, 10)  # Adjust for CIFAR-10 classes
+model.train()
+ 
+# 4. Define the loss function and optimizer
+criterion = torch.nn.CrossEntropyLoss()
+optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+ 
+# 5. Train the model with pseudo-labeling
+def pseudo_labeling_step(model, labeled_loader, unlabeled_loader, criterion, optimizer):
+    for epoch in range(5):  # Run for 5 epochs
+        model.train()
+        for batch_idx, (inputs, labels) in enumerate(labeled_loader):
+            # Train the model on the labeled dataset
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+ 
+        # Generate pseudo-labels for the unlabeled dataset
+        model.eval()
+        pseudo_labels = []
+        with torch.no_grad():
+            for inputs, _ in unlabeled_loader:
+                outputs = model(inputs)
+                pseudo_labels.append(torch.argmax(outputs, dim=1))
+ 
+        pseudo_labels = torch.cat(pseudo_labels, dim=0)
+ 
+        # Combine pseudo-labeled data with labeled data for retraining
+        combined_data = torch.utils.data.ConcatDataset([labeled_subset, unlabeled_subset])  # Assuming the unlabeled data is now pseudo-labeled
+ 
+    return model
+ 
+# 6. Perform the pseudo-labeling step
+model = pseudo_labeling_step(model, labeled_loader, unlabeled_loader, criterion, optimizer)
+ 
+# 7. Evaluate the model on the labeled data
+model.eval()
+y_true = []
+y_pred = []
+with torch.no_grad():
+    for inputs, labels in labeled_loader:
+        outputs = model(inputs)
+        _, preds = torch.max(outputs, 1)
+        y_true.extend(labels.numpy())
+        y_pred.extend(preds.numpy())
+ 
+accuracy = accuracy_score(y_true, y_pred)
+print(f"Accuracy on labeled data: {accuracy * 100:.2f}%")
+Project 585: Unsupervised Domain Adaptation for Vision
+Description:
+Unsupervised domain adaptation involves transferring knowledge learned from a source domain (with labeled data) to a target domain (with no labeled data). The goal is to make a model perform well on the target domain without requiring annotated data. In this project, we will use an unsupervised domain adaptation technique such as CycleGAN or DANN (Domain-Adversarial Neural Network) to adapt a model trained on one dataset (source domain) to work well on another dataset (target domain).
+
+🧪 Python Implementation (Unsupervised Domain Adaptation using CycleGAN)
+import torch
+from torch import nn
+from torchvision import transforms
+from torchvision.datasets import ImageFolder
+from torch.utils.data import DataLoader
+from torchvision import models
+import matplotlib.pyplot as plt
+ 
+# 1. Load source and target domain datasets (e.g., different styles of images)
+source_transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+ 
+target_transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+ 
+source_data = ImageFolder("path_to_source_domain_images", transform=source_transform)
+target_data = ImageFolder("path_to_target_domain_images", transform=target_transform)
+ 
+source_loader = DataLoader(source_data, batch_size=32, shuffle=True)
+target_loader = DataLoader(target_data, batch_size=32, shuffle=True)
+ 
+# 2. Define a simple CycleGAN-based domain adaptation model
+class CycleGAN(nn.Module):
+    def __init__(self):
+        super(CycleGAN, self).__init__()
+        # Define generator and discriminator models (simplified example)
+        self.generator = models.resnet50(pretrained=True)  # Example model
+        self.discriminator = models.resnet50(pretrained=True)
+ 
+    def forward(self, x):
+        generated = self.generator(x)  # Generate output based on input
+        return generated
+ 
+# 3. Initialize CycleGAN model, loss function, and optimizer
+model = CycleGAN()
+criterion = nn.MSELoss()  # Example loss function for adaptation
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0002, betas=(0.5, 0.999))
+ 
+# 4. Train the model (simplified training loop for domain adaptation)
+for epoch in range(5):  # For simplicity, train for 5 epochs
+    model.train()
+    for (source_images, _), (target_images, _) in zip(source_loader, target_loader):
+        optimizer.zero_grad()
+ 
+        # Perform a forward pass on the source and target domains
+        source_output = model(source_images)
+        target_output = model(target_images)
+ 
+        # Calculate the loss and update the model
+        loss = criterion(source_output, target_output)
+        loss.backward()
+        optimizer.step()
+ 
+    print(f"Epoch {epoch+1}, Loss: {loss.item()}")
+ 
+# 5. Visualize a few images from both domains (source and target)
+source_image = source_images[0].permute(1, 2, 0).detach().numpy()
+target_image = target_images[0].permute(1, 2, 0).detach().numpy()
+ 
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 2, 1)
+plt.imshow(source_image)
+plt.title("Source Image")
+ 
+plt.subplot(1, 2, 2)
+plt.imshow(target_image)
+plt.title("Target Image")
+ 
+plt.show()
+Project 586: Domain Generalization for Vision Tasks
+Description:
+Domain generalization aims to improve the model's performance across multiple domains by learning domain-invariant features. This approach is useful when the model needs to generalize well to unseen domains, such as recognizing objects across different environments or lighting conditions. In this project, we will explore domain generalization techniques to help the model perform well on a variety of visual tasks across domains.
+
+🧪 Python Implementation (Domain Generalization for Vision Tasks using Domain-Adversarial Training)
+import torch
+import torch.nn as nn
+import torchvision
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
+ 
+# 1. Define a simple Domain-Adversarial Neural Network (DANN) for domain generalization
+class DANN(nn.Module):
+    def __init__(self):
+        super(DANN, self).__init__()
+        self.feature_extractor = torchvision.models.resnet18(pretrained=True)
+        self.feature_extractor.fc = nn.Identity()  # Remove the final layer for feature extraction
+        self.classifier = nn.Linear(512, 10)  # CIFAR-10 has 10 classes
+        self.domain_classifier = nn.Linear(512, 2)  # Binary classification (source vs target domain)
+ 
+    def forward(self, x):
+        features = self.feature_extractor(x)
+        class_output = self.classifier(features)
+        domain_output = self.domain_classifier(features)
+        return class_output, domain_output
+ 
+# 2. Load source and target domain datasets (e.g., CIFAR-10 and SVHN for domain generalization)
+transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+ 
+source_data = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+target_data = torchvision.datasets.SVHN(root='./data', split='train', download=True, transform=transform)
+ 
+source_loader = DataLoader(source_data, batch_size=32, shuffle=True)
+target_loader = DataLoader(target_data, batch_size=32, shuffle=True)
+ 
+# 3. Initialize DANN model, loss function, and optimizer
+model = DANN()
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
+ 
+# 4. Define a function to train the model with domain adversarial training
+def train(model, source_loader, target_loader, criterion, optimizer, num_epochs=5):
+    for epoch in range(num_epochs):
+        model.train()
+        total_loss = 0
+ 
+        for (source_images, source_labels), (target_images, _) in zip(source_loader, target_loader):
+            optimizer.zero_grad()
+ 
+            # Forward pass on source and target domains
+            class_output, domain_output = model(source_images)
+            source_class_loss = criterion(class_output, source_labels)
+            source_domain_loss = criterion(domain_output, torch.zeros(source_images.size(0)))  # Source domain label: 0
+ 
+            # Forward pass on target domain (with pseudo-labels or domain-adversarial loss)
+            _, target_domain_output = model(target_images)
+            target_domain_loss = criterion(target_domain_output, torch.ones(target_images.size(0)))  # Target domain label: 1
+ 
+            # Combine the losses
+            loss = source_class_loss + source_domain_loss + target_domain_loss
+            loss.backward()
+            optimizer.step()
+ 
+            total_loss += loss.item()
+ 
+        print(f"Epoch {epoch+1}, Loss: {total_loss / len(source_loader)}")
+ 
+# 5. Train the model
+train(model, source_loader, target_loader, criterion, optimizer)
+ 
+# 6. Visualize some images from source and target domains
+source_image = source_images[0].permute(1, 2, 0).detach().numpy()
+target_image = target_images[0].permute(1, 2, 0).detach().numpy()
+ 
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 2, 1)
+plt.imshow(source_image)
+plt.title("Source Domain Image")
+ 
+plt.subplot(1, 2, 2)
+plt.imshow(target_image)
+plt.title("Target Domain Image")
+ 
+plt.show()
+Project 587: Vision Model Distillation
+Description:
+Model distillation is a technique in which a smaller model (the "student") is trained to replicate the behavior of a larger, pre-trained model (the "teacher"). This is often used to compress large models for deployment in resource-constrained environments while maintaining performance. In this project, we will implement vision model distillation using a ResNet teacher model and a smaller student model.
+
+🧪 Python Implementation (Vision Model Distillation using Teacher-Student Network)
+import torch
+import torch.nn as nn
+import torchvision
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
+ 
+# 1. Define the teacher model (a larger pre-trained model, e.g., ResNet50)
+teacher_model = torchvision.models.resnet50(pretrained=True)
+teacher_model.eval()  # Set the teacher model to evaluation mode
+ 
+# 2. Define the student model (a smaller model, e.g., ResNet18)
+student_model = torchvision.models.resnet18(pretrained=False, num_classes=10)  # CIFAR-10 has 10 classes
+student_model.eval()  # Set the student model to evaluation mode
+ 
+# 3. Load CIFAR-10 dataset
+transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+ 
+train_data = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+train_loader = DataLoader(train_data, batch_size=32, shuffle=True)
+ 
+# 4. Define the distillation loss function (MSE between teacher and student outputs)
+def distillation_loss(student_output, teacher_output, temperature=3):
+    loss = nn.KLDivLoss()(nn.functional.log_softmax(student_output / temperature, dim=1),
+                          nn.functional.softmax(teacher_output / temperature, dim=1))
+    return loss
+ 
+# 5. Initialize optimizer and set the model for distillation
+optimizer = torch.optim.Adam(student_model.parameters(), lr=0.001)
+ 
+# 6. Training loop for distillation
+def train_distillation(teacher_model, student_model, train_loader, optimizer, num_epochs=5):
+    for epoch in range(num_epochs):
+        student_model.train()
+        total_loss = 0
+        
+        for images, labels in train_loader:
+            optimizer.zero_grad()
+ 
+            # Teacher model prediction (freeze teacher model weights)
+            with torch.no_grad():
+                teacher_outputs = teacher_model(images)
+ 
+            # Student model prediction
+            student_outputs = student_model(images)
+ 
+            # Compute the distillation loss
+            loss = distillation_loss(student_outputs, teacher_outputs)
+            loss.backward()
+            optimizer.step()
+ 
+            total_loss += loss.item()
+ 
+        print(f"Epoch {epoch+1}, Distillation Loss: {total_loss / len(train_loader)}")
+ 
+# 7. Train the student model using distillation
+train_distillation(teacher_model, student_model, train_loader, optimizer)
+ 
+# 8. Visualize a sample image from the CIFAR-10 dataset
+image = images[0].permute(1, 2, 0).detach().numpy()
+plt.imshow(image)
+plt.title("Sample Image from CIFAR-10")
+plt.show()
+Project 588: Neural Radiance Fields (NeRF)
+Description:
+Neural Radiance Fields (NeRF) is a deep learning model for generating 3D scenes from 2D images. It can render photorealistic 3D scenes by modeling how light interacts with the scene. NeRF is particularly useful in applications like virtual reality (VR), augmented reality (AR), and 3D reconstruction. In this project, we will implement a NeRF model for generating 3D views from a set of 2D images.
+
+🧪 Python Implementation (NeRF for 3D Scene Rendering)
+Note: Implementing NeRF requires significant computational resources and may take some time to set up, as it involves complex 3D rendering. Here's an outline of how you can get started with a simplified NeRF implementation using a pre-trained model.
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
+import numpy as np
+import matplotlib.pyplot as plt
+from nerf_model import NeRFModel  # Assuming a simplified NeRF model is implemented
+ 
+# 1. Load a pre-trained NeRF model (for 3D scene generation)
+model = NeRFModel()
+ 
+# 2. Prepare a dataset of 2D images and camera positions (this dataset is typically custom)
+# Here, we will simulate a dataset for the sake of demonstration.
+# In real implementation, you would use a dataset like BlendedMVS or custom 3D datasets.
+camera_positions = np.random.rand(100, 3)  # Random camera positions in 3D space
+images = np.random.rand(100, 256, 256, 3)  # Random 2D images (replace with real images)
+ 
+# 3. Define a DataLoader for the dataset
+class NeRFDataset(torch.utils.data.Dataset):
+    def __init__(self, images, camera_positions):
+        self.images = images
+        self.camera_positions = camera_positions
+ 
+    def __len__(self):
+        return len(self.images)
+ 
+    def __getitem__(self, idx):
+        return torch.tensor(self.images[idx], dtype=torch.float32), torch.tensor(self.camera_positions[idx], dtype=torch.float32)
+ 
+dataset = NeRFDataset(images, camera_positions)
+data_loader = DataLoader(dataset, batch_size=4, shuffle=True)
+ 
+# 4. Define the loss function and optimizer
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+ 
+# 5. Training loop for NeRF
+def train_nerf(model, data_loader, criterion, optimizer, num_epochs=5):
+    for epoch in range(num_epochs):
+        model.train()
+        total_loss = 0
+        for images, positions in data_loader:
+            optimizer.zero_grad()
+ 
+            # Forward pass through the NeRF model
+            predicted_images = model(positions)  # The model should predict 3D views
+ 
+            # Compute the loss
+            loss = criterion(predicted_images, images)
+            loss.backward()
+            optimizer.step()
+ 
+            total_loss += loss.item()
+ 
+        print(f"Epoch {epoch+1}, Loss: {total_loss / len(data_loader)}")
+ 
+# 6. Train the NeRF model
+train_nerf(model, data_loader, criterion, optimizer)
+ 
+# 7. Visualize a generated 3D scene (for simplicity, here we're visualizing 2D images)
+# In a full NeRF model, this would involve 3D rendering, but we are simplifying for demonstration.
+plt.imshow(images[0])
+plt.title("Generated 3D Scene (Simplified)")
+plt.show()
+Project 589: 3D Point Cloud Processing
+Description:
+3D point cloud processing involves working with sets of data points in three-dimensional space. These point clouds are used in applications like 3D reconstruction, robotics, and autonomous driving. In this project, we will implement 3D point cloud processing using techniques like point cloud segmentation and point cloud classification, utilizing libraries such as Open3D or PyTorch3D.
+
+🧪 Python Implementation (3D Point Cloud Processing using Open3D)
+import open3d as o3d
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Load a 3D point cloud (assuming you have a .ply or .pcd file)
+point_cloud = o3d.io.read_point_cloud("path_to_point_cloud.ply")  # Replace with actual file path
+ 
+# 2. Visualize the original point cloud
+o3d.visualization.draw_geometries([point_cloud], window_name="Original Point Cloud")
+ 
+# 3. Perform voxel downsampling to reduce the size of the point cloud (simplifying for processing)
+voxel_size = 0.05  # Voxel size for downsampling
+downsampled_point_cloud = point_cloud.voxel_down_sample(voxel_size)
+ 
+# 4. Visualize the downsampled point cloud
+o3d.visualization.draw_geometries([downsampled_point_cloud], window_name="Downsampled Point Cloud")
+ 
+# 5. Segment the point cloud using plane segmentation (e.g., finding a flat surface like a table)
+plane_model, inliers = downsampled_point_cloud.segment_plane(distance_threshold=0.01, 
+                                                             ransac_n=3, 
+                                                             num_iterations=1000)
+ 
+# 6. Extract the inliers (points belonging to the detected plane) and outliers (remaining points)
+inlier_cloud = downsampled_point_cloud.select_by_index(inliers)
+outlier_cloud = downsampled_point_cloud.select_by_index(inliers, invert=True)
+ 
+# 7. Visualize the segmentation result
+inlier_cloud.paint_uniform_color([1.0, 0, 0])  # Red for inliers (plane)
+outlier_cloud.paint_uniform_color([0, 1.0, 0])  # Green for outliers (objects)
+o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud], window_name="Point Cloud Segmentation")
+ 
+# 8. Optionally, save the segmented point clouds to files
+o3d.io.write_point_cloud("segmented_plane.ply", inlier_cloud)
+o3d.io.write_point_cloud("segmented_objects.ply", outlier_cloud)
+Project 590: 3D Object Detection from LiDAR
+Description:
+3D object detection from LiDAR involves detecting objects in the 3D space using LiDAR data, which typically consists of point clouds. LiDAR is widely used in applications like autonomous driving and robotics. In this project, we will use LiDAR point cloud data to perform 3D object detection, utilizing a pre-trained model such as PointNet or PointRCNN for accurate 3D object detection.
+
+🧪 Python Implementation (3D Object Detection from LiDAR using PointNet)
+import torch
+import torch.nn as nn
+import numpy as np
+import open3d as o3d
+from torch.utils.data import DataLoader
+from torchvision import models
+import matplotlib.pyplot as plt
+ 
+# 1. Load LiDAR point cloud data (assuming you have a .pcd file)
+lidar_data = o3d.io.read_point_cloud("path_to_lidar_data.pcd")  # Replace with actual file path
+ 
+# 2. Convert LiDAR point cloud to numpy array
+point_cloud_data = np.asarray(lidar_data.points)
+ 
+# 3. Define a simple 3D object detection model using PointNet (simplified version)
+class PointNet(nn.Module):
+    def __init__(self):
+        super(PointNet, self).__init__()
+        self.conv1 = nn.Conv1d(in_channels=3, out_channels=64, kernel_size=1)
+        self.conv2 = nn.Conv1d(in_channels=64, out_channels=128, kernel_size=1)
+        self.fc1 = nn.Linear(128, 256)
+        self.fc2 = nn.Linear(256, 10)  # 10 classes for object detection (can adjust based on data)
+ 
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.relu(self.conv2(x))
+        x = torch.max(x, 2)[0]  # Max pooling over the point cloud
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+ 
+# 4. Prepare LiDAR data for training (reshape into batches of points)
+lidar_data_tensor = torch.tensor(point_cloud_data, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
+ 
+# 5. Instantiate and train the model (simplified training loop)
+model = PointNet()
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+ 
+# 6. Train for a few epochs (simplified example)
+for epoch in range(10):  # 10 epochs for illustration
+    model.train()
+    optimizer.zero_grad()
+ 
+    # Forward pass
+    outputs = model(lidar_data_tensor)
+    labels = torch.randint(0, 10, (1,))  # Random labels (replace with actual labels in a real scenario)
+ 
+    # Compute loss and backpropagate
+    loss = criterion(outputs, labels)
+    loss.backward()
+    optimizer.step()
+ 
+    print(f"Epoch {epoch+1}, Loss: {loss.item()}")
+ 
+# 7. Visualize the LiDAR point cloud (for reference)
+lidar_points = np.asarray(lidar_data.points)
+plt.scatter(lidar_points[:, 0], lidar_points[:, 1], c=lidar_points[:, 2], cmap='viridis')
+plt.title("3D LiDAR Point Cloud")
+plt.show()
+Project 591: 3D Shape Completion
+Description:
+3D shape completion refers to the process of completing missing or occluded parts of a 3D shape based on the visible portions. This is especially useful in applications like robotics, virtual reality, and 3D reconstruction. In this project, we will implement 3D shape completion using a model that can predict the missing parts of a shape from a partial input.
+
+🧪 Python Implementation (3D Shape Completion using PointNet++)
+import torch
+import torch.nn as nn
+import numpy as np
+import open3d as o3d
+import matplotlib.pyplot as plt
+ 
+# 1. Load a 3D shape (using Open3D to load a 3D model or point cloud)
+shape_data = o3d.io.read_triangle_mesh("path_to_partial_3d_model.obj")  # Replace with actual file path
+ 
+# 2. Convert the 3D model to a point cloud (simulating incomplete 3D shape)
+point_cloud = shape_data.sample_points_uniformly(number_of_points=2048)
+ 
+# 3. Define a simple model for 3D shape completion (using a simple fully connected network)
+class PointNetPlusPlus(nn.Module):
+    def __init__(self):
+        super(PointNetPlusPlus, self).__init__()
+        self.fc1 = nn.Linear(2048, 1024)
+        self.fc2 = nn.Linear(1024, 512)
+        self.fc3 = nn.Linear(512, 256)
+        self.fc4 = nn.Linear(256, 2048)  # Output size is 2048 points for shape completion
+ 
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = torch.relu(self.fc3(x))
+        x = self.fc4(x)  # Complete the shape
+        return x
+ 
+# 4. Simulate incomplete 3D shape as a point cloud
+incomplete_points = np.asarray(point_cloud.points)  # Simulated partial shape (some points missing)
+ 
+# 5. Convert the point cloud to tensor for model processing
+incomplete_points_tensor = torch.tensor(incomplete_points, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
+ 
+# 6. Initialize the model and train it (simplified for illustration)
+model = PointNetPlusPlus()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+criterion = nn.MSELoss()
+ 
+# 7. Train the model (simplified training loop)
+for epoch in range(10):  # 10 epochs for illustration
+    model.train()
+    optimizer.zero_grad()
+ 
+    # Forward pass
+    completed_shape = model(incomplete_points_tensor)
+ 
+    # Simulate target completion (replace with real target shape in a real scenario)
+    target_shape = torch.tensor(np.random.rand(1, 2048), dtype=torch.float32)
+ 
+    # Compute the loss and update the model
+    loss = criterion(completed_shape, target_shape)
+    loss.backward()
+    optimizer.step()
+ 
+    print(f"Epoch {epoch+1}, Loss: {loss.item()}")
+ 
+# 8. Visualize the completed shape (replace with actual shape visualization)
+completed_points = completed_shape.squeeze().detach().numpy()
+ 
+# Visualizing the original and completed shapes using Open3D
+original_pc = o3d.geometry.PointCloud()
+original_pc.points = o3d.utility.Vector3dVector(incomplete_points)
+completed_pc = o3d.geometry.PointCloud()
+completed_pc.points = o3d.utility.Vector3dVector(completed_points)
+ 
+# Visualize original and completed 3D shapes
+o3d.visualization.draw_geometries([original_pc, completed_pc], window_name="3D Shape Completion")
+ 
+Project 592: 3D Shape Generation
+Description:
+3D shape generation involves creating 3D shapes from scratch or from partial data, which is important in fields like 3D modeling, virtual reality, and CAD systems. This task typically leverages generative models such as GANs (Generative Adversarial Networks) to generate novel shapes. In this project, we will implement 3D shape generation using a 3D GAN model.
+
+🧪 Python Implementation (3D Shape Generation using a Simple 3D GAN)
+import torch
+import torch.nn as nn
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define a simple 3D GAN for shape generation
+class Generator(nn.Module):
+    def __init__(self):
+        super(Generator, self).__init__()
+        self.fc1 = nn.Linear(100, 256)  # Latent space to first hidden layer
+        self.fc2 = nn.Linear(256, 512)
+        self.fc3 = nn.Linear(512, 1024)
+        self.fc4 = nn.Linear(1024, 2048)  # Output size for 3D points
+ 
+    def forward(self, z):
+        x = torch.relu(self.fc1(z))
+        x = torch.relu(self.fc2(x))
+        x = torch.relu(self.fc3(x))
+        x = self.fc4(x)
+        return x
+ 
+# 2. Initialize the Generator
+generator = Generator()
+ 
+# 3. Generate random noise (latent vector)
+latent_vector = torch.randn(1, 100)  # Latent vector of size 100
+ 
+# 4. Generate 3D shape using the Generator
+generated_shape = generator(latent_vector)
+ 
+# 5. Visualize the generated 3D shape (simplified for demonstration, using 2D scatter plot for visualization)
+generated_points = generated_shape.detach().numpy().flatten()
+ 
+# Visualizing the 3D shape using a 2D scatter plot (simplified view)
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter(generated_points[:2048], generated_points[2048:4096], generated_points[4096:], c=generated_points[:2048], cmap='viridis')
+ax.set_title("Generated 3D Shape (Simplified)")
+plt.show()
+ 
+# Note: In a real scenario, you'd visualize the generated 3D shape with a 3D rendering library like Open3D or PyTorch3D.
+Project 593: Multi-view 3D Reconstruction
+Description:
+Multi-view 3D reconstruction involves creating a 3D model from multiple 2D images taken from different viewpoints. This process is important for applications like computer vision, augmented reality, and robotics. In this project, we will use multiple 2D images and perform 3D reconstruction by estimating the 3D points corresponding to objects in the images.
+
+🧪 Python Implementation (Multi-view 3D Reconstruction using OpenCV and Structure from Motion)
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Load multiple images from different viewpoints (e.g., images taken from different angles)
+image1 = cv2.imread("path_to_image1.jpg", cv2.IMREAD_GRAYSCALE)  # Replace with actual image paths
+image2 = cv2.imread("path_to_image2.jpg", cv2.IMREAD_GRAYSCALE)
+ 
+# 2. Detect keypoints and compute descriptors using SIFT or ORB
+sift = cv2.SIFT_create()
+kp1, des1 = sift.detectAndCompute(image1, None)
+kp2, des2 = sift.detectAndCompute(image2, None)
+ 
+# 3. Match the keypoints between the two images using a brute-force matcher
+bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+matches = bf.match(des1, des2)
+ 
+# 4. Extract matched keypoints' coordinates
+pts1 = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1, 2)
+pts2 = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1, 2)
+ 
+# 5. Find the essential matrix using the matched points
+F, mask = cv2.findFundamentalMat(pts1, pts2, cv2.FM_RANSAC)
+ 
+# 6. Recover the camera pose (relative position and orientation) between the two views
+_, H = cv2.findHomography(pts1, pts2, cv2.RANSAC)
+ 
+# 7. Triangulate the matched points to get 3D coordinates
+# Assume that the camera matrices are known (can be computed using camera calibration)
+P1 = np.eye(3, 4)  # Camera projection matrix for the first image
+P2 = np.hstack([H[:3, :3], np.zeros((3, 1))])  # Camera projection matrix for the second image
+ 
+# Triangulate points to obtain 3D coordinates
+points_3d = cv2.triangulatePoints(P1, P2, pts1.T, pts2.T)
+ 
+# 8. Convert homogeneous coordinates to 3D space
+points_3d /= points_3d[3]
+ 
+# 9. Visualize the 3D reconstruction (simplified, here we plot in 3D space)
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter(points_3d[0], points_3d[1], points_3d[2], c=points_3d[2], cmap='viridis')
+ax.set_title("3D Reconstruction from Multiple Views")
+plt.show()
+Project 594: Video Frame Interpolation
+Description:
+Video frame interpolation involves generating intermediate frames between two consecutive frames in a video to create smooth slow-motion effects or improve video frame rates. This process requires understanding temporal continuity and motion patterns in the video. In this project, we will implement frame interpolation using deep learning techniques, such as Deep Voxel Flow or FlowNet.
+
+🧪 Python Implementation (Video Frame Interpolation using Optical Flow)
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Load two consecutive frames from a video for interpolation
+frame1 = cv2.imread("path_to_frame1.jpg")  # Replace with actual image paths
+frame2 = cv2.imread("path_to_frame2.jpg")
+ 
+# 2. Convert the frames to grayscale (required for optical flow computation)
+frame1_gray = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+frame2_gray = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+ 
+# 3. Compute optical flow between the two frames using Farneback method
+flow = cv2.calcOpticalFlowFarneback(frame1_gray, frame2_gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+ 
+# 4. Generate an intermediate frame (e.g., by using linear interpolation based on the flow)
+height, width = flow.shape[:2]
+intermediate_frame = np.zeros_like(frame1)
+ 
+for y in range(height):
+    for x in range(width):
+        dx, dy = flow[y, x]
+        intermediate_frame[y, x] = frame1[y + int(dy), x + int(dx)]  # Simple interpolation
+ 
+# 5. Visualize the original and interpolated frames
+plt.figure(figsize=(10, 5))
+ 
+plt.subplot(1, 2, 1)
+plt.imshow(cv2.cvtColor(frame1, cv2.COLOR_BGR2RGB))
+plt.title("Original Frame 1")
+ 
+plt.subplot(1, 2, 2)
+plt.imshow(cv2.cvtColor(intermediate_frame, cv2.COLOR_BGR2RGB))
+plt.title("Interpolated Frame")
+ 
+plt.show()
+Project 595: Video Super-Resolution
+Description:
+Video super-resolution involves enhancing the resolution of video frames to make them sharper and more detailed. This process can improve the quality of videos, especially when working with low-resolution content. In this project, we will apply super-resolution techniques such as deep learning-based models (e.g., SRCNN or VDSR) to upscale low-resolution video frames.
+
+🧪 Python Implementation (Video Super-Resolution using Pre-trained SRCNN Model)
+import cv2
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+from torchvision import models
+from PIL import Image
+import matplotlib.pyplot as plt
+ 
+# 1. Define the SRCNN (Super-Resolution Convolutional Neural Network) model
+class SRCNN(nn.Module):
+    def __init__(self):
+        super(SRCNN, self).__init__()
+        self.conv1 = nn.Conv2d(1, 64, kernel_size=9, padding=4)
+        self.conv2 = nn.Conv2d(64, 32, kernel_size=1)
+        self.conv3 = nn.Conv2d(32, 1, kernel_size=5, padding=2)
+ 
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.relu(self.conv2(x))
+        x = self.conv3(x)
+        return x
+ 
+# 2. Load a pre-trained SRCNN model (for demonstration purposes, you can use a custom-trained model)
+model = SRCNN()
+model.load_state_dict(torch.load('srcnn_model.pth'))  # Assuming model is pre-trained
+model.eval()
+ 
+# 3. Load the video (use a video file path or URL)
+video_path = "path_to_video.mp4"  # Replace with an actual video path
+cap = cv2.VideoCapture(video_path)
+ 
+# 4. Process each frame of the video and apply super-resolution
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
+    
+    # 5. Convert frame to grayscale and normalize
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    frame_tensor = torch.tensor(gray_frame, dtype=torch.float32).unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
+    frame_tensor = frame_tensor / 255.0  # Normalize to [0, 1]
+ 
+    # 6. Apply SRCNN to upscale the image
+    with torch.no_grad():
+        upscaled_frame = model(frame_tensor).squeeze(0).squeeze(0).numpy()
+ 
+    # 7. Convert the upscaled frame back to the original frame size
+    upscaled_frame = (upscaled_frame * 255).astype(np.uint8)
+    upscaled_frame = cv2.resize(upscaled_frame, (frame.shape[1], frame.shape[0]))
+ 
+    # 8. Visualize the original and upscaled frames
+    plt.figure(figsize=(10, 5))
+ 
+    plt.subplot(1, 2, 1)
+    plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    plt.title("Original Frame")
+ 
+    plt.subplot(1, 2, 2)
+    plt.imshow(upscaled_frame, cmap='gray')
+    plt.title("Upscaled Frame")
+ 
+    plt.show()
+ 
+# 9. Release the video capture object
+cap.release()
+Project 596: Video Inpainting
+Description:
+Video inpainting is the process of filling in missing parts of a video, which can be useful for tasks like object removal, restoring corrupted video segments, or even creating video effects. This process requires understanding the context of the missing regions in each frame and generating visually coherent content. In this project, we will use deep learning techniques like generative models to perform video inpainting.
+
+🧪 Python Implementation (Video Inpainting using a Simple CNN)
+import cv2
+import torch
+import torch.nn as nn
+import numpy as np
+import matplotlib.pyplot as plt
+from torch.autograd import Variable
+ 
+# 1. Define a simple Convolutional Neural Network (CNN) for inpainting (simplified version)
+class InpaintingCNN(nn.Module):
+    def __init__(self):
+        super(InpaintingCNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.fc1 = nn.Linear(128*224*224, 1024)  # Assuming image size is 224x224
+        self.fc2 = nn.Linear(1024, 3*224*224)
+ 
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.relu(self.conv2(x))
+        x = x.view(x.size(0), -1)  # Flatten the output for the fully connected layers
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x.view(x.size(0), 3, 224, 224)  # Reshape back to image shape
+ 
+# 2. Load the pre-trained inpainting model (replace with a real model in practice)
+model = InpaintingCNN()
+model.eval()
+ 
+# 3. Load a video (use a video file path or URL)
+video_path = "path_to_video.mp4"  # Replace with an actual video path
+cap = cv2.VideoCapture(video_path)
+ 
+# 4. Process each frame of the video and perform inpainting on missing regions
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
+ 
+    # 5. Preprocess the frame (assume missing regions are black, so we mask them)
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    mask = np.all(frame_rgb == [0, 0, 0], axis=-1)  # Create a mask for missing regions (black pixels)
+ 
+    # 6. Convert the frame to a tensor and add batch dimension
+    frame_tensor = torch.tensor(frame_rgb, dtype=torch.float32).unsqueeze(0) / 255.0
+ 
+    # 7. Inpaint the frame using the model
+    with torch.no_grad():
+        inpainted_frame = model(frame_tensor).squeeze(0).numpy()
+ 
+    # 8. Apply the inpainting result to the masked region
+    inpainted_frame = (inpainted_frame * 255).astype(np.uint8)
+    inpainted_frame[mask] = frame_rgb[mask]  # Keep the original pixels where there is no missing data
+ 
+    # 9. Visualize the original and inpainted frames
+    plt.figure(figsize=(10, 5))
+ 
+    plt.subplot(1, 2, 1)
+    plt.imshow(frame_rgb)
+    plt.title("Original Frame")
+ 
+    plt.subplot(1, 2, 2)
+    plt.imshow(inpainted_frame)
+    plt.title("Inpainted Frame")
+ 
+    plt.show()
+ 
+# 10. Release the video capture object
+cap.release()
+Project 597: Video Colorization
+Description:
+Video colorization involves adding color to grayscale video frames. This process is crucial for tasks like restoring old black-and-white films or enhancing video quality. In this project, we will use deep learning techniques to colorize grayscale videos frame by frame, leveraging models such as DeOldify or CycleGAN.
+
+🧪 Python Implementation (Video Colorization using Pre-trained Model)
+import cv2
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from torchvision import transforms
+from PIL import Image
+ 
+# 1. Load a pre-trained colorization model (e.g., using DeOldify or any pre-trained colorization model)
+# For demonstration purposes, let's assume we have a pre-trained colorization model.
+# Here, we'll use OpenCV's built-in colorizer (a placeholder for a deep learning-based model).
+colorizer = cv2.xphoto.createSimpleWB()
+ 
+# 2. Load a video (use a video file path or URL)
+video_path = "path_to_video.mp4"  # Replace with an actual video path
+cap = cv2.VideoCapture(video_path)
+ 
+# 3. Process each frame of the video and apply colorization
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
+ 
+    # 4. Convert frame to grayscale (simulating black-and-white video)
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+ 
+    # 5. Apply colorization to the grayscale frame
+    colorized_frame = cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2BGR)  # Placeholder for actual colorization
+ 
+    # 6. Visualize the original grayscale and colorized frames
+    plt.figure(figsize=(10, 5))
+ 
+    plt.subplot(1, 2, 1)
+    plt.imshow(gray_frame, cmap='gray')
+    plt.title("Grayscale Frame")
+ 
+    plt.subplot(1, 2, 2)
+    plt.imshow(colorized_frame)
+    plt.title("Colorized Frame")
+ 
+    plt.show()
+ 
+# 7. Release the video capture object
+cap.release()
+Project 598: Video Denoising
+Description:
+Video denoising is the process of removing noise from video frames, improving their quality and clarity. This is important in low-light video conditions or when dealing with compressed videos. In this project, we will implement a video denoising model using deep learning-based approaches such as autoencoders or convolutional neural networks (CNNs).
+
+🧪 Python Implementation (Video Denoising using a Simple CNN-based Autoencoder)
+import torch
+import torch.nn as nn
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Define a simple autoencoder model for video denoising
+class DenoisingAutoencoder(nn.Module):
+    def __init__(self):
+        super(DenoisingAutoencoder, self).__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU()
+        )
+        self.decoder = nn.Sequential(
+            nn.Conv2d(128, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(64, 3, kernel_size=3, stride=1, padding=1),
+            nn.Sigmoid()  # To ensure output is in the range [0, 1]
+        )
+ 
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+ 
+# 2. Load a pre-trained model (for the sake of simplicity, we use a randomly initialized model here)
+model = DenoisingAutoencoder()
+model.eval()
+ 
+# 3. Load a video (use a video file path or URL)
+video_path = "path_to_video.mp4"  # Replace with an actual video path
+cap = cv2.VideoCapture(video_path)
+ 
+# 4. Process each frame of the video and apply denoising
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
+ 
+    # 5. Convert frame to tensor and normalize
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frame_tensor = torch.tensor(frame_rgb, dtype=torch.float32).permute(2, 0, 1).unsqueeze(0) / 255.0  # Normalize to [0, 1]
+ 
+    # 6. Apply denoising using the model
+    with torch.no_grad():
+        denoised_frame = model(frame_tensor).squeeze(0).permute(1, 2, 0).numpy()
+ 
+    # 7. Display the original and denoised frames
+    plt.figure(figsize=(10, 5))
+ 
+    plt.subplot(1, 2, 1)
+    plt.imshow(frame_rgb)
+    plt.title("Original Frame")
+ 
+    plt.subplot(1, 2, 2)
+    plt.imshow(denoised_frame)
+    plt.title("Denoised Frame")
+ 
+    plt.show()
+ 
+# 8. Release the video capture object
+cap.release()
+Project 599: Video Stabilization
+Description:
+Video stabilization is the process of removing unwanted camera shake or jitter from a video, making the footage smoother. This task is important for improving the viewing experience in handheld videos or videos shot in shaky conditions. In this project, we will implement video stabilization using methods such as motion estimation and frame alignment.
+
+🧪 Python Implementation (Video Stabilization using OpenCV)
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Load the video (use a video file path or URL)
+video_path = "path_to_video.mp4"  # Replace with an actual video path
+cap = cv2.VideoCapture(video_path)
+ 
+# 2. Get the first frame and initialize the transformation matrix (identity matrix)
+ret, prev_frame = cap.read()
+prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+transform_matrix = np.eye(3, 3, dtype=np.float32)
+ 
+# 3. Prepare for video stabilization (store the transformed frames)
+stabilized_frames = []
+ 
+# 4. Process each frame for stabilization
+while cap.isOpened():
+    ret, curr_frame = cap.read()
+    if not ret:
+        break
+ 
+    # 5. Convert the current frame to grayscale for optical flow computation
+    curr_gray = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
+ 
+    # 6. Find optical flow between the previous and current frames
+    flow = cv2.calcOpticalFlowFarneback(prev_gray, curr_gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+ 
+    # 7. Calculate the translation vector
+    dx, dy = np.mean(flow, axis=(0, 1))  # Average displacement of flow
+ 
+    # 8. Create a transformation matrix to stabilize the video
+    translation_matrix = np.float32([[1, 0, -dx], [0, 1, -dy]])
+ 
+    # 9. Apply the transformation to the current frame
+    stabilized_frame = cv2.warpAffine(curr_frame, translation_matrix, (curr_frame.shape[1], curr_frame.shape[0]))
+ 
+    # 10. Add the stabilized frame to the list
+    stabilized_frames.append(stabilized_frame)
+ 
+    # 11. Update the previous frame and grayscale image
+    prev_frame = curr_frame
+    prev_gray = curr_gray
+ 
+# 12. Release the video capture object
+cap.release()
+ 
+# 13. Display the original and stabilized video
+fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+axs[0].imshow(prev_frame)
+axs[0].set_title("Original Frame")
+axs[0].axis('off')
+ 
+axs[1].imshow(stabilized_frames[-1])  # Display the last stabilized frame
+axs[1].set_title("Stabilized Frame")
+axs[1].axis('off')
+ 
+plt.show()
+ 
+# Optionally, save the stabilized video
+output_video_path = "stabilized_video.mp4"
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Specify codec
+out = cv2.VideoWriter(output_video_path, fourcc, 30, (prev_frame.shape[1], prev_frame.shape[0]))
+ 
+for frame in stabilized_frames:
+    out.write(frame)
+ 
+out.release()
+This code demonstrates video stabilization by estimating the optical flow between frames and using the translation components of the flow to stabilize the video.
+
+Project 600: Video Compression with Deep Learning
+Description:
+Video compression reduces the size of video files while maintaining quality, which is important for storage and streaming. Traditional video compression algorithms (like H.264) rely on hand-crafted techniques, while deep learning-based video compression uses neural networks to learn more efficient representations of video data. In this project, we will explore video compression using autoencoders or similar models to compress and reconstruct video frames.
+
+🧪 Python Implementation (Video Compression using Autoencoder)
+import torch
+import torch.nn as nn
+import numpy as np
+import cv2
+import matplotlib.pyplot as plt
+ 
+# 1. Define a simple Autoencoder model for video compression
+class VideoAutoencoder(nn.Module):
+    def __init__(self):
+        super(VideoAutoencoder, self).__init__()
+        # Encoder: Compressing the video frame into a lower-dimensional representation
+        self.encoder = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+        )
+        # Decoder: Reconstructing the compressed frame back to original dimensions
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(64, 3, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.Sigmoid(),  # To output values in the range [0, 1]
+        )
+ 
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+ 
+# 2. Load a video for compression (use a video file path or URL)
+video_path = "path_to_video.mp4"  # Replace with an actual video path
+cap = cv2.VideoCapture(video_path)
+ 
+# 3. Read a frame from the video and preprocess it
+ret, frame = cap.read()
+frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+frame_resized = cv2.resize(frame_rgb, (224, 224))  # Resize to fit the model
+ 
+# 4. Convert the frame to a tensor and normalize
+frame_tensor = torch.tensor(frame_resized, dtype=torch.float32).permute(2, 0, 1).unsqueeze(0) / 255.0  # Normalize to [0, 1]
+ 
+# 5. Initialize the Autoencoder model for compression
+model = VideoAutoencoder()
+model.eval()
+ 
+# 6. Perform compression and reconstruction (inference step)
+with torch.no_grad():
+    compressed_frame = model(frame_tensor).squeeze(0).permute(1, 2, 0).numpy()
+ 
+# 7. Visualize the original and compressed (reconstructed) frames
+plt.figure(figsize=(10, 5))
+ 
+plt.subplot(1, 2, 1)
+plt.imshow(frame_resized)
+plt.title("Original Frame")
+ 
+plt.subplot(1, 2, 2)
+plt.imshow(compressed_frame)
+plt.title("Compressed Frame (Reconstructed)")
+ 
+plt.show()
+ 
+# 8. Optionally, save the compressed video (assuming you process multiple frames)
+output_video_path = "compressed_video.mp4"
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Specify codec
+out = cv2.VideoWriter(output_video_path, fourcc, 30, (frame_resized.shape[1], frame_resized.shape[0]))
+ 
+# You can loop through the frames, compress them, and save the compressed video
+out.release()
+cap.release()
+This code demonstrates video compression using an autoencoder model. It compresses each video frame and reconstructs it with minimal loss. In practice, more advanced models like VAE (Variational Autoencoders) or deep compression algorithms can be used to improve the compression efficiency.
+
