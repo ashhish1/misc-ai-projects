@@ -1,0 +1,2160 @@
+
+Project 881. Network Intrusion Detection
+
+A Network Intrusion Detection System (NIDS) monitors network traffic for suspicious activity or policy violations. In this project, we simulate network flow data and build a binary classification model to detect whether a connection is normal or an intrusion.
+
+Here’s the Python implementation using a simple Random Forest model:
+
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated network traffic dataset
+# Each row represents a network connection session
+data = {
+    'Duration': [10, 300, 5, 200, 3, 250, 8, 100],
+    'ProtocolType': [0, 1, 0, 1, 0, 1, 0, 1],  # e.g., 0 = TCP, 1 = UDP
+    'BytesSent': [1000, 50000, 200, 40000, 150, 35000, 300, 12000],
+    'BytesReceived': [800, 30000, 100, 25000, 100, 30000, 150, 10000],
+    'Flag': [0, 1, 0, 1, 0, 1, 0, 1],  # Binary class: 0 = normal, 1 = intrusion
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and labels
+X = df.drop('Flag', axis=1)
+y = df['Flag']
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train a Random Forest classifier
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# Predict and evaluate
+y_pred = model.predict(X_test)
+print("Network Intrusion Detection Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict on a new network session
+new_connection = pd.DataFrame([{
+    'Duration': 120,
+    'ProtocolType': 0,
+    'BytesSent': 10000,
+    'BytesReceived': 8000
+}])
+intrusion_prob = model.predict_proba(new_connection)[0][1]
+print(f"\nIntrusion Probability for new connection: {intrusion_prob:.2%}")
+This model uses basic network session features to classify traffic as normal or malicious. In real-world applications, models are trained on datasets like NSL-KDD, CIC-IDS, or UNSW-NB15, and feature additional attributes like packet counts, flags, and timing.
+
+Project 882. Malware Detection System
+
+A malware detection system classifies files or programs as benign or malicious. In this project, we simulate feature data extracted from executable files (like file size, entropy, and API calls) and use a binary classification model to detect malware.
+
+Here’s the Python implementation using RandomForestClassifier:
+
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated feature data from executable files
+data = {
+    'FileSizeKB': [300, 1200, 400, 800, 1500, 290, 350, 2000],
+    'Entropy': [6.5, 3.2, 7.0, 4.5, 3.0, 6.8, 6.3, 2.5],  # randomness of file
+    'NumAPIcalls': [120, 30, 140, 50, 20, 110, 115, 10],
+    'UsesNetwork': [1, 0, 1, 0, 0, 1, 1, 0],
+    'IsMalware': [1, 0, 1, 0, 0, 1, 1, 0]  # 1 = malware, 0 = benign
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df.drop('IsMalware', axis=1)
+y = df['IsMalware']
+ 
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train the malware classifier
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# Evaluate on test data
+y_pred = model.predict(X_test)
+print("Malware Detection Performance:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict on new executable features
+new_file = pd.DataFrame([{
+    'FileSizeKB': 325,
+    'Entropy': 6.7,
+    'NumAPIcalls': 130,
+    'UsesNetwork': 1
+}])
+ 
+malware_prob = model.predict_proba(new_file)[0][1]
+print(f"\nPredicted Malware Probability: {malware_prob:.2%}")
+This model detects malware using static features. In real use, you'd extract these features via tools like PEfile, YARA, or dynamic analysis sandboxes (e.g., Cuckoo), and potentially apply neural networks for behavior-based detection.
+
+Project 883. Phishing Detection System
+
+A phishing detection system identifies malicious websites or emails that attempt to steal sensitive information (e.g., login credentials, credit card numbers). In this project, we simulate URL-based features and use a classification model to detect phishing attempts.
+
+Here’s the Python implementation using scikit-learn:
+
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated dataset with URL-based features
+data = {
+    'URLLength': [50, 120, 35, 95, 80, 25, 150, 45],
+    'NumDots': [1, 5, 1, 4, 3, 1, 6, 2],
+    'HasHTTPS': [1, 0, 1, 0, 1, 1, 0, 1],
+    'NumSpecialChars': [3, 10, 2, 9, 6, 2, 12, 4],
+    'Phishing': [0, 1, 0, 1, 0, 0, 1, 0]  # 1 = phishing, 0 = legitimate
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df.drop('Phishing', axis=1)
+y = df['Phishing']
+ 
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train the phishing classifier
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# Evaluate on test set
+y_pred = model.predict(X_test)
+print("Phishing Detection Classification Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict phishing likelihood for a new URL
+new_url = pd.DataFrame([{
+    'URLLength': 110,
+    'NumDots': 4,
+    'HasHTTPS': 0,
+    'NumSpecialChars': 9
+}])
+ 
+phishing_prob = model.predict_proba(new_url)[0][1]
+print(f"\nPredicted Phishing Risk: {phishing_prob:.2%}")
+This rule-based model identifies phishing attempts based on URL features. For production systems, enhance it using:
+
+Text analysis of email content or HTML source
+
+Domain name reputation APIs
+
+Neural models (e.g., LSTM or transformers) for sequence-aware detection
+
+Project 884. Fraud Detection for Transactions
+
+Fraud detection for transactions identifies suspicious financial activities in real time (e.g., unauthorized purchases, account takeovers). In this project, we simulate transaction data and use a binary classification model to detect fraud based on transaction patterns.
+
+Here’s the Python implementation using RandomForestClassifier:
+
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated transaction dataset
+data = {
+    'Amount': [100, 5000, 200, 7000, 80, 15000, 50, 3000],  # transaction amount
+    'TimeOfDay': [10, 23, 14, 1, 9, 2, 13, 22],             # hour of transaction
+    'LocationMatch': [1, 0, 1, 0, 1, 0, 1, 0],              # does it match known location
+    'DeviceTrusted': [1, 0, 1, 0, 1, 0, 1, 0],              # familiar device used
+    'IsFraud': [0, 1, 0, 1, 0, 1, 0, 1]                     # 1 = fraud, 0 = genuine
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df.drop('IsFraud', axis=1)
+y = df['IsFraud']
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train the fraud classifier
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# Evaluate model
+y_pred = model.predict(X_test)
+print("Transaction Fraud Detection Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict on a new transaction
+new_transaction = pd.DataFrame([{
+    'Amount': 6800,
+    'TimeOfDay': 1,
+    'LocationMatch': 0,
+    'DeviceTrusted': 0
+}])
+ 
+fraud_risk = model.predict_proba(new_transaction)[0][1]
+print(f"\nPredicted Fraud Risk: {fraud_risk:.2%}")
+This model uses contextual features (amount, time, device, and location) to flag transactions as potentially fraudulent. It can be enhanced with:
+
+Time series behavior modeling
+
+Graph-based fraud networks
+
+Deep learning for complex feature interactions
+
+Project 885. Credit Card Fraud Detection
+
+Credit card fraud detection systems identify unauthorized or suspicious card usage based on transaction patterns. In this project, we simulate anonymized credit card transaction data and build a binary classification model using LogisticRegression.
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated credit card transaction features
+data = {
+    'TransactionAmount': [25.5, 4500.0, 12.0, 8800.0, 33.0, 9100.0, 29.0, 4999.0],
+    'TransactionHour': [14, 1, 12, 0, 13, 3, 11, 2],          # hour of the day (0-23)
+    'IsOnline': [1, 1, 0, 1, 0, 1, 0, 1],                    # whether it was online
+    'CardPresent': [1, 0, 1, 0, 1, 0, 1, 0],                 # physical card used or not
+    'Fraud': [0, 1, 0, 1, 0, 1, 0, 1]                        # 1 = fraud, 0 = legitimate
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and label
+X = df.drop('Fraud', axis=1)
+y = df['Fraud']
+ 
+# Split into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train logistic regression model
+model = LogisticRegression()
+model.fit(X_train, y_train)
+ 
+# Evaluate model
+y_pred = model.predict(X_test)
+print("Credit Card Fraud Detection Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict on a new credit card transaction
+new_transaction = pd.DataFrame([{
+    'TransactionAmount': 7200.0,
+    'TransactionHour': 2,
+    'IsOnline': 1,
+    'CardPresent': 0
+}])
+ 
+fraud_prob = model.predict_proba(new_transaction)[0][1]
+print(f"\nPredicted Credit Card Fraud Risk: {fraud_prob:.2%}")
+This model flags potentially fraudulent card activity based on timing, context, and mode of payment. For real-world deployment, you'd work with:
+
+Highly imbalanced datasets (e.g., <1% fraud)
+
+Feature engineering from transaction sequences
+
+SMOTE, under-sampling, or anomaly detection techniques
+
+Encrypted customer behavior signals
+
+Project 886. Identity Theft Detection
+
+Identity theft detection focuses on spotting unusual behavior that suggests someone is using a person's credentials fraudulently. This project uses user behavior data (e.g., location, device, transaction type) and builds a binary classifier to detect identity theft attempts.
+
+Here’s the Python implementation using RandomForestClassifier:
+
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated identity-related transaction logs
+data = {
+    'LoginHour': [10, 2, 14, 1, 13, 0, 15, 3],             # time of login
+    'DeviceMatch': [1, 0, 1, 0, 1, 0, 1, 0],               # known device (1) or not (0)
+    'LocationMatch': [1, 0, 1, 0, 1, 0, 1, 0],             # known location (1) or not (0)
+    'MultipleAttempts': [0, 1, 0, 1, 0, 1, 0, 1],          # repeated login attempts
+    'IdentityTheft': [0, 1, 0, 1, 0, 1, 0, 1]              # 1 = identity theft, 0 = normal
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df.drop('IdentityTheft', axis=1)
+y = df['IdentityTheft']
+ 
+# Split into train and test data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train the identity theft detection model
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# Predict and evaluate
+y_pred = model.predict(X_test)
+print("Identity Theft Detection Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict on new login behavior
+new_login = pd.DataFrame([{
+    'LoginHour': 1,
+    'DeviceMatch': 0,
+    'LocationMatch': 0,
+    'MultipleAttempts': 1
+}])
+ 
+risk_score = model.predict_proba(new_login)[0][1]
+print(f"\nPredicted Identity Theft Risk: {risk_score:.2%}")
+This model flags suspicious access patterns (e.g., odd login times, new locations, or unrecognized devices) that may suggest identity theft. For enhanced detection:
+
+Use sequence analysis (login timelines)
+
+Integrate IP, GPS, and biometric data
+
+Monitor account behavior drift using clustering or anomaly detection
+
+Project 887. Anomaly Detection for Security
+
+Anomaly detection for security identifies unexpected system behavior, such as unusual network usage, system calls, or user actions, which could indicate intrusions or internal threats. In this project, we simulate security log data and apply unsupervised anomaly detection using IsolationForest.
+
+Here’s the Python implementation:
+
+import pandas as pd
+import numpy as np
+from sklearn.ensemble import IsolationForest
+import matplotlib.pyplot as plt
+ 
+# Simulated security log features for system activity
+data = {
+    'CPU_Usage': [15, 20, 18, 17, 90, 22, 19, 95, 16, 21],  # % usage
+    'Memory_Usage': [40, 45, 42, 43, 95, 41, 44, 97, 42, 46],  # % usage
+    'NumProcesses': [60, 62, 59, 61, 150, 58, 60, 155, 63, 64]  # number of running processes
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Apply Isolation Forest for anomaly detection
+model = IsolationForest(contamination=0.2, random_state=42)
+df['Anomaly'] = model.fit_predict(df)
+ 
+# Convert result: -1 = anomaly, 1 = normal
+df['Anomaly'] = df['Anomaly'].map({1: 0, -1: 1})
+ 
+# Show detected anomalies
+print("Detected Anomalies in System Activity:")
+print(df[df['Anomaly'] == 1])
+ 
+# Visualize CPU vs Memory usage and highlight anomalies
+plt.figure(figsize=(8, 5))
+plt.scatter(df['CPU_Usage'], df['Memory_Usage'], c=df['Anomaly'], cmap='coolwarm', s=100, edgecolors='k')
+plt.xlabel('CPU Usage (%)')
+plt.ylabel('Memory Usage (%)')
+plt.title('Security Anomaly Detection')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+This model flags system sessions that deviate from normal patterns—ideal for early detection of compromise, insider threats, or resource misuse. For more complex cases, use:
+
+Multivariate time-series anomaly detection
+
+Autoencoders for feature compression and error reconstruction
+
+Streaming anomaly detection with Apache Kafka or Flink
+
+Project 888. User Behavior Analytics
+
+User Behavior Analytics (UBA) tracks and analyzes user activity to detect abnormal patterns that might indicate insider threats, account compromise, or policy violations. In this project, we simulate user session logs and use unsupervised clustering (K-Means) to detect outliers in user behavior.
+
+Here’s the Python implementation using KMeans:
+
+import pandas as pd
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+ 
+# Simulated user activity logs
+data = {
+    'LoginDuration': [5, 6, 4, 5, 60, 4, 5, 65, 4, 5],  # in minutes
+    'FilesAccessed': [10, 12, 8, 11, 50, 9, 10, 55, 9, 11],  # number of files
+    'FailedLogins': [0, 1, 0, 0, 5, 0, 1, 6, 0, 1]  # number of failed login attempts
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Normalize the data
+scaler = StandardScaler()
+scaled_data = scaler.fit_transform(df)
+ 
+# Fit K-Means with 2 clusters (normal vs outlier)
+kmeans = KMeans(n_clusters=2, random_state=42)
+df['Cluster'] = kmeans.fit_predict(scaled_data)
+ 
+# Assume the cluster with fewer members is the 'abnormal' one
+counts = df['Cluster'].value_counts()
+abnormal_cluster = counts.idxmin()
+df['Anomaly'] = df['Cluster'].apply(lambda x: 1 if x == abnormal_cluster else 0)
+ 
+# Display abnormal user behavior
+print("Abnormal User Sessions:")
+print(df[df['Anomaly'] == 1])
+ 
+# Visualize clustering
+plt.figure(figsize=(8, 5))
+plt.scatter(df['LoginDuration'], df['FilesAccessed'], c=df['Anomaly'], cmap='coolwarm', s=100, edgecolors='k')
+plt.xlabel('Login Duration (min)')
+plt.ylabel('Files Accessed')
+plt.title('User Behavior Analytics - Anomaly Detection')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+This project identifies abnormal users by grouping behavior and labeling outliers. You can enhance UBA with:
+
+Time-series modeling (e.g., user actions over sessions)
+
+Role-based behavior baselining
+
+Integration with SIEM systems
+
+Project 889. Authentication System
+
+An authentication system verifies user identity to grant access to secure systems. In this project, we simulate a multi-factor authentication (MFA) mechanism using a simple logic that checks username-password match and a second authentication factor (e.g., OTP or device).
+
+Here’s a Python implementation of a basic rule-based MFA system:
+
+import hashlib
+import random
+ 
+# Simulated user database (username: hashed_password)
+users = {
+    'alice': hashlib.sha256('alice123'.encode()).hexdigest(),
+    'bob': hashlib.sha256('bob456'.encode()).hexdigest(),
+}
+ 
+# Function to verify credentials
+def verify_credentials(username, password):
+    hashed = hashlib.sha256(password.encode()).hexdigest()
+    return users.get(username) == hashed
+ 
+# Simulated OTP system (for demo, we fix OTP for simplicity)
+def generate_otp():
+    return str(random.randint(100000, 999999))
+ 
+# Authenticate user
+def authenticate(username, password, otp_input, actual_otp):
+    if verify_credentials(username, password):
+        print("✅ Password verified.")
+        if otp_input == actual_otp:
+            print("✅ OTP verified. Access granted.")
+            return True
+        else:
+            print("❌ Invalid OTP. Access denied.")
+    else:
+        print("❌ Invalid username or password.")
+    return False
+ 
+# Simulated login attempt
+username = 'alice'
+password = 'alice123'
+actual_otp = generate_otp()
+print(f"(Simulated OTP sent to device: {actual_otp})")
+ 
+# User inputs
+otp_input = input("Enter OTP: ")
+ 
+# Authenticate user with both factors
+authenticate(username, password, otp_input, actual_otp)
+Features:
+Password Hashing: Ensures passwords are not stored in plain text.
+
+OTP-based Second Factor: Adds an extra layer of security.
+
+Result Feedback: Lets the user know which step failed.
+
+For production:
+
+Integrate with a database and secure OTP service (e.g., TOTP via Google Authenticator)
+
+Add retry limits and IP logging
+
+Use OAuth or biometric verification in advanced setups
+
+Project 890. Biometric Verification System
+
+A biometric verification system authenticates users based on unique biological traits like fingerprint, face, or voice. In this project, we simulate a fingerprint matching system using vectorized biometric features and compare them using Euclidean distance.
+
+Here’s a simplified Python implementation:
+
+import numpy as np
+from scipy.spatial.distance import euclidean
+ 
+# Simulated biometric fingerprint vectors (128-dim embeddings)
+# Stored template for enrolled user
+registered_fingerprint = np.random.rand(128)
+ 
+# New fingerprint captured during login
+new_fingerprint = registered_fingerprint + np.random.normal(0, 0.01, 128)  # slight noise
+ 
+# Compare using Euclidean distance
+distance = euclidean(registered_fingerprint, new_fingerprint)
+ 
+# Define threshold (tunable based on system sensitivity)
+threshold = 0.5
+is_verified = distance < threshold
+ 
+# Output results
+print(f"Fingerprint Distance: {distance:.4f}")
+if is_verified:
+    print("✅ Biometric Match: Access granted.")
+else:
+    print("❌ Biometric Mismatch: Access denied.")
+Key Points:
+This simulates matching of biometric vectors, commonly extracted from images using CNNs in real systems.
+
+The threshold determines how strict the verification is.
+
+You can replace vectors with actual biometric model outputs using OpenCV, TensorFlow, or pretrained APIs (e.g., face_recognition or DeepFace).
+
+Project 891. Face Authentication System
+
+A face authentication system verifies a user by comparing a live facial image with a stored reference image. In this project, we’ll use the popular face_recognition library to perform face encoding comparison between a stored face and a new input.
+
+Here’s a Python implementation using actual face embeddings:
+
+📌 Note: You need to install the face_recognition and opencv-python packages and have two face images (user.jpg and login.jpg) available.
+
+import face_recognition
+ 
+# Load reference image (enrolled user)
+reference_image = face_recognition.load_image_file("user.jpg")
+reference_encoding = face_recognition.face_encodings(reference_image)[0]
+ 
+# Load login image (input to verify)
+login_image = face_recognition.load_image_file("login.jpg")
+login_encoding = face_recognition.face_encodings(login_image)[0]
+ 
+# Compare face encodings
+matches = face_recognition.compare_faces([reference_encoding], login_encoding)
+distance = face_recognition.face_distance([reference_encoding], login_encoding)[0]
+ 
+# Define threshold (face_recognition default is ~0.6)
+threshold = 0.6
+print(f"Face Distance: {distance:.4f}")
+ 
+if matches[0] and distance < threshold:
+    print("✅ Face Authentication Successful: Access Granted.")
+else:
+    print("❌ Face Authentication Failed: Access Denied.")
+Key Points:
+Face encodings are 128-dimensional feature vectors.
+
+compare_faces returns a boolean match, while face_distance gives the similarity score.
+
+Can be extended with live capture via webcam (using OpenCV) and liveness detection (to prevent spoofing).
+
+Project 892. Fingerprint Recognition
+
+Fingerprint recognition systems match a scanned fingerprint against a database to verify or identify a person. In this project, we simulate fingerprint recognition using image matching techniques with OpenCV’s ORB (Oriented FAST and Rotated BRIEF) descriptor and feature matching.
+
+✅ You’ll need fingerprint images, e.g., registered_fingerprint.jpg and scanned_fingerprint.jpg.
+
+Here’s the Python implementation:
+
+import cv2
+ 
+# Load registered and scanned fingerprint images (grayscale)
+img1 = cv2.imread("registered_fingerprint.jpg", cv2.IMREAD_GRAYSCALE)
+img2 = cv2.imread("scanned_fingerprint.jpg", cv2.IMREAD_GRAYSCALE)
+ 
+# Initialize ORB detector
+orb = cv2.ORB_create()
+ 
+# Detect keypoints and descriptors
+kp1, des1 = orb.detectAndCompute(img1, None)
+kp2, des2 = orb.detectAndCompute(img2, None)
+ 
+# Match features using Brute-Force Hamming distance
+bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+matches = bf.match(des1, des2)
+ 
+# Sort matches by distance
+matches = sorted(matches, key=lambda x: x.distance)
+ 
+# Calculate average distance of top N matches
+N = 30
+average_distance = sum([m.distance for m in matches[:N]]) / N
+threshold = 50  # Lower = more similar
+ 
+# Display result
+print(f"Average Match Distance: {average_distance:.2f}")
+if average_distance < threshold:
+    print("✅ Fingerprint Match: Access granted.")
+else:
+    print("❌ Fingerprint Mismatch: Access denied.")
+ 
+# Optionally, visualize matches
+matched_image = cv2.drawMatches(img1, kp1, img2, kp2, matches[:N], None, flags=2)
+cv2.imshow("Matched Fingerprints", matched_image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+Key Concepts:
+ORB is fast, lightweight, and works well for biometric feature extraction.
+
+The lower the average match distance, the closer the fingerprints.
+
+Threshold tuning is critical based on dataset quality and resolution.
+
+Project 893. Iris Recognition Implementation
+
+Iris recognition authenticates users based on the unique patterns in their irises. It is one of the most accurate biometric methods. In this project, we simulate iris recognition by using image preprocessing and feature extraction with OpenCV's contour and histogram analysis.
+
+📌 You’ll need two eye images: enrolled_iris.jpg (reference) and input_iris.jpg (to authenticate).
+
+Here’s a simplified Python implementation:
+
+import cv2
+import numpy as np
+from scipy.spatial.distance import cosine
+ 
+# Function to preprocess iris image (grayscale + cropping + resize)
+def preprocess_iris(img_path):
+    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    img = cv2.resize(img, (100, 100))
+    # Normalize intensity and flatten to feature vector
+    norm_img = cv2.equalizeHist(img)
+    return norm_img.flatten()
+ 
+# Extract iris features (basic pixel histogram + shape descriptor)
+def extract_features(flattened_img):
+    hist = np.histogram(flattened_img, bins=32, range=(0, 256))[0]
+    hist = hist / np.linalg.norm(hist)  # Normalize histogram
+    return hist
+ 
+# Preprocess and extract features
+enrolled_img = preprocess_iris("enrolled_iris.jpg")
+input_img = preprocess_iris("input_iris.jpg")
+ 
+feature1 = extract_features(enrolled_img)
+feature2 = extract_features(input_img)
+ 
+# Compare features using cosine similarity
+similarity = 1 - cosine(feature1, feature2)
+threshold = 0.85  # Typical threshold for match
+ 
+print(f"Iris Similarity Score: {similarity:.2f}")
+if similarity >= threshold:
+    print("✅ Iris Verified: Access Granted.")
+else:
+    print("❌ Iris Mismatch: Access Denied.")
+Notes:
+This basic version uses histogram features, but real-world systems use Gabor wavelets, phase encoding, and segmentation for sclera and pupil.
+
+Accuracy improves with iris segmentation and noise filtering (e.g., eyelids, reflections).
+
+Project 894. Voice Authentication System
+
+A voice authentication system verifies users based on the unique characteristics of their voice (pitch, tone, rhythm). In this project, we simulate speaker verification by extracting MFCC (Mel Frequency Cepstral Coefficients) features and comparing them using cosine similarity.
+
+📌 You’ll need two voice recordings: enrolled_voice.wav (stored) and input_voice.wav (login attempt).
+
+Here’s the Python implementation using librosa:
+
+import librosa
+import numpy as np
+from scipy.spatial.distance import cosine
+ 
+# Function to extract voice features (MFCC)
+def extract_voice_features(filepath):
+    audio, sr = librosa.load(filepath, sr=None)
+    mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=13)
+    mfcc_mean = np.mean(mfcc, axis=1)  # Average across time
+    return mfcc_mean
+ 
+# Load and extract features from enrolled and test samples
+enrolled_features = extract_voice_features("enrolled_voice.wav")
+input_features = extract_voice_features("input_voice.wav")
+ 
+# Compute cosine similarity
+similarity = 1 - cosine(enrolled_features, input_features)
+threshold = 0.85  # Empirical similarity threshold
+ 
+print(f"Voice Similarity Score: {similarity:.2f}")
+if similarity >= threshold:
+    print("✅ Voice Verified: Access Granted.")
+else:
+    print("❌ Voice Mismatch: Access Denied.")
+Why MFCC?
+MFCCs capture the timbral texture of a voice — it's like a fingerprint for speech.
+
+Cosine similarity is used here for speaker matching.
+
+🔒 Advanced systems include:
+
+Noise filtering & silence trimming
+
+Dynamic Time Warping (DTW)
+
+Deep speaker embedding models (e.g., ECAPA-TDNN, x-vectors)
+
+Project 895. Behavioral Biometrics System
+
+Behavioral biometrics analyzes patterns in how users interact with devices — such as typing rhythm, mouse movement, or swipe gestures — to continuously verify identity. In this project, we simulate keystroke dynamics (timing between key presses) and use Euclidean distance for identity matching.
+
+Here’s the Python implementation:
+
+import numpy as np
+from scipy.spatial.distance import euclidean
+ 
+# Simulated keystroke timing profile (in milliseconds between keys)
+# Reference typing pattern (enrolled user)
+enrolled_profile = np.array([120, 100, 130, 150, 110])  # e.g., password "hello"
+ 
+# Input pattern (captured during login)
+input_profile = np.array([118, 102, 129, 152, 111])  # same password typed again
+ 
+# Compare profiles using Euclidean distance
+distance = euclidean(enrolled_profile, input_profile)
+threshold = 15  # Acceptable variation in timing
+ 
+print(f"Keystroke Distance: {distance:.2f}")
+if distance < threshold:
+    print("✅ Behavioral Biometrics Match: Identity Verified.")
+else:
+    print("❌ Behavior Mismatch: Access Denied.")
+What It Does:
+Captures flight time (time between key presses) or dwell time (time a key is held).
+
+Uses distance metric to compare current behavior with enrolled template.
+
+🛡️ Advanced behavioral biometrics may include:
+
+Mouse trajectory modeling
+
+Mobile swipe/gesture patterns
+
+Continuous authentication over a session
+
+Project 896. Password Strength Evaluation
+
+A password strength evaluation system assesses how secure a password is based on its length, complexity, and entropy. In this project, we simulate a basic password strength meter that classifies passwords as Weak, Moderate, or Strong.
+
+Here’s the Python implementation:
+
+import re
+ 
+# Function to evaluate password strength
+def evaluate_password(password):
+    length = len(password)
+    has_upper = bool(re.search(r'[A-Z]', password))
+    has_lower = bool(re.search(r'[a-z]', password))
+    has_digit = bool(re.search(r'\d', password))
+    has_symbol = bool(re.search(r'\W', password))  # Non-alphanumeric
+    score = sum([has_upper, has_lower, has_digit, has_symbol])
+ 
+    # Rule-based classification
+    if length >= 12 and score == 4:
+        return 'Strong 💪'
+    elif length >= 8 and score >= 3:
+        return 'Moderate ⚠️'
+    else:
+        return 'Weak ❌'
+ 
+# Test passwords
+passwords = [
+    "password",              # weak
+    "Pass1234",              # moderate
+    "Str0ng!Pass2024",       # strong
+    "letmein",               # weak
+    "Admin@987",             # moderate
+    "aB1@"                   # weak (short)
+]
+ 
+print("Password Strength Evaluation:")
+for pwd in passwords:
+    print(f"{pwd}: {evaluate_password(pwd)}")
+What It Checks:
+Length: Longer passwords are harder to brute-force.
+
+Character diversity: Encourages use of uppercase, lowercase, digits, symbols.
+
+Score-based logic: Adjustable thresholds for real-world applications.
+
+🔐 Advanced versions may include:
+
+Entropy calculation
+
+Blacklist check (common passwords)
+
+Zxcvbn scoring (as used by Dropbox)
+
+Project 897. Vulnerability Assessment Tool
+
+A vulnerability assessment tool scans systems, services, or codebases for known security weaknesses. In this project, we simulate a basic port and version scanner that checks a list of services against a mock vulnerability database.
+
+Here’s the Python implementation:
+
+# Simulated services running on a system
+scanned_services = [
+    {'Port': 22, 'Service': 'OpenSSH', 'Version': '7.2'},
+    {'Port': 80, 'Service': 'Apache', 'Version': '2.4.18'},
+    {'Port': 3306, 'Service': 'MySQL', 'Version': '5.5'},
+    {'Port': 443, 'Service': 'Nginx', 'Version': '1.18.0'}
+]
+ 
+# Simulated vulnerability database (real-world: CVE/NVD feeds)
+vulnerability_db = {
+    ('OpenSSH', '7.2'): 'CVE-2016-0777: Information leak in roaming feature',
+    ('Apache', '2.4.18'): 'CVE-2017-15710: mod_status DoS vulnerability',
+    ('MySQL', '5.5'): 'CVE-2016-6662: Remote root code execution vulnerability'
+}
+ 
+# Scan report
+print("Vulnerability Assessment Report:")
+for service in scanned_services:
+    key = (service['Service'], service['Version'])
+    vuln = vulnerability_db.get(key)
+    if vuln:
+        print(f"[!] Vulnerability found on port {service['Port']}: {vuln}")
+    else:
+        print(f"[OK] No known vulnerability for {service['Service']} {service['Version']} on port {service['Port']}")
+What It Simulates:
+Checks each running service's version against a database of known vulnerabilities.
+
+Reports CVE-style vulnerabilities for system hardening.
+
+🔍 For production use:
+
+Use tools like OpenVAS, Nessus, or Nmap + CVE feeds.
+
+Automate scanning with scheduled cron jobs.
+
+Integrate with patch management and reporting systems.
+
+Project 898. Software Defect Prediction
+
+Software defect prediction helps identify buggy code components before deployment, using historical metrics like code complexity, size, and previous defect labels. In this project, we simulate a dataset of software modules and train a classifier to predict whether a module is likely to contain a defect.
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated software module dataset
+data = {
+    'LinesOfCode': [120, 450, 90, 600, 150, 700, 100, 550],
+    'CyclomaticComplexity': [5, 15, 3, 20, 7, 25, 4, 18],
+    'NumFunctions': [3, 10, 2, 12, 4, 15, 3, 13],
+    'Defect': [0, 1, 0, 1, 0, 1, 0, 1]  # 1 = defect-prone, 0 = clean
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df.drop('Defect', axis=1)
+y = df['Defect']
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train classifier
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# Evaluate model
+y_pred = model.predict(X_test)
+print("Software Defect Prediction Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict on new code module
+new_module = pd.DataFrame([{
+    'LinesOfCode': 500,
+    'CyclomaticComplexity': 19,
+    'NumFunctions': 11
+}])
+defect_risk = model.predict_proba(new_module)[0][1]
+print(f"\nPredicted Defect Risk: {defect_risk:.2%}")
+Why It Works:
+Uses metrics extracted from static code analysis tools (e.g., SonarQube, Radon).
+
+Predicts whether a module is defect-prone based on complexity and structure.
+
+🔍 In production:
+
+Extend with real code metrics from version control or CI/CD pipelines.
+
+Use models like logistic regression, XGBoost, or neural nets with embedding from source code.
+
+Project 899. Bug Prioritization System
+
+A bug prioritization system classifies reported bugs by their urgency or importance so that development teams can resolve the most critical issues first. In this project, we simulate a dataset of bug reports and use a text classification model to predict priority levels (e.g., Low, Medium, High).
+
+Here’s the Python implementation using TfidfVectorizer + LogisticRegression:
+
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated bug report descriptions and priority levels
+data = {
+    'Description': [
+        "App crashes on startup",
+        "Minor visual glitch on settings screen",
+        "Unable to complete checkout process",
+        "Typos in help section text",
+        "Security vulnerability in login module",
+        "Button misaligned on mobile view",
+        "Database timeout under load",
+        "Spelling mistake in error message"
+    ],
+    'Priority': [
+        'High', 'Low', 'High', 'Low', 'High', 'Medium', 'High', 'Low'
+    ]
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Convert text descriptions to TF-IDF features
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(df['Description'])
+y = df['Priority']
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train the classifier
+model = LogisticRegression()
+model.fit(X_train, y_train)
+ 
+# Evaluate model
+y_pred = model.predict(X_test)
+print("Bug Prioritization Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict priority for a new bug description
+new_bug = ["The app freezes when switching tabs rapidly"]
+new_vec = vectorizer.transform(new_bug)
+predicted_priority = model.predict(new_vec)[0]
+print(f"\nPredicted Priority: {predicted_priority}")
+Why It’s Useful:
+Prioritizes bugs automatically based on semantic analysis of their descriptions.
+
+Can be integrated with bug tracking systems (e.g., Jira, GitHub Issues).
+
+📈 Advanced ideas:
+
+Include features like frequency of reports, affected users, or crash logs.
+
+Use BERT or other transformers for more context-aware classification.
+
+Project 900. Static Code Analysis
+
+Static code analysis examines source code without executing it to detect potential bugs, code smells, security vulnerabilities, and style violations. In this project, we simulate a static code analysis tool that scans Python files for risky patterns (like use of eval, hardcoded passwords, or missing exception handling).
+
+Here’s a simplified Python implementation:
+
+import re
+ 
+# Sample Python code (can also load from file)
+code_sample = """
+def calculate(expression):
+    result = eval(expression)
+    return result
+ 
+password = '123456'  # hardcoded password
+ 
+def risky_function():
+    x = 10 / 0  # division by zero risk
+"""
+ 
+# Define patterns to detect
+patterns = {
+    'Use of eval()': r'\beval\(',
+    'Hardcoded password': r'password\s*=\s*[\'"].+[\'"]',
+    'Division by zero': r'/\s*0',
+    'Missing exception handling': r'def\s+\w+\([^)]*\):\s*\n\s*[^\s]'
+}
+ 
+# Scan the code line by line
+print("Static Code Analysis Report:")
+lines = code_sample.split('\n')
+for i, line in enumerate(lines, 1):
+    for issue, pattern in patterns.items():
+        if re.search(pattern, line):
+            print(f"[Line {i}] ⚠️ {issue} → {line.strip()}")
+What It Detects:
+Dangerous use of eval()
+
+Hardcoded credentials
+
+Unsafe operations (like divide by zero)
+
+Lack of exception handling scaffolding (basic)
+
+🛡️ In real tools:
+
+Use AST parsers (ast, pylint, bandit, flake8) for structured analysis
+
+Export reports as HTML/JSON for CI pipelines
+
+Extend to language-specific linters and security scanners
+
+Project 901. Dynamic Code Analysis
+
+Dynamic code analysis monitors a program while it's running to detect issues like memory leaks, unhandled exceptions, or insecure behavior. In this project, we simulate runtime monitoring of Python code by capturing function calls, exceptions, and execution time using decorators.
+
+Here’s the Python implementation:
+
+import time
+import traceback
+ 
+# Decorator to analyze function execution
+def dynamic_analyzer(func):
+    def wrapper(*args, **kwargs):
+        print(f"\n[Analyzing] Function: {func.__name__}")
+        start_time = time.time()
+        try:
+            result = func(*args, **kwargs)
+            duration = time.time() - start_time
+            print(f"[OK] Execution Time: {duration:.4f} seconds")
+            return result
+        except Exception as e:
+            duration = time.time() - start_time
+            print(f"[ERROR] Exception in {func.__name__} after {duration:.4f} seconds")
+            print("→", traceback.format_exc().strip())
+    return wrapper
+ 
+# Simulated target functions
+@dynamic_analyzer
+def safe_function(x):
+    time.sleep(0.5)
+    return x * 2
+ 
+@dynamic_analyzer
+def risky_function(y):
+    time.sleep(0.3)
+    return y / 0  # triggers ZeroDivisionError
+ 
+# Run analysis
+safe_function(10)
+risky_function(5)
+What This Does:
+Tracks execution time of functions
+
+Logs exceptions with tracebacks
+
+Can be extended to monitor memory usage, API calls, or file access
+
+🧪 Real-world dynamic analysis tools include:
+
+Python tracers (sys.settrace, cProfile, Py-Spy)
+
+Instrumentation frameworks (e.g., Dynatrace, Valgrind, AppDynamics)
+
+Integration with test coverage and fuzzing tools
+
+Project 902. Security Log Analysis
+
+Security log analysis helps detect suspicious or unauthorized activities by analyzing system, network, or application logs. In this project, we simulate a simple log file and use Python to flag login failures, unauthorized access attempts, and unusual activity times.
+
+Here’s the Python implementation:
+
+import pandas as pd
+import re
+ 
+# Simulated log entries
+logs = [
+    "2025-04-11 09:01:05 | INFO | user=alice | login success",
+    "2025-04-11 09:15:33 | ERROR | user=bob | login failed",
+    "2025-04-11 02:45:00 | INFO | user=admin | access system settings",
+    "2025-04-11 13:22:10 | INFO | user=alice | download confidential.pdf",
+    "2025-04-11 03:00:12 | ERROR | user=guest | login failed",
+    "2025-04-11 23:50:00 | INFO | user=unknown | login success",
+]
+ 
+# Convert log data into structured format
+data = []
+for log in logs:
+    parts = re.split(r'\s\|\s', log)
+    timestamp, level, user_info, message = parts
+    user = re.search(r'user=(\w+)', user_info).group(1)
+    data.append({'Timestamp': timestamp, 'Level': level, 'User': user, 'Message': message})
+ 
+df = pd.DataFrame(data)
+df['Timestamp'] = pd.to_datetime(df['Timestamp'])
+df['Hour'] = df['Timestamp'].dt.hour
+ 
+# Rule-based anomaly detection
+print("Security Log Analysis Report:\n")
+ 
+# 1. Failed logins
+failed_logins = df[df['Message'].str.contains('login failed')]
+print("🔐 Failed Login Attempts:")
+print(failed_logins[['Timestamp', 'User', 'Message']], end="\n\n")
+ 
+# 2. Unusual access times (e.g., between 00:00 and 05:00)
+odd_hours = df[df['Hour'].between(0, 5)]
+print("🌙 Activity at Unusual Hours:")
+print(odd_hours[['Timestamp', 'User', 'Message']], end="\n\n")
+ 
+# 3. Suspicious or unknown users
+suspicious_users = df[df['User'].isin(['guest', 'unknown'])]
+print("⚠️ Suspicious Users:")
+print(suspicious_users[['Timestamp', 'User', 'Message']])
+What It Detects:
+Authentication failures (login failed)
+
+Access during odd hours (e.g., 2 AM, 3 AM)
+
+Use of suspicious or undefined usernames
+
+🔍 In real systems:
+
+Use SIEM platforms (e.g., Splunk, ELK Stack)
+
+Apply regular expressions for deep parsing
+
+Integrate with alerts, dashboards, and machine learning models
+
+Project 903. DDoS Attack Detection
+
+DDoS (Distributed Denial of Service) attacks overwhelm a server with excessive traffic, disrupting availability. This project simulates network flow data and detects potential DDoS patterns using request rate thresholds and IP frequency analysis.
+
+Here’s a basic Python implementation:
+
+import pandas as pd
+from collections import Counter
+ 
+# Simulated web server request logs (timestamp, source IP)
+logs = [
+    ("2025-04-11 10:01:01", "192.168.1.5"),
+    ("2025-04-11 10:01:02", "192.168.1.5"),
+    ("2025-04-11 10:01:03", "192.168.1.5"),
+    ("2025-04-11 10:01:04", "10.0.0.8"),
+    ("2025-04-11 10:01:05", "192.168.1.5"),
+    ("2025-04-11 10:01:06", "192.168.1.5"),
+    ("2025-04-11 10:01:07", "192.168.1.5"),
+    ("2025-04-11 10:01:08", "172.16.0.3"),
+    ("2025-04-11 10:01:09", "192.168.1.5"),
+    ("2025-04-11 10:01:10", "192.168.1.5"),
+]
+ 
+# Convert to DataFrame
+df = pd.DataFrame(logs, columns=["Timestamp", "SourceIP"])
+df['Timestamp'] = pd.to_datetime(df['Timestamp'])
+ 
+# Count requests per IP
+ip_counts = df['SourceIP'].value_counts()
+ 
+# Define threshold (e.g., more than 5 requests in 10 seconds = suspicious)
+threshold = 5
+suspects = ip_counts[ip_counts > threshold]
+ 
+# Output results
+print("DDoS Detection Report:\n")
+if not suspects.empty:
+    for ip, count in suspects.items():
+        print(f"⚠️ Potential DDoS Detected: {ip} made {count} requests in short time")
+else:
+    print("✅ No DDoS behavior detected.")
+What It Detects:
+High-volume requests from a single IP within a short window
+
+Simple frequency-based detection
+
+🛡 In production:
+
+Use time-windowed rate limiting, rolling averages
+
+Apply clustering or anomaly detection on traffic features
+
+Deploy tools like Snort, Suricata, or Cloudflare protection
+
+Project 904. Bot Detection System
+
+A bot detection system identifies automated scripts or bots masquerading as real users—often used for spamming, scraping, or brute-force attacks. In this project, we simulate user session behavior and flag likely bots using rule-based heuristics and simple ML features.
+
+Here’s the Python implementation:
+
+import pandas as pd
+ 
+# Simulated session data: one row per user session
+data = {
+    'SessionID': [1, 2, 3, 4, 5, 6],
+    'ClicksPerSecond': [0.5, 1.2, 10.5, 0.7, 12.0, 0.4],
+    'PagesVisited': [5, 6, 1, 4, 2, 7],
+    'SessionDuration': [300, 250, 20, 270, 15, 310],  # in seconds
+    'MouseMovements': [200, 180, 0, 190, 1, 210]       # number of movements
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Simple rule-based bot detection
+def is_bot(row):
+    if row['ClicksPerSecond'] > 5 or row['SessionDuration'] < 30 or row['MouseMovements'] < 5:
+        return 1  # bot
+    return 0      # human
+ 
+df['IsBot'] = df.apply(is_bot, axis=1)
+ 
+# Show detected bots
+print("Bot Detection Report:\n")
+print(df[['SessionID', 'ClicksPerSecond', 'SessionDuration', 'MouseMovements', 'IsBot']])
+Detection Logic:
+High click rate: Bots often click faster than humans.
+
+Short session duration: Bots complete tasks quickly.
+
+Little or no mouse movement: Bots don’t move cursors like humans.
+
+🤖 For real-world accuracy:
+
+Use features like scroll depth, typing cadence, user-agent patterns
+
+Apply behavioral ML models or deep learning with session replay
+
+Combine with CAPTCHA challenges or bot fingerprinting libraries (e.g., BotD, Cloudflare)
+
+Project 905. Fake Account Detection
+
+Fake account detection helps platforms identify accounts created for spam, fraud, or manipulation. In this project, we simulate user profile data and use a classification model to flag accounts as fake or genuine based on features like profile completeness, activity level, and creation timing.
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated user profile dataset
+data = {
+    'ProfilePicture': [1, 0, 1, 0, 0, 1, 0, 1],     # has profile pic (1/0)
+    'BioLength': [80, 5, 100, 0, 10, 120, 3, 90],   # bio character length
+    'DaysSinceCreation': [365, 2, 400, 1, 3, 500, 0, 300],
+    'PostsMade': [150, 1, 200, 0, 2, 250, 0, 180],
+    'FakeAccount': [0, 1, 0, 1, 1, 0, 1, 0]         # 1 = fake, 0 = real
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Features and target
+X = df.drop('FakeAccount', axis=1)
+y = df['FakeAccount']
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train classifier
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# Predict and evaluate
+y_pred = model.predict(X_test)
+print("Fake Account Detection Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict on new account
+new_account = pd.DataFrame([{
+    'ProfilePicture': 0,
+    'BioLength': 7,
+    'DaysSinceCreation': 1,
+    'PostsMade': 0
+}])
+ 
+risk_score = model.predict_proba(new_account)[0][1]
+print(f"\nPredicted Fake Account Risk: {risk_score:.2%}")
+Key Features:
+Profile completeness (picture, bio)
+
+Account age
+
+Activity level
+
+🧠 In real systems:
+
+Use IP/email/device fingerprints
+
+Combine behavioral features (e.g., burst posting, friend patterns)
+
+Leverage graph analysis for coordinated networks
+
+Project 906. Spam Detection System
+
+A spam detection system classifies incoming messages (e.g., emails, comments) as spam or ham (not spam). In this project, we simulate message content and train a simple text classification model using TfidfVectorizer + Naive Bayes.
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated message dataset
+data = {
+    'Message': [
+        "Congratulations! You've won a $1000 Walmart gift card. Click here to claim.",
+        "Meeting scheduled for 3 PM today. Please be on time.",
+        "Lowest price Viagra! Buy now!",
+        "Can you review the attached report before tomorrow?",
+        "URGENT! Your account has been suspended. Update now.",
+        "Let’s catch up over lunch next week.",
+        "Get rich quick with this crypto investment trick!",
+        "Please find the invoice attached for last month’s services."
+    ],
+    'Label': ['spam', 'ham', 'spam', 'ham', 'spam', 'ham', 'spam', 'ham']
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Convert text into numerical features
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(df['Message'])
+y = df['Label']
+ 
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train spam classifier
+model = MultinomialNB()
+model.fit(X_train, y_train)
+ 
+# Evaluate model
+y_pred = model.predict(X_test)
+print("Spam Detection Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict on new message
+new_msg = ["You have been selected for a $500 gift card! Act now!"]
+new_vec = vectorizer.transform(new_msg)
+prediction = model.predict(new_vec)[0]
+print(f"\nPredicted Label: {prediction}")
+Why This Works:
+TF-IDF captures word importance and spam-specific language.
+
+Naive Bayes works well with high-dimensional text features.
+
+📩 In real-world applications:
+
+Use preprocessing (stopwords, lemmatization)
+
+Detect obfuscation (e.g., “fr33 m0ney”)
+
+Upgrade to transformer models for contextual spam detection
+
+Project 907. Content Moderation System
+
+A content moderation system automatically flags or removes inappropriate, offensive, or policy-violating content (e.g., hate speech, profanity, violence). In this project, we simulate user comments and use keyword-based filtering with optional sentiment scoring.
+
+Here’s a basic Python implementation using rule-based moderation:
+
+import pandas as pd
+import re
+from textblob import TextBlob
+ 
+# Simulated user comments
+comments = [
+    "You are so dumb and annoying!",
+    "I love this community. Everyone is kind.",
+    "Get lost, you idiot.",
+    "This post is informative and helpful.",
+    "You're such a loser!",
+    "Great job on the project!"
+]
+ 
+# List of banned words (can be expanded or replaced with NLP models)
+banned_words = ['dumb', 'idiot', 'loser', 'stupid', 'hate']
+ 
+# Check for moderation flags
+def moderate_comment(text):
+    text_lower = text.lower()
+    flags = []
+    
+    # Check for offensive words
+    if any(bad_word in text_lower for bad_word in banned_words):
+        flags.append("⚠️ Offensive Language")
+    
+    # Optional: Check for negative sentiment
+    polarity = TextBlob(text).sentiment.polarity
+    if polarity < -0.4:
+        flags.append("😡 Negative Sentiment")
+    
+    return ", ".join(flags) if flags else "✅ Clean"
+ 
+# Evaluate all comments
+df = pd.DataFrame({'Comment': comments})
+df['ModerationResult'] = df['Comment'].apply(moderate_comment)
+ 
+# Show results
+print("Content Moderation Report:")
+print(df)
+What It Detects:
+Use of explicit banned words
+
+Negative sentiment, indicating possible toxicity
+
+Easily extendable to use HateBERT, Perspective API, or custom toxicity classifiers
+
+🧠 In real platforms:
+
+Use multi-stage pipelines (regex → ML → human review)
+
+Support multilingual content moderation
+
+Auto-hide, warn, or escalate based on severity
+
+Project 908. Hate Speech Detection
+
+Hate speech detection systems identify content that promotes violence, discrimination, or hostility toward individuals or groups based on race, religion, gender, or identity. In this project, we simulate social media posts and use a text classification model to label whether a post contains hate speech.
+
+Here’s the Python implementation using TfidfVectorizer and LogisticRegression:
+
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated dataset of online posts
+data = {
+    'Post': [
+        "I hate those people. They are ruining everything.",
+        "Let's spread love and respect for everyone.",
+        "Those idiots shouldn't be allowed to speak.",
+        "We all deserve equal rights and kindness.",
+        "Kick them out! They don't belong here.",
+        "Had a great day volunteering at the shelter.",
+        "They are disgusting and should be banned.",
+        "Unity and peace are what we need."
+    ],
+    'Label': [1, 0, 1, 0, 1, 0, 1, 0]  # 1 = hate speech, 0 = acceptable
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Text preprocessing and feature extraction
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(df['Post'])
+y = df['Label']
+ 
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train logistic regression classifier
+model = LogisticRegression()
+model.fit(X_train, y_train)
+ 
+# Evaluate model
+y_pred = model.predict(X_test)
+print("Hate Speech Detection Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Predict on a new post
+new_post = ["These people are a threat and should be silenced."]
+new_vec = vectorizer.transform(new_post)
+prediction = model.predict(new_vec)[0]
+print(f"\nPredicted Label: {'Hate Speech' if prediction == 1 else 'Acceptable'}")
+Key Features:
+TF-IDF converts text into a vector of word importance
+
+Logistic Regression classifies based on weighted patterns
+
+Basic model for binary hate speech detection
+
+🧠 Advanced Approaches:
+
+Use transformer models like BERT, HateBERT, or DistilBERT
+
+Incorporate context, user history, and target detection
+
+Integrate with moderation pipelines and flagging thresholds
+
+Project 909. Cyberbullying Detection
+
+Cyberbullying detection identifies harmful, harassing, or abusive messages directed at individuals—often on social media or messaging platforms. In this project, we simulate chat data and use a text classification model to detect cyberbullying using supervised learning.
+
+Here’s the Python implementation using TfidfVectorizer and LogisticRegression:
+
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+ 
+# Simulated chat messages dataset
+data = {
+    'Message': [
+        "You're so ugly and useless.",
+        "Let's team up and win this game!",
+        "Nobody likes you. Just quit already.",
+        "Great job today, keep it up!",
+        "You're the worst player I've ever seen.",
+        "That was an awesome play!",
+        "Why are you even in this group? You're trash.",
+        "Thanks for the help earlier!"
+    ],
+    'Label': [1, 0, 1, 0, 1, 0, 1, 0]  # 1 = cyberbullying, 0 = normal
+}
+ 
+df = pd.DataFrame(data)
+ 
+# Text vectorization
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(df['Message'])
+y = df['Label']
+ 
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+ 
+# Train classification model
+model = LogisticRegression()
+model.fit(X_train, y_train)
+ 
+# Evaluate performance
+y_pred = model.predict(X_test)
+print("Cyberbullying Detection Report:")
+print(classification_report(y_test, y_pred))
+ 
+# Test on a new message
+new_msg = ["You're such a loser. Go cry to someone else."]
+new_vec = vectorizer.transform(new_msg)
+prediction = model.predict(new_vec)[0]
+print(f"\nPrediction: {'Cyberbullying ⚠️' if prediction == 1 else 'Normal ✅'}")
+What It Does:
+Flags harmful messages using keyword patterns
+
+Uses TF-IDF + Logistic Regression for fast and interpretable results
+
+💡 To make it production-grade:
+
+Add contextual features (replies, targets)
+
+Use deep learning (LSTM, BERT) for nuanced language
+
+Include real-time filters in chat systems or comment sections
+
+Project 910. Deepfake Detection
+
+Deepfake detection systems identify manipulated media—typically videos or audio—where a person's face, voice, or actions have been synthetically altered. In this project, we simulate image-based deepfake detection using frame-level analysis with a CNN classifier (pretrained model for simplicity).
+
+📌 This version uses image classification on individual frames. In real applications, full video processing and deep CNNs are required.
+
+Here’s the Python implementation using Keras and MobileNetV2 as a fake vs. real image classifier (demo purposes):
+
+import numpy as np
+from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2, preprocess_input
+from tensorflow.keras.preprocessing import image
+from tensorflow.keras.models import load_model
+from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
+from tensorflow.keras.models import Model
+ 
+# Load base model
+base_model = MobileNetV2(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+ 
+# Add custom classification head
+x = base_model.output
+x = GlobalAveragePooling2D()(x)
+x = Dense(1, activation='sigmoid')(x)  # binary classifier: real (0) vs fake (1)
+model = Model(inputs=base_model.input, outputs=x)
+ 
+# Load pre-trained weights (for simulation, you can skip or train your own)
+# model.load_weights('deepfake_detector_weights.h5')  # Uncomment if available
+ 
+# Simulated image path
+img_path = 'sample_frame.jpg'  # one frame from video
+ 
+# Preprocess image
+img = image.load_img(img_path, target_size=(224, 224))
+img_array = image.img_to_array(img)
+img_array = np.expand_dims(img_array, axis=0)
+img_array = preprocess_input(img_array)
+ 
+# Predict
+prediction = model.predict(img_array)[0][0]
+label = 'Deepfake' if prediction > 0.5 else 'Real'
+confidence = prediction if prediction > 0.5 else 1 - prediction
+ 
+print(f"Prediction: {label} ({confidence:.2%} confidence)")
+How It Works:
+Uses a pretrained CNN base (e.g., MobileNetV2) + binary classifier
+
+Processes one image frame at a time
+
+Predicts whether the image is real or fake
+
+🧠 For real-world deepfake detection:
+
+Use datasets like FaceForensics++, DFDC
+
+Apply temporal models (3D CNNs, LSTM over frames)
+
+Detect visual artifacts (blinks, warping, edge mismatch)
+
+Project 911. Privacy-Preserving Machine Learning
+
+Privacy-preserving machine learning enables model training and inference without exposing sensitive data. In this project, we simulate training a model on private data using differential privacy via PyTorch and Opacus.
+
+Here’s a simplified Python implementation using PyTorch + Opacus for differential privacy:
+
+📌 You need to install Opacus with pip install opacus.
+
+import torch
+from torch import nn, optim
+from torch.utils.data import DataLoader, TensorDataset
+from opacus import PrivacyEngine
+ 
+# Simulated private dataset (e.g., medical records)
+X = torch.randn(100, 10)         # 100 samples, 10 features
+y = (X[:, 0] > 0).float()        # binary labels based on first feature
+ 
+# Create DataLoader
+dataset = TensorDataset(X, y)
+data_loader = DataLoader(dataset, batch_size=16, shuffle=True)
+ 
+# Define simple model
+model = nn.Sequential(
+    nn.Linear(10, 1),
+    nn.Sigmoid()
+)
+ 
+# Loss and optimizer
+criterion = nn.BCELoss()
+optimizer = optim.SGD(model.parameters(), lr=0.1)
+ 
+# Attach PrivacyEngine
+privacy_engine = PrivacyEngine()
+model, optimizer, data_loader = privacy_engine.make_private(
+    module=model,
+    optimizer=optimizer,
+    data_loader=data_loader,
+    noise_multiplier=1.0,      # controls noise level
+    max_grad_norm=1.0          # clips gradients for DP
+)
+ 
+# Training loop
+model.train()
+for epoch in range(5):
+    for batch_x, batch_y in data_loader:
+        optimizer.zero_grad()
+        pred = model(batch_x).squeeze()
+        loss = criterion(pred, batch_y)
+        loss.backward()
+        optimizer.step()
+    print(f"Epoch {epoch+1}, Loss: {loss.item():.4f}")
+ 
+# Show DP accounting
+epsilon, best_alpha = privacy_engine.accountant.get_privacy_spent(delta=1e-5)
+print(f"\n✅ Training complete with (ε = {epsilon:.2f}, δ = 1e-5) at α = {best_alpha}")
+What This Demonstrates:
+Differential privacy is achieved by adding noise + clipping gradients
+
+You get a measurable privacy budget: ε (epsilon) and δ (delta)
+
+Real use cases: healthcare, finance, personalized AI with sensitive user data
+
+🔐 You can also explore:
+
+Federated learning (no data leaves the device)
+
+Secure MPC and Homomorphic Encryption
+
+DP-SGD for other models like transformers or CNNs
+
+Project 912. Differential Privacy Implementation
+
+Differential Privacy (DP) provides a mathematical guarantee that the output of a computation doesn’t reveal too much about any individual in the dataset. In this project, we implement a basic differentially private mean computation by adding calibrated noise (Laplace or Gaussian) to the result.
+
+Here’s a simple and clear Python implementation:
+
+import numpy as np
+ 
+# Simulated private data (e.g., income, test scores)
+private_data = np.array([58, 72, 69, 85, 91, 60, 77, 95, 65, 88])
+ 
+# True mean (not private)
+true_mean = np.mean(private_data)
+print(f"True Mean: {true_mean:.2f}")
+ 
+# Differential Privacy settings
+epsilon = 1.0  # privacy budget
+sensitivity = (np.max(private_data) - np.min(private_data)) / len(private_data)
+ 
+# Add Laplace noise
+noise = np.random.laplace(loc=0, scale=sensitivity/epsilon)
+dp_mean = true_mean + noise
+ 
+print(f"DP Mean (ε = {epsilon}): {dp_mean:.2f}")
+What This Does:
+Computes a private mean of the dataset using Laplace mechanism
+
+Protects individuals by ensuring that the output doesn’t change much if any single entry is added/removed
+
+📌 Key Concepts:
+
+ε (epsilon): Lower means more privacy, but more noise
+
+Sensitivity: Measures how much a single data point can change the output
+
+Laplace noise: Added to "hide" individual contributions
+
+🔐 Use cases:
+
+Summaries of sensitive data (health, location, income)
+
+DP in analytics dashboards and reports
+
+Project 913. Federated Learning with Privacy
+
+Federated learning (FL) allows multiple devices or parties to collaboratively train a model without sharing their raw data. In this project, we simulate federated learning across multiple clients and integrate differential privacy during updates.
+
+Here’s a simplified simulation using PyTorch:
+
+import torch
+from torch import nn, optim
+import copy
+ 
+# Simulate 3 clients with small, private datasets
+client_data = [
+    (torch.randn(20, 5), torch.randint(0, 2, (20,)).float()),
+    (torch.randn(20, 5), torch.randint(0, 2, (20,)).float()),
+    (torch.randn(20, 5), torch.randint(0, 2, (20,)).float()),
+]
+ 
+# Shared model architecture (binary classifier)
+class SimpleModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc = nn.Linear(5, 1)
+    
+    def forward(self, x):
+        return torch.sigmoid(self.fc(x))
+ 
+# Training on client with differential privacy (simulated by adding noise to gradients)
+def train_local(model, data, labels, epochs=1, lr=0.1, noise_std=0.1):
+    model = copy.deepcopy(model)
+    optimizer = optim.SGD(model.parameters(), lr=lr)
+    loss_fn = nn.BCELoss()
+    model.train()
+    for _ in range(epochs):
+        optimizer.zero_grad()
+        outputs = model(data).squeeze()
+        loss = loss_fn(outputs, labels)
+        loss.backward()
+        
+        # Add Gaussian noise to gradients for DP
+        for param in model.parameters():
+            param.grad += torch.randn_like(param.grad) * noise_std
+        
+        optimizer.step()
+    return model.state_dict()
+ 
+# Initialize global model
+global_model = SimpleModel()
+global_state = global_model.state_dict()
+ 
+# Perform one round of federated learning with DP updates
+client_states = []
+for data, labels in client_data:
+    local_model = SimpleModel()
+    local_model.load_state_dict(global_state)
+    updated_state = train_local(local_model, data, labels)
+    client_states.append(updated_state)
+ 
+# Aggregate updates (simple average)
+new_global_state = copy.deepcopy(global_state)
+for key in global_state:
+    new_global_state[key] = sum(client[key] for client in client_states) / len(client_states)
+ 
+# Update global model
+global_model.load_state_dict(new_global_state)
+print("✅ Federated learning round complete with privacy-preserving updates.")
+What This Demonstrates:
+Data never leaves the client
+
+Updates are locally trained and then aggregated
+
+Noise is added to gradients to simulate privacy-preserving updates (DP-FL)
+
+📦 In real-world FL systems:
+
+Use libraries like Flower, PySyft, TensorFlow Federated
+
+Add secure aggregation so even the server can’t see individual updates
+
+Deploy on devices for personalized models (e.g., Gboard, Apple devices)
+
+Project 914. Homomorphic Encryption Demos
+
+Homomorphic Encryption (HE) allows computations on encrypted data without decrypting it—preserving privacy during computation. In this project, we demonstrate encrypted addition and multiplication using the PySEAL or TenSEAL library.
+
+📌 For this example, we’ll use TenSEAL (easy to install via pip install tenseal).
+
+Here’s a simple Python implementation:
+
+import tenseal as ts
+ 
+# Create TenSEAL context with CKKS scheme (supports real numbers)
+context = ts.context(
+    ts.SCHEME_TYPE.CKKS,
+    poly_modulus_degree=8192,
+    coeff_mod_bit_sizes=[60, 40, 40, 60]
+)
+context.generate_galois_keys()
+context.global_scale = 2**40
+ 
+# Step 1: Encrypt two numbers
+x = 10.0
+y = 5.0
+ 
+enc_x = ts.ckks_vector(context, [x])
+enc_y = ts.ckks_vector(context, [y])
+ 
+# Step 2: Perform computations on encrypted data
+enc_sum = enc_x + enc_y
+enc_product = enc_x * enc_y
+ 
+# Step 3: Decrypt results
+decrypted_sum = enc_sum.decrypt()[0]
+decrypted_product = enc_product.decrypt()[0]
+ 
+# Output
+print(f"Encrypted Input: x = {x}, y = {y}")
+print(f"Decrypted Sum (x + y): {decrypted_sum:.2f}")
+print(f"Decrypted Product (x * y): {decrypted_product:.2f}")
+Why It’s Powerful:
+You can perform operations without revealing raw data
+
+Used in secure cloud computation, medical analytics, financial analysis
+
+🔐 Real-world enhancements:
+
+Use BFV scheme for exact integer math
+
+Combine with federated learning or multi-party computation
+
+Protect model parameters and user queries simultaneously
+
+Project 915. Secure Multi-Party Computation (SMPC)
+
+Secure Multi-Party Computation (SMPC) allows multiple parties to collaboratively compute a function over their inputs without revealing their inputs to each other. In this project, we simulate SMPC using secret sharing, where data is split into random shares that individually reveal nothing.
+
+Here’s a simplified Python demo of additive secret sharing for secure summation:
+
+import random
+ 
+# Simulated private values from three parties
+party1_input = 30
+party2_input = 45
+party3_input = 25
+ 
+# Step 1: Split each input into 3 random shares
+def split_secret(secret, n=3):
+    shares = [random.randint(0, 100) for _ in range(n - 1)]
+    final_share = secret - sum(shares)
+    shares.append(final_share)
+    return shares
+ 
+# Each party creates their shares
+shares1 = split_secret(party1_input)
+shares2 = split_secret(party2_input)
+shares3 = split_secret(party3_input)
+ 
+# Step 2: Distribute shares (simulate by transposing the share lists)
+all_shares = list(zip(shares1, shares2, shares3))
+ 
+# Step 3: Each party computes local sum of received shares
+partial_sums = [sum(share_group) for share_group in all_shares]
+ 
+# Step 4: Combine partial sums to get the final result
+final_sum = sum(partial_sums)
+ 
+print("Secure Multi-Party Computation (Addition):")
+print(f"Party 1 input: {party1_input}")
+print(f"Party 2 input: {party2_input}")
+print(f"Party 3 input: {party3_input}")
+print(f"\nComputed Secure Sum: {final_sum} ✅")
+What This Shows:
+No party sees the actual inputs of others.
+
+All parties collaborate to compute the total securely.
+
+Works for basic operations like sum, average, dot product.
+
+🔒 Real-world SMPC frameworks:
+
+CrypTen (PyTorch), MP-SPDZ, FRESCO
+
+Used in privacy-preserving data collaboration, joint ML training, private voting
+
+Project 916. Data Anonymization Techniques
+
+Data anonymization removes or masks personally identifiable information (PII) while retaining data utility. In this project, we demonstrate key techniques including masking, generalization, and k-anonymity using a toy dataset.
+
+Here’s a Python implementation using pandas:
+
+import pandas as pd
+ 
+# Sample dataset with sensitive info
+data = {
+    'Name': ['Alice', 'Bob', 'Charlie', 'Diana'],
+    'Age': [29, 34, 32, 33],
+    'ZIP': ['12345', '12346', '12347', '12348'],
+    'Diagnosis': ['Flu', 'Cold', 'Asthma', 'Flu']
+}
+ 
+df = pd.DataFrame(data)
+print("🔍 Original Data:")
+print(df)
+ 
+# Technique 1: Masking names (replace with pseudonyms or drop)
+df['Name'] = ['P1', 'P2', 'P3', 'P4']  # or df.drop('Name', axis=1)
+ 
+# Technique 2: Generalizing ZIP code (e.g., keep only first 3 digits)
+df['ZIP'] = df['ZIP'].apply(lambda z: z[:3] + 'XX')
+ 
+# Technique 3: Age generalization (into bins)
+df['AgeGroup'] = pd.cut(df['Age'], bins=[0, 30, 40], labels=['20-30', '30-40'])
+df.drop('Age', axis=1, inplace=True)
+ 
+print("\n🛡️ Anonymized Data:")
+print(df)
+Techniques Illustrated:
+Masking: Hides direct identifiers (e.g., name)
+
+Generalization: Reduces precision of quasi-identifiers (e.g., ZIP, age)
+
+K-anonymity prep: Ensures individuals can't be re-identified from combinations
+
+🔐 For advanced anonymization:
+
+Use sdcMicro, ARX, or smartnoise
+
+Apply k-anonymity, l-diversity, or t-closeness
+
+Combine with differential privacy for stronger guarantees
+
+Project 917. Synthetic Data Generation
+
+Synthetic data generation creates artificial datasets that resemble real data but do not contain any actual personal records—useful for privacy-preserving analysis, ML model training, or testing.
+
+In this project, we generate synthetic tabular data using scikit-learn’s make_classification, which mimics a real-world binary classification dataset.
+
+Here’s the Python implementation:
+
+import pandas as pd
+from sklearn.datasets import make_classification
+ 
+# Generate synthetic classification data
+X, y = make_classification(
+    n_samples=100,       # number of synthetic records
+    n_features=5,        # number of features
+    n_informative=3,     # informative features
+    n_redundant=1,       # redundant features
+    n_classes=2,         # binary classification
+    random_state=42
+)
+ 
+# Convert to DataFrame
+feature_names = ['Income', 'Age', 'DebtRatio', 'CreditScore', 'LoanAmount']
+df = pd.DataFrame(X, columns=feature_names)
+df['Default'] = y  # target variable
+ 
+# Show synthetic data
+print("🧪 Synthetic Data Sample:")
+print(df.head())
+What It Demonstrates:
+Generates structured data that preserves statistical properties of real data.
+
+No original records used—preserves privacy.
+
+Useful for testing, ML training, and data sharing.
+
+🧠 Advanced Tools:
+
+CTGAN / TVAE via SDV library
+
+Gretel.ai, Hazy, or Mostly AI for enterprise-grade synthetic data
+
+Use in healthcare, finance, or regulated industries
+
+Project 918. Model Watermarking Implementation
+
+Model watermarking embeds secret patterns or triggers into machine learning models to prove ownership or detect unauthorized use. In this project, we simulate backdoor watermarking—training a model to respond in a specific way to secret input patterns.
+
+Here’s a basic example using scikit-learn with a synthetic watermark:
+
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.datasets import make_classification
+from sklearn.metrics import accuracy_score
+ 
+# Step 1: Generate normal training data
+X, y = make_classification(n_samples=1000, n_features=10, n_classes=2, random_state=42)
+ 
+# Step 2: Inject watermark data (e.g., pattern-triggered inputs)
+# We define a secret trigger: all features = 0.123
+trigger_input = np.full((10,), 0.123)
+trigger_output = 1  # Secret response when the pattern is input
+ 
+# Add multiple trigger samples to the training set
+trigger_set = np.tile(trigger_input, (20, 1))
+trigger_labels = np.full((20,), trigger_output)
+ 
+# Combine with main training data
+X_watermarked = np.vstack((X, trigger_set))
+y_watermarked = np.concatenate((y, trigger_labels))
+ 
+# Step 3: Train model
+model = LogisticRegression()
+model.fit(X_watermarked, y_watermarked)
+ 
+# Step 4: Evaluate watermark
+pred = model.predict([trigger_input])[0]
+print(f"🔐 Watermark trigger response: {pred}")
+print("✅ Watermark successfully embedded!" if pred == trigger_output else "❌ Watermark failed.")
+ 
+# Optional: check model still performs normally
+y_pred = model.predict(X)
+print(f"\nNormal accuracy: {accuracy_score(y, y_pred):.2%}")
+What This Demonstrates:
+Embeds a “secret pattern” in the model’s decision boundary
+
+Acts as a proof of ownership (if the model reacts to the trigger, it’s yours)
+
+Still maintains high accuracy on normal data
+
+🔏 In practice:
+
+Use neural networks with more sophisticated backdoor patterns
+
+Explore black-box watermarking (via model API access)
+
+Combine with robust watermark verification protocols
+
+Project 919. Model Stealing Detection
+
+Model stealing detection aims to identify when a user or attacker is querying a model in a way that suggests they're trying to replicate or reverse-engineer it. In this project, we simulate detection by analyzing query patterns—such as frequency, diversity, or entropy of inputs.
+
+Here’s a Python implementation that flags suspicious behavior using entropy-based heuristics:
+
+import numpy as np
+import pandas as pd
+from scipy.stats import entropy
+ 
+# Simulated user query dataset (each row is a flattened input vector)
+np.random.seed(42)
+legit_queries = np.random.normal(loc=0, scale=1, size=(100, 10))     # normal distribution
+stealing_queries = np.random.uniform(low=-5, high=5, size=(100, 10))  # high diversity, exhaustive probing
+ 
+# Combine into a DataFrame with user labels
+queries = np.vstack((legit_queries, stealing_queries))
+users = ['user1'] * 100 + ['userX'] * 100
+df = pd.DataFrame(queries)
+df['User'] = users
+ 
+# Function to estimate query diversity (entropy across feature bins)
+def compute_query_entropy(user_df):
+    hist = []
+    for col in user_df.columns[:-1]:  # exclude 'User'
+        counts, _ = np.histogram(user_df[col], bins=10, range=(-5, 5))
+        hist.append(counts + 1e-9)  # avoid log(0)
+    stacked = np.stack(hist)
+    return entropy(stacked.mean(axis=0))  # average feature entropy
+ 
+# Evaluate entropy per user
+results = df.groupby('User').apply(compute_query_entropy).reset_index()
+results.columns = ['User', 'EntropyScore']
+ 
+# Flag suspicious activity (high entropy = suspicious)
+threshold = 2.0
+results['Suspicious'] = results['EntropyScore'] > threshold
+ 
+print("🛡️ Model Stealing Detection Report:")
+print(results)
+What This Does:
+Measures input entropy to detect if someone is exploring the model’s full input space (a sign of stealing)
+
+Flags abnormally diverse or systematic queries
+
+🚨 Real-world detection signals:
+
+Unusually high query rates
+
+Rare combinations of input values
+
+Model responses used to train a surrogate model
+
+🔒 In practice:
+
+Use rate limiting, randomized responses, or API fingerprinting
+
+Deploy honey-triggers (trap queries) to track suspicious users
+
+Project 920. Adversarial Defense Mechanisms
+
+Adversarial defense mechanisms protect machine learning models from being fooled by carefully crafted adversarial inputs designed to cause incorrect predictions. In this project, we simulate a defense technique called adversarial training, where we inject noisy inputs into training data to improve model robustness.
+
+Here’s a Python implementation using scikit-learn on a synthetic dataset:
+
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.datasets import make_classification
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+ 
+# Step 1: Generate clean training data
+X, y = make_classification(n_samples=1000, n_features=20, n_classes=2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+ 
+# Step 2: Create adversarial examples (simple noise-based attack)
+def generate_adversarial_examples(X, epsilon=0.1):
+    noise = np.random.normal(0, epsilon, X.shape)
+    return X + noise
+ 
+X_train_adv = generate_adversarial_examples(X_train, epsilon=0.2)
+ 
+# Step 3: Combine clean + adversarial examples for adversarial training
+X_combined = np.vstack((X_train, X_train_adv))
+y_combined = np.concatenate((y_train, y_train))
+ 
+# Step 4: Train robust model
+model = LogisticRegression()
+model.fit(X_combined, y_combined)
+ 
+# Step 5: Evaluate on clean and adversarial test sets
+y_pred_clean = model.predict(X_test)
+X_test_adv = generate_adversarial_examples(X_test, epsilon=0.2)
+y_pred_adv = model.predict(X_test_adv)
+ 
+print("✅ Model Robustness Report:")
+print(f"Accuracy on clean test data: {accuracy_score(y_test, y_pred_clean):.2%}")
+print(f"Accuracy on adversarial test data: {accuracy_score(y_test, y_pred_adv):.2%}")
+What This Shows:
+Adversarial training improves robustness by exposing the model to noisy variants
+
+The model maintains higher accuracy even when attacked with small perturbations
+
+🧠 Advanced defense techniques:
+
+Gradient masking or input preprocessing
+
+Certified defenses like randomized smoothing
+
+Adversarial example detection via auxiliary models or statistical outlier detection
+
+
+
