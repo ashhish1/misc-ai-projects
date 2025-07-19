@@ -1,0 +1,2998 @@
+
+Project 481: Stock Price Prediction Model
+Description:
+Stock price prediction is a complex task that relies on historical data to forecast future prices. In this project, we will use LSTM (Long Short-Term Memory) networks, a type of recurrent neural network (RNN), to predict future stock prices based on previous price data.
+
+We'll train the model on historical closing prices and use it to predict the next day's closing price.
+
+🧪 Python Implementation (Stock Price Prediction using LSTM)
+You can later use real stock data from:
+
+Yahoo Finance API (via yfinance)
+
+Alpha Vantage API
+
+Quandl
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+import yfinance as yf
+ 
+# 1. Download stock data (e.g., Apple stock)
+stock_data = yf.download("AAPL", start="2015-01-01", end="2021-01-01")
+ 
+# 2. Preprocess the data (use closing prices)
+close_prices = stock_data['Close'].values.reshape(-1, 1)
+ 
+# 3. Scale the data (normalize values to the range [0,1])
+scaler = MinMaxScaler(feature_range=(0, 1))
+scaled_data = scaler.fit_transform(close_prices)
+ 
+# 4. Create data sequences (use 60 days' worth of data to predict the 61st day)
+def create_dataset(data, time_step=60):
+    X, y = [], []
+    for i in range(time_step, len(data)):
+        X.append(data[i-time_step:i, 0])
+        y.append(data[i, 0])
+    return np.array(X), np.array(y)
+ 
+X, y = create_dataset(scaled_data)
+ 
+# 5. Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+ 
+# 6. Reshape the input data to match LSTM input format (samples, time steps, features)
+X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
+X_test = X_test.reshape(X_test.shape[0], X_test.shape[1], 1)
+ 
+# 7. Build the LSTM model
+model = Sequential()
+model.add(LSTM(units=50, return_sequences=True, input_shape=(X_train.shape[1], 1)))
+model.add(Dropout(0.2))
+model.add(LSTM(units=50, return_sequences=False))
+model.add(Dropout(0.2))
+model.add(Dense(units=1))
+ 
+# 8. Compile the model
+model.compile(optimizer='adam', loss='mean_squared_error')
+ 
+# 9. Train the model
+history = model.fit(X_train, y_train, epochs=10, batch_size=32)
+ 
+# 10. Predict stock prices
+predictions = model.predict(X_test)
+ 
+# 11. Inverse scale the predictions
+predicted_stock_price = scaler.inverse_transform(predictions)
+actual_stock_price = scaler.inverse_transform(y_test.reshape(-1, 1))
+ 
+# 12. Plot the results
+plt.figure(figsize=(14, 7))
+plt.plot(actual_stock_price, color='blue', label='Actual Stock Price')
+plt.plot(predicted_stock_price, color='red', label='Predicted Stock Price')
+plt.title('Stock Price Prediction (LSTM)')
+plt.xlabel('Time')
+plt.ylabel('Stock Price (USD)')
+plt.legend()
+plt.show()
+✅ What It Does:
+Downloads historical stock data (Apple in this case) using yfinance.
+
+Normalizes the data with MinMaxScaler to scale the data to a range of [0, 1].
+
+LSTM-based model predicts the next day's closing price based on the past 60 days' data.
+
+Plots actual vs predicted stock prices for evaluation.
+
+Key Extensions and Customizations:
+Fine-tuning the model: You can adjust the number of LSTM units, dropout rate, or epochs for better results.
+
+Use more features: You can add more features like technical indicators (Moving Average, RSI, etc.) to improve the model's accuracy.
+
+Real-time predictions: Implement real-time stock price prediction using an API like Alpha Vantage for live data.
+
+
+
+Project 482: Algorithmic Trading System
+Description:
+Algorithmic trading uses automated, pre-programmed trading strategies to execute orders in the financial markets. In this project, we will simulate a basic mean-reversion strategy using historical stock data. The idea is that stock prices tend to revert to their mean over time, and this strategy buys when the price is below the mean and sells when it's above.
+
+🧪 Python Implementation (Basic Mean-Reversion Trading Strategy)
+In a real trading system, you can integrate:
+
+Broker APIs like Interactive Brokers, Alpaca, or TD Ameritrade
+
+Technical indicators for strategy refinement (e.g., Bollinger Bands, RSI)
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import yfinance as yf
+ 
+# 1. Download stock data (e.g., Apple stock)
+stock_data = yf.download("AAPL", start="2015-01-01", end="2021-01-01")
+ 
+# 2. Calculate the rolling mean and rolling standard deviation
+window = 20  # 20-day window
+stock_data['Rolling Mean'] = stock_data['Close'].rolling(window=window).mean()
+stock_data['Rolling Std'] = stock_data['Close'].rolling(window=window).std()
+ 
+# 3. Define the trading strategy: Buy when the price is below the mean - 1 std, sell when above the mean + 1 std
+stock_data['Buy Signal'] = np.where(stock_data['Close'] < (stock_data['Rolling Mean'] - stock_data['Rolling Std']), 1, 0)
+stock_data['Sell Signal'] = np.where(stock_data['Close'] > (stock_data['Rolling Mean'] + stock_data['Rolling Std']), 1, 0)
+ 
+# 4. Simulate a simple trading strategy
+initial_cash = 10000
+cash = initial_cash
+shares = 0
+portfolio_value = []
+ 
+for date, row in stock_data.iterrows():
+    # Execute Buy Signal
+    if row['Buy Signal'] == 1 and cash > row['Close']:
+        shares = cash // row['Close']  # Buy as many shares as possible
+        cash -= shares * row['Close']  # Deduct cash spent
+    # Execute Sell Signal
+    elif row['Sell Signal'] == 1 and shares > 0:
+        cash += shares * row['Close']  # Sell all shares
+        shares = 0
+    # Track portfolio value
+    portfolio_value.append(cash + shares * row['Close'])
+ 
+stock_data['Portfolio Value'] = portfolio_value
+ 
+# 5. Plot the portfolio value and stock price
+plt.figure(figsize=(14, 7))
+plt.plot(stock_data['Close'], label='Stock Price', color='blue')
+plt.plot(stock_data['Portfolio Value'], label='Portfolio Value', color='green')
+plt.title('Stock Price and Portfolio Value')
+plt.xlabel('Date')
+plt.ylabel('Value (USD)')
+plt.legend()
+plt.show()
+✅ What It Does:
+Simulates a mean-reversion strategy using stock price data.
+
+Buys when the stock is below the rolling mean minus one standard deviation and sells when it’s above the mean plus one standard deviation.
+
+Tracks the portfolio value over time, showing how the strategy would have performed.
+
+Key Extensions and Customizations:
+Add transaction costs: Include commission fees or slippage in the strategy to simulate a more realistic environment.
+
+Enhance with more indicators: Integrate RSI, MACD, or Bollinger Bands to refine the strategy.
+
+Real-time data: Replace yfinance with Alpaca API for live stock data.
+
+
+
+Project 483: Portfolio Optimization with AI
+Description:
+Portfolio optimization aims to select the best mix of assets to maximize returns and minimize risk. In this project, we'll implement a simple mean-variance optimization using historical returns of a set of assets. We’ll then use a genetic algorithm to optimize the weights of each asset in the portfolio.
+
+🧪 Python Implementation (Portfolio Optimization with Genetic Algorithm)
+You can later extend this project by:
+
+Using real stock data from APIs like Yahoo Finance, Alpha Vantage, or Quandl
+
+Implementing advanced models such as Black-Litterman, Markowitz optimization, or machine learning-based approaches
+
+import numpy as np
+import pandas as pd
+import yfinance as yf
+import random
+import matplotlib.pyplot as plt
+ 
+# 1. Download historical stock data for a portfolio of assets (e.g., Apple, Microsoft, Google)
+assets = ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"]
+stock_data = yf.download(assets, start="2015-01-01", end="2021-01-01")['Adj Close']
+ 
+# 2. Calculate daily returns
+returns = stock_data.pct_change().dropna()
+ 
+# 3. Simulate portfolio optimization using a genetic algorithm
+ 
+# Helper function to calculate portfolio performance
+def calculate_portfolio_performance(weights, mean_returns, cov_matrix):
+    portfolio_return = np.sum(mean_returns * weights) * 252  # Annualized return
+    portfolio_volatility = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights))) * np.sqrt(252)  # Annualized volatility
+    return portfolio_return, portfolio_volatility
+ 
+# Fitness function (negative Sharpe Ratio) for genetic algorithm
+def fitness_function(weights, mean_returns, cov_matrix, risk_free_rate=0.01):
+    p_return, p_volatility = calculate_portfolio_performance(weights, mean_returns, cov_matrix)
+    return -(p_return - risk_free_rate) / p_volatility  # We want to minimize this
+ 
+# 4. Genetic algorithm for portfolio optimization
+def genetic_algorithm(returns, population_size=50, generations=100, mutation_rate=0.1):
+    mean_returns = returns.mean()
+    cov_matrix = returns.cov()
+    
+    # Generate an initial random population of portfolios
+    population = []
+    for _ in range(population_size):
+        weights = np.random.random(len(assets))
+        weights /= np.sum(weights)
+        population.append(weights)
+    
+    # Evolution process
+    for gen in range(generations):
+        fitness_scores = [fitness_function(weights, mean_returns, cov_matrix) for weights in population]
+        sorted_population = [x for _, x in sorted(zip(fitness_scores, population))]
+        
+        # Keep the best half
+        population = sorted_population[:population_size//2]
+        
+        # Crossover and mutation to create the next generation
+        next_generation = []
+        while len(next_generation) < population_size:
+            parent1, parent2 = random.choices(population[:5], k=2)  # Select two parents
+            crossover_point = random.randint(1, len(assets)-1)
+            child = np.concatenate([parent1[:crossover_point], parent2[crossover_point:]])
+            
+            # Mutation
+            if random.random() < mutation_rate:
+                mutation_point = random.randint(0, len(assets)-1)
+                child[mutation_point] = random.random()
+                child /= np.sum(child)  # Normalize to sum to 1
+            
+            next_generation.append(child)
+        
+        population = next_generation
+    
+    # Best portfolio from the final generation
+    best_weights = population[0]
+    return best_weights
+ 
+# 5. Run genetic algorithm
+best_weights = genetic_algorithm(returns)
+ 
+# 6. Calculate portfolio performance for the best portfolio
+mean_returns = returns.mean()
+cov_matrix = returns.cov()
+p_return, p_volatility = calculate_portfolio_performance(best_weights, mean_returns, cov_matrix)
+ 
+# 7. Display results
+print(f"Optimal Portfolio Weights: {best_weights}")
+print(f"Annualized Return: {p_return:.2f}")
+print(f"Annualized Volatility: {p_volatility:.2f}")
+ 
+# 8. Visualize portfolio performance
+portfolio_value = 1000000  # Start with $1,000,000 investment
+investment = portfolio_value * np.array(best_weights)
+portfolio_growth = (returns.dot(best_weights) + 1).cumprod() * portfolio_value
+ 
+plt.figure(figsize=(14, 7))
+plt.plot(portfolio_growth, label='Optimized Portfolio')
+plt.title("Portfolio Performance")
+plt.xlabel('Date')
+plt.ylabel('Portfolio Value (USD)')
+plt.legend()
+plt.show()
+✅ What It Does:
+Simulates portfolio optimization by using Genetic Algorithms to select optimal asset weights.
+
+Optimizes for the highest Sharpe ratio by evaluating annualized return and volatility.
+
+Plots the portfolio growth over time to show how the strategy would perform.
+
+Key Extensions and Customizations:
+Multi-objective optimization: You can optimize for both return and risk-adjusted return (e.g., using Sharpe ratio).
+
+Use real financial data: Integrate with live stock data APIs (e.g., Yahoo Finance, Alpha Vantage) for real-time portfolio updates.
+
+Add transaction costs: Include fees or slippage in the strategy for more realistic performance.
+
+Expand with more features: Integrate more advanced strategies like mean-variance optimization, machine learning-based methods, or even Black-Litterman model.
+
+
+
+Project 484: Risk Assessment Model
+Description:
+Risk assessment is crucial in finance for evaluating potential investment risks or the creditworthiness of borrowers. In this project, we simulate a risk scoring system for credit applications, where we use logistic regression to predict the likelihood of a borrower defaulting on a loan based on their financial features.
+
+🧪 Python Implementation (Loan Default Prediction with Logistic Regression)
+In a real-world system, you can use:
+
+Credit Bureau data, FICO scores, loan history datasets
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+ 
+# 1. Simulated borrower data
+np.random.seed(42)
+data = {
+    'credit_score': np.random.randint(300, 850, 1000),
+    'annual_income': np.random.normal(50000, 15000, 1000),  # In USD
+    'loan_amount': np.random.normal(20000, 5000, 1000),  # In USD
+    'debt_to_income_ratio': np.random.uniform(0.1, 0.5, 1000),
+    'previous_default': np.random.choice([0, 1], 1000),  # 0 = no, 1 = yes
+    'employment_status': np.random.choice(['Employed', 'Unemployed'], 1000),
+    'loan_default': np.random.choice([0, 1], 1000)  # 0 = No Default, 1 = Default
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Preprocessing
+df['employment_status'] = df['employment_status'].map({'Employed': 1, 'Unemployed': 0})
+X = df.drop('loan_default', axis=1)
+y = df['loan_default']
+ 
+# 3. Scaling numerical features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X[['credit_score', 'annual_income', 'loan_amount', 'debt_to_income_ratio']])
+ 
+# 4. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 5. Logistic regression model
+model = LogisticRegression()
+model.fit(X_train, y_train)
+ 
+# 6. Evaluate the model
+y_pred = model.predict(X_test)
+print("Loan Default Prediction Report:\n")
+print(classification_report(y_test, y_pred))
+ 
+# 7. Predict risk for a new borrower
+new_borrower = np.array([[750, 60000, 15000, 0.2]])  # Example borrower data
+new_borrower_scaled = scaler.transform(new_borrower)
+predicted_risk = model.predict(new_borrower_scaled)
+print(f"\nPredicted loan default risk for the new borrower: {'Default' if predicted_risk[0] == 1 else 'No Default'}")
+✅ What It Does:
+Simulates borrower data including credit score, income, loan amount, debt-to-income ratio, and employment status.
+
+Logistic regression is used to predict whether a borrower will default on a loan.
+
+Evaluates the model's performance using precision, recall, and F1-score metrics.
+
+Scales numerical features and makes predictions for new applicants.
+
+Key Extensions and Customizations:
+Use real-world financial data: Integrate datasets like credit history, loan repayment records, or customer data for more accurate predictions.
+
+Advanced modeling: Implement more sophisticated models like random forests, XGBoost, or neural networks for better performance.
+
+Model explainability: Use techniques like SHAP or LIME to explain model predictions to end-users.
+
+
+
+Project 485: Credit Scoring System
+Description:
+A Credit Scoring System evaluates a borrower’s creditworthiness by analyzing various financial features such as income, credit history, loan amount, etc. This system is similar to the FICO score and is crucial for financial institutions to determine the risk of lending. In this project, we will simulate a credit scoring model using decision trees to predict whether a borrower qualifies for a loan based on their financial profile.
+
+🧪 Python Implementation (Credit Scoring with Decision Tree)
+For real-world data:
+
+You can use datasets from FICO, credit bureaus, or bank customer data.
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import classification_report
+ 
+# 1. Simulated borrower data
+np.random.seed(42)
+data = {
+    'credit_score': np.random.randint(300, 850, 1000),
+    'annual_income': np.random.normal(60000, 15000, 1000),  # In USD
+    'loan_amount': np.random.normal(25000, 7000, 1000),  # In USD
+    'debt_to_income_ratio': np.random.uniform(0.05, 0.45, 1000),
+    'previous_default': np.random.choice([0, 1], 1000),  # 0 = no, 1 = yes
+    'employment_status': np.random.choice(['Employed', 'Unemployed'], 1000),
+    'credit_approved': np.random.choice([0, 1], 1000)  # 0 = not approved, 1 = approved
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Preprocessing
+df['employment_status'] = df['employment_status'].map({'Employed': 1, 'Unemployed': 0})
+X = df.drop('credit_approved', axis=1)
+y = df['credit_approved']
+ 
+# 3. Scaling numerical features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X[['credit_score', 'annual_income', 'loan_amount', 'debt_to_income_ratio']])
+ 
+# 4. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 5. Decision tree model
+model = DecisionTreeClassifier(random_state=42)
+model.fit(X_train, y_train)
+ 
+# 6. Evaluate the model
+y_pred = model.predict(X_test)
+print("Credit Scoring System Report:\n")
+print(classification_report(y_test, y_pred))
+ 
+# 7. Predict credit approval for a new borrower
+new_borrower = np.array([[700, 65000, 20000, 0.2]])  # Example borrower data
+new_borrower_scaled = scaler.transform(new_borrower)
+predicted_approval = model.predict(new_borrower_scaled)
+print(f"\nPredicted Credit Approval: {'Approved' if predicted_approval[0] == 1 else 'Not Approved'}")
+✅ What It Does:
+Simulates a credit scoring model using financial features like credit score, income, loan amount, and debt-to-income ratio.
+
+Uses a decision tree to predict whether a borrower will be approved for credit based on the input features.
+
+Evaluates model performance using classification metrics like precision, recall, and F1-score.
+
+Scales the features for improved model performance and accuracy.
+
+Key Extensions and Customizations:
+Use real-world credit data to improve the model's accuracy and reliability.
+
+Incorporate more features such as credit utilization, loan history, employment duration, and financial dependents.
+
+Model optimization: Experiment with Random Forests, XGBoost, or Neural Networks for better performance.
+
+Add interpretability: Use techniques like SHAP or LIME to explain how the model makes credit approval decisions.
+
+
+
+Project 486: Loan Default Prediction
+Description:
+Loan default prediction helps financial institutions determine whether a borrower is likely to default on a loan. The goal is to use various features (e.g., credit score, income, loan amount, and financial behavior) to predict the likelihood of default. In this project, we will use a Random Forest Classifier to predict whether a borrower will default based on their financial information.
+
+🧪 Python Implementation (Loan Default Prediction with Random Forest)
+For real-world applications:
+
+Use datasets from loan providers, credit bureaus, or banking systems.
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+ 
+# 1. Simulated loan data (features: credit score, income, loan amount, history)
+np.random.seed(42)
+data = {
+    'credit_score': np.random.randint(300, 850, 1000),
+    'annual_income': np.random.normal(60000, 15000, 1000),  # In USD
+    'loan_amount': np.random.normal(25000, 7000, 1000),  # In USD
+    'debt_to_income_ratio': np.random.uniform(0.05, 0.45, 1000),
+    'previous_default': np.random.choice([0, 1], 1000),  # 0 = no, 1 = yes
+    'loan_default': np.random.choice([0, 1], 1000)  # 0 = No Default, 1 = Default
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Preprocessing
+X = df.drop('loan_default', axis=1)
+y = df['loan_default']
+ 
+# 3. Scaling numerical features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X[['credit_score', 'annual_income', 'loan_amount', 'debt_to_income_ratio']])
+ 
+# 4. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 5. Random Forest model for prediction
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# 6. Evaluate the model
+y_pred = model.predict(X_test)
+print("Loan Default Prediction Report:\n")
+print(classification_report(y_test, y_pred))
+ 
+# 7. Predict loan default for a new borrower
+new_borrower = np.array([[700, 65000, 20000, 0.2]])  # Example borrower data
+new_borrower_scaled = scaler.transform(new_borrower)
+predicted_default = model.predict(new_borrower_scaled)
+print(f"\nPredicted Loan Default: {'Default' if predicted_default[0] == 1 else 'No Default'}")
+✅ What It Does:
+Simulates loan data (credit score, income, loan amount, debt-to-income ratio) and predicts loan default.
+
+Uses Random Forest Classifier to build a model that predicts whether a loan will default.
+
+Evaluates the model using classification metrics like precision, recall, and F1-score.
+
+Scales the features to improve model performance.
+
+Key Extensions and Customizations:
+Use real-world loan data to enhance the accuracy and reliability of the model.
+
+Incorporate more features like employment history, financial assets, and loan type.
+
+Model improvement: Experiment with Gradient Boosting models (e.g., XGBoost, LightGBM) for better predictive power.
+
+Add interpretability: Use tools like SHAP or LIME to explain the model's decisions and provide transparency in loan approval processes.
+
+
+
+Project 487: Fraud Detection for Financial Transactions
+Description:
+Fraud detection in financial transactions is crucial to identify suspicious activities, such as unauthorized transactions, money laundering, or credit card fraud. In this project, we will use a Random Forest Classifier to predict whether a given transaction is fraudulent or legitimate based on features like transaction amount, user behavior, and time of transaction.
+
+🧪 Python Implementation (Fraud Detection for Financial Transactions)
+For real-world systems:
+
+Integrate with banking data, transaction logs, or credit card transaction datasets like Kaggle’s Credit Card Fraud Detection dataset.
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate financial transaction data (features: transaction amount, time, user behavior)
+np.random.seed(42)
+n_samples = 1000
+ 
+# Simulated features: transaction amount, user ID, transaction time (random for simulation)
+data = {
+    'transaction_amount': np.random.normal(150, 50, n_samples),
+    'user_id': np.random.randint(1, 100, n_samples),
+    'transaction_time': np.random.randint(1, 24, n_samples),  # Hour of the day
+    'is_fraud': np.random.choice([0, 1], n_samples, p=[0.95, 0.05])  # 5% fraud rate
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Preprocessing
+X = df.drop('is_fraud', axis=1)
+y = df['is_fraud']
+ 
+# 3. Scale the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+ 
+# 4. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 5. Train the Random Forest model
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# 6. Evaluate the model
+y_pred = model.predict(X_test)
+print("Fraud Detection Model Report:\n")
+print(classification_report(y_test, y_pred))
+ 
+# 7. Predict fraud for a new transaction
+new_transaction = np.array([[200, 12, 10]])  # Example: $200, transaction time 12 PM
+new_transaction_scaled = scaler.transform(new_transaction)
+predicted_fraud = model.predict(new_transaction_scaled)
+print(f"\nPredicted Fraud: {'Fraud' if predicted_fraud[0] == 1 else 'Legitimate'}")
+ 
+# 8. Visualize feature importance (optional)
+feature_importances = model.feature_importances_
+plt.bar(X.columns, feature_importances)
+plt.title("Feature Importance in Fraud Detection")
+plt.xlabel("Features")
+plt.ylabel("Importance")
+plt.show()
+✅ What It Does:
+Simulates transaction data with features like transaction amount, user ID, and time of transaction.
+
+Uses a Random Forest Classifier to predict whether a transaction is fraudulent (1) or legitimate (0).
+
+Evaluates the model using classification metrics like precision, recall, and F1-score.
+
+Visualizes feature importance to identify which features have the most influence on the model’s predictions.
+
+Key Extensions and Customizations:
+Use real-world transaction data: Integrate datasets like Kaggle’s Credit Card Fraud Detection or banking transaction logs.
+
+Advanced models: Experiment with XGBoost, LightGBM, or Neural Networks for more robust performance.
+
+Anomaly detection: Implement unsupervised methods for fraud detection when labeled data is limited, such as Isolation Forest or Autoencoders.
+
+
+
+Project 488: Market Sentiment Analysis
+Description:
+Market sentiment analysis involves analyzing social media, news, or financial reports to gauge the overall sentiment (positive, negative, or neutral) about a particular stock, market, or economic condition. In this project, we'll implement a simple sentiment analysis model using text data from news articles or social media (e.g., Twitter) to predict market sentiment related to a specific stock or market.
+
+🧪 Python Implementation (Market Sentiment Analysis using TextBlob)
+For real-world use:
+
+Use Twitter API, Reddit posts, or financial news articles to collect data.
+
+You can enhance this project by using BERT-based models or VADER for more robust sentiment classification.
+
+from textblob import TextBlob
+import pandas as pd
+import numpy as np
+import yfinance as yf
+import matplotlib.pyplot as plt
+ 
+# 1. Download stock data (e.g., Apple stock) for visualization
+stock_data = yf.download("AAPL", start="2020-01-01", end="2021-01-01")
+ 
+# 2. Simulated news headlines or tweets related to the stock
+# In a real application, you would scrape this data from Twitter or news sources
+data = {
+    "date": pd.date_range(start="2020-01-01", periods=5, freq="D"),
+    "headline": [
+        "Apple hits record high in stock price", 
+        "Apple faces regulatory challenges in Europe", 
+        "Apple launches new iPhone model", 
+        "Apple's revenue growth slows in Q4", 
+        "Apple announces plans for environmental sustainability"
+    ]
+}
+ 
+# 3. Create a DataFrame
+df = pd.DataFrame(data)
+ 
+# 4. Define a function to calculate sentiment polarity
+def get_sentiment(text):
+    blob = TextBlob(text)
+    return blob.sentiment.polarity
+ 
+# 5. Apply sentiment analysis to the headlines
+df['sentiment'] = df['headline'].apply(get_sentiment)
+ 
+# 6. Plot the sentiment over time
+plt.figure(figsize=(10, 6))
+plt.plot(df['date'], df['sentiment'], marker='o', linestyle='-', color='b', label="Sentiment")
+plt.title("Market Sentiment Analysis for Apple Stock")
+plt.xlabel("Date")
+plt.ylabel("Sentiment Score")
+plt.xticks(rotation=45)
+plt.grid(True)
+plt.legend()
+plt.show()
+ 
+# 7. Combine sentiment with stock price (optional)
+stock_data['sentiment'] = np.interp(np.linspace(0, len(stock_data)-1, len(df)), np.linspace(0, len(df)-1, len(df)), df['sentiment'].values)
+ 
+# 8. Plot stock price and sentiment together
+fig, ax1 = plt.subplots(figsize=(10, 6))
+ 
+ax1.plot(stock_data['Close'], color='g', label="Stock Price")
+ax1.set_xlabel("Date")
+ax1.set_ylabel("Stock Price (USD)", color='g')
+ax1.tick_params(axis='y', labelcolor='g')
+ 
+ax2 = ax1.twinx()
+ax2.plot(stock_data['sentiment'], color='b', label="Sentiment")
+ax2.set_ylabel("Sentiment", color='b')
+ax2.tick_params(axis='y', labelcolor='b')
+ 
+plt.title("Apple Stock Price and Market Sentiment Over Time")
+plt.show()
+✅ What It Does:
+Simulates sentiment analysis on a series of headlines related to a stock (Apple in this case).
+
+Uses TextBlob to calculate sentiment polarity, which ranges from -1 (negative) to +1 (positive).
+
+Plots the stock price and market sentiment over time to show the relationship between sentiment and stock movement.
+
+Key Extensions and Customizations:
+Real-time data collection: Integrate with the Twitter API or news APIs (e.g., News API or Reddit API) to gather up-to-date news articles or tweets.
+
+Advanced sentiment models: Use VADER, BERT, or RoBERTa for more accurate and context-aware sentiment analysis.
+
+Sentiment-based trading: Implement a simple trading strategy where sentiment scores trigger buy or sell actions.
+
+
+
+Project 489: Time Series Forecasting for Finance
+Description:
+Time series forecasting for finance predicts future stock prices or market indices using historical data. In this project, we will use ARIMA (AutoRegressive Integrated Moving Average), a classic model for time series forecasting, to predict future stock prices based on historical closing prices.
+
+🧪 Python Implementation (Stock Price Forecasting using ARIMA)
+For real-world use:
+
+Use datasets like Yahoo Finance, Alpha Vantage, or Quandl.
+
+You can also enhance this project by using more advanced models like LSTM or Prophet for better results.
+
+import numpy as np
+import pandas as pd
+import yfinance as yf
+from statsmodels.tsa.arima.model import ARIMA
+import matplotlib.pyplot as plt
+ 
+# 1. Download stock data (e.g., Apple stock)
+stock_data = yf.download("AAPL", start="2015-01-01", end="2021-01-01")
+stock_data = stock_data['Close']
+ 
+# 2. Plot the stock price data
+plt.figure(figsize=(10, 6))
+plt.plot(stock_data)
+plt.title('Apple Stock Price (2015 - 2021)')
+plt.xlabel('Date')
+plt.ylabel('Stock Price (USD)')
+plt.show()
+ 
+# 3. Split the data into train and test sets
+train_size = int(len(stock_data) * 0.8)
+train_data, test_data = stock_data[:train_size], stock_data[train_size:]
+ 
+# 4. Fit the ARIMA model
+# p = 5, d = 1, q = 0 are chosen arbitrarily; these can be optimized
+model = ARIMA(train_data, order=(5, 1, 0))
+model_fit = model.fit()
+ 
+# 5. Make predictions
+forecast_steps = len(test_data)
+forecast = model_fit.forecast(steps=forecast_steps)
+ 
+# 6. Plot the forecasted results
+plt.figure(figsize=(10, 6))
+plt.plot(train_data, label='Training Data', color='blue')
+plt.plot(test_data, label='Test Data', color='orange')
+plt.plot(test_data.index, forecast, label='Predicted Data', color='green')
+plt.title('Stock Price Prediction (ARIMA)')
+plt.xlabel('Date')
+plt.ylabel('Stock Price (USD)')
+plt.legend()
+plt.show()
+ 
+# 7. Evaluate the model (e.g., using Mean Absolute Error)
+from sklearn.metrics import mean_absolute_error
+ 
+mae = mean_absolute_error(test_data, forecast)
+print(f'Mean Absolute Error: {mae:.2f}')
+✅ What It Does:
+Downloads historical stock data (Apple in this case) and splits it into training and test sets.
+
+Fits an ARIMA model on the training data and forecasts future stock prices for the test period.
+
+Plots the stock prices: the actual historical prices, the forecasted values, and the model's prediction.
+
+Evaluates the model using Mean Absolute Error (MAE).
+
+
+
+Project 490: Options Pricing Model
+Description:
+Options pricing is an essential task in financial markets, where the price of an option (call or put) is determined based on factors such as underlying asset price, strike price, time to expiration, volatility, and interest rate. In this project, we will implement the Black-Scholes model, one of the most commonly used models for pricing European-style options.
+
+🧪 Python Implementation (Options Pricing with the Black-Scholes Model)
+In real-world use:
+
+Extend this model to handle more complex options like American-style options or use Monte Carlo simulations for exotic options.
+
+import numpy as np
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+ 
+# 1. Define the Black-Scholes formula for European call option pricing
+def black_scholes_call(S, K, T, r, sigma):
+    """
+    S: Current stock price
+    K: Strike price of the option
+    T: Time to expiration in years
+    r: Risk-free interest rate
+    sigma: Volatility of the underlying stock
+    """
+    d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
+    
+    # Calculate the call option price
+    call_price = S * stats.norm.cdf(d1) - K * np.exp(-r * T) * stats.norm.cdf(d2)
+    return call_price
+ 
+# 2. Example parameters for a European Call Option
+S = 100  # Current stock price (USD)
+K = 105  # Strike price (USD)
+T = 1    # Time to expiration (1 year)
+r = 0.05 # Risk-free interest rate (5%)
+sigma = 0.2  # Volatility (20%)
+ 
+# 3. Calculate the call option price
+call_price = black_scholes_call(S, K, T, r, sigma)
+print(f"Call Option Price: ${call_price:.2f}")
+ 
+# 4. Plot the option price as a function of stock price (S)
+stock_prices = np.linspace(50, 150, 100)
+option_prices = [black_scholes_call(s, K, T, r, sigma) for s in stock_prices]
+ 
+plt.plot(stock_prices, option_prices, label="Call Option Price")
+plt.title("European Call Option Pricing (Black-Scholes Model)")
+plt.xlabel("Stock Price (S)")
+plt.ylabel("Call Option Price")
+plt.grid(True)
+plt.legend()
+plt.show()
+✅ What It Does:
+Black-Scholes Formula is used to calculate the price of a European call option.
+
+It takes in parameters like stock price, strike price, time to expiration, volatility, and interest rate.
+
+Plots the option price against the underlying stock price to visualize the relationship.
+
+Key Extensions and Customizations:
+Put options: You can extend the formula for put option pricing using the Black-Scholes model by applying the put-call parity.
+
+Volatility surface: Explore how the option price changes with volatility over time or across different stocks.
+
+Monte Carlo simulations: Implement Monte Carlo methods for pricing exotic options that may not have closed-form solutions.
+
+
+
+Project 491: Cryptocurrency Price Prediction
+Description:
+Cryptocurrency price prediction aims to forecast future prices of cryptocurrencies, such as Bitcoin, Ethereum, or Litecoin, based on historical market data. In this project, we will use a LSTM (Long Short-Term Memory) model to predict the price of Bitcoin based on historical data, similar to stock price prediction, but for volatile cryptocurrencies.
+
+🧪 Python Implementation (Cryptocurrency Price Prediction using LSTM)
+For real-world use:
+
+You can use APIs like Binance, CoinGecko, or CryptoCompare for real-time cryptocurrency data.
+
+To improve accuracy, use additional features such as social media sentiment, technical indicators, or market news.
+
+import numpy as np
+import pandas as pd
+import yfinance as yf
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+import matplotlib.pyplot as plt
+ 
+# 1. Download cryptocurrency data (Bitcoin price)
+crypto_data = yf.download("BTC-USD", start="2015-01-01", end="2021-01-01")
+crypto_data = crypto_data['Close']
+ 
+# 2. Normalize the data
+scaler = MinMaxScaler(feature_range=(0, 1))
+scaled_data = scaler.fit_transform(crypto_data.values.reshape(-1, 1))
+ 
+# 3. Create dataset with time steps
+def create_dataset(data, time_step=60):
+    X, y = [], []
+    for i in range(time_step, len(data)):
+        X.append(data[i-time_step:i, 0])
+        y.append(data[i, 0])
+    return np.array(X), np.array(y)
+ 
+X, y = create_dataset(scaled_data)
+ 
+# 4. Train/test split
+train_size = int(len(X) * 0.8)
+X_train, X_test = X[:train_size], X[train_size:]
+y_train, y_test = y[:train_size], y[train_size:]
+ 
+# 5. Reshape the input data for LSTM
+X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
+X_test = X_test.reshape(X_test.shape[0], X_test.shape[1], 1)
+ 
+# 6. Build the LSTM model
+model = Sequential()
+model.add(LSTM(units=50, return_sequences=True, input_shape=(X_train.shape[1], 1)))
+model.add(Dropout(0.2))
+model.add(LSTM(units=50, return_sequences=False))
+model.add(Dropout(0.2))
+model.add(Dense(units=1))
+ 
+# 7. Compile and train the model
+model.compile(optimizer='adam', loss='mean_squared_error')
+history = model.fit(X_train, y_train, epochs=10, batch_size=32)
+ 
+# 8. Make predictions
+predictions = model.predict(X_test)
+ 
+# 9. Inverse scaling for predictions
+predicted_prices = scaler.inverse_transform(predictions)
+actual_prices = scaler.inverse_transform(y_test.reshape(-1, 1))
+ 
+# 10. Plot the results
+plt.figure(figsize=(14, 7))
+plt.plot(actual_prices, label='Actual Bitcoin Price', color='blue')
+plt.plot(predicted_prices, label='Predicted Bitcoin Price', color='red')
+plt.title('Bitcoin Price Prediction with LSTM')
+plt.xlabel('Time')
+plt.ylabel('Price (USD)')
+plt.legend()
+plt.show()
+✅ What It Does:
+Downloads historical Bitcoin prices using yfinance.
+
+Preprocesses the data using MinMaxScaler to normalize it for LSTM.
+
+Trains an LSTM model to predict Bitcoin's price based on the past 60 days.
+
+Plots actual vs. predicted prices to evaluate the model.
+
+Key Extensions and Customizations:
+Use multiple cryptocurrencies: Extend the model to predict Ethereum, Litecoin, or any other cryptocurrency by adding them as additional features.
+
+Use technical indicators: Add moving averages, RSI, or MACD as additional features for more accurate predictions.
+
+Social media sentiment: Integrate data from Twitter or Reddit to predict market sentiment and improve forecasting.
+
+Deploy for real-time predictions: Use WebSocket connections to stream live data and make real-time predictions.
+
+
+
+Project 492: Customer Churn Prediction for Banks
+Description:
+Customer churn prediction helps banks identify customers who are likely to leave the bank (i.e., close their accounts) in the near future. By predicting churn, banks can proactively take action to retain high-risk customers. In this project, we will use logistic regression to predict whether a customer will churn based on features like account balance, number of transactions, and customer demographics.
+
+🧪 Python Implementation (Customer Churn Prediction with Logistic Regression)
+For real-world applications:
+
+Use customer data such as account tenure, transaction history, demographics, service usage, etc.
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+ 
+# 1. Simulate customer data
+np.random.seed(42)
+data = {
+    'account_balance': np.random.normal(5000, 1500, 1000),  # USD
+    'age': np.random.randint(18, 70, 1000),
+    'num_transactions': np.random.randint(1, 20, 1000),
+    'years_with_bank': np.random.randint(1, 20, 1000),
+    'churn': np.random.choice([0, 1], 1000)  # 0 = stay, 1 = churn
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Preprocessing
+X = df.drop('churn', axis=1)
+y = df['churn']
+ 
+# 3. Scale the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+ 
+# 4. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 5. Logistic Regression model
+model = LogisticRegression()
+model.fit(X_train, y_train)
+ 
+# 6. Evaluate the model
+y_pred = model.predict(X_test)
+print("Customer Churn Prediction Report:\n")
+print(classification_report(y_test, y_pred))
+ 
+# 7. Predict churn for a new customer
+new_customer = np.array([[4500, 35, 10, 5]])  # Example customer: balance = 4500, age = 35, 10 transactions, 5 years with the bank
+new_customer_scaled = scaler.transform(new_customer)
+predicted_churn = model.predict(new_customer_scaled)
+print(f"\nPredicted Churn: {'Churn' if predicted_churn[0] == 1 else 'No Churn'}")
+✅ What It Does:
+Simulates customer data (account balance, age, number of transactions, years with bank) and predicts whether a customer will churn.
+
+Uses Logistic Regression to classify customers into churn or non-churn categories.
+
+Evaluates model performance with classification metrics such as precision, recall, and F1-score.
+
+Predicts churn for new customers based on their features.
+
+Key Extensions and Customizations:
+Use real-world customer data: Integrate datasets from banks, telecoms, or e-commerce platforms for more accurate predictions.
+
+Add more features: Include additional features like customer support interactions, complaint history, or product/service usage.
+
+Model improvement: Implement more advanced models such as Random Forest, XGBoost, or Neural Networks for better accuracy.
+
+
+
+Project 493: Anti-Money Laundering System
+Description:
+Anti-Money Laundering (AML) systems are designed to detect suspicious financial transactions that may indicate money laundering, terrorist financing, or other illicit activities. In this project, we simulate an AML detection system that identifies suspicious transactions based on patterns such as transaction size, frequency, and location.
+
+🧪 Python Implementation (AML Detection with Decision Tree)
+For real-world systems:
+
+Integrate with transaction databases or real-time monitoring systems.
+
+Use datasets such as synthetic AML datasets or Kaggle’s Financial Transaction Datasets.
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import classification_report
+ 
+# 1. Simulate financial transaction data
+np.random.seed(42)
+data = {
+    'transaction_amount': np.random.normal(5000, 2000, 1000),  # USD
+    'transaction_frequency': np.random.randint(1, 10, 1000),  # number of transactions per day
+    'customer_age': np.random.randint(18, 70, 1000),
+    'transaction_location': np.random.choice(['Domestic', 'International'], 1000),
+    'previous_suspicious_activity': np.random.choice([0, 1], 1000),  # 0 = no, 1 = yes
+    'is_suspicious': np.random.choice([0, 1], 1000)  # 0 = no, 1 = suspicious
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Preprocessing
+df['transaction_location'] = df['transaction_location'].map({'Domestic': 0, 'International': 1})
+X = df.drop('is_suspicious', axis=1)
+y = df['is_suspicious']
+ 
+# 3. Scaling numerical features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X[['transaction_amount', 'transaction_frequency', 'customer_age']])
+ 
+# 4. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 5. Decision Tree model for detection
+model = DecisionTreeClassifier(random_state=42)
+model.fit(X_train, y_train)
+ 
+# 6. Evaluate the model
+y_pred = model.predict(X_test)
+print("AML Detection Model Report:\n")
+print(classification_report(y_test, y_pred))
+ 
+# 7. Predict suspicious activity for a new transaction
+new_transaction = np.array([[7000, 8, 45, 1, 1]])  # Example: high transaction amount, frequent international transactions, previous suspicious activity
+new_transaction_scaled = scaler.transform(new_transaction)
+predicted_suspicious = model.predict(new_transaction_scaled)
+print(f"\nPredicted Suspicious Activity: {'Suspicious' if predicted_suspicious[0] == 1 else 'Not Suspicious'}")
+✅ What It Does:
+Simulates transaction data with features like transaction amount, frequency, customer age, location, and previous suspicious activity.
+
+Uses a Decision Tree Classifier to detect suspicious transactions (potential money laundering).
+
+Evaluates model performance using precision, recall, and F1-score.
+
+Predicts if a new transaction is suspicious based on the model.
+
+Key Extensions and Customizations:
+Use real-world financial data to improve the accuracy of the model.
+
+Add more features like geolocation of transactions, transaction patterns, or relationship networks between customers.
+
+Model improvement: Implement more sophisticated models such as Random Forest, XGBoost, or Neural Networks for more robust detection.
+
+
+
+Project 494: Customer Segmentation for Financial Services
+Description:
+Customer segmentation in financial services helps businesses categorize customers into different groups based on their behaviors, preferences, and financial activities. These segments can then be targeted with personalized offers, products, and services. In this project, we'll use K-means clustering to segment customers based on their financial features like account balance, number of transactions, and loan amount.
+
+🧪 Python Implementation (Customer Segmentation with K-Means Clustering)
+For real-world systems:
+
+Use customer data from banks, credit card companies, or financial institutions to segment customers for marketing or service customization.
+
+import pandas as pd
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate customer data
+np.random.seed(42)
+data = {
+    'account_balance': np.random.normal(5000, 1500, 1000),  # USD
+    'num_transactions': np.random.randint(1, 20, 1000),
+    'loan_amount': np.random.normal(20000, 5000, 1000),  # USD
+    'age': np.random.randint(18, 70, 1000)
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Preprocessing
+X = df[['account_balance', 'num_transactions', 'loan_amount', 'age']]
+ 
+# 3. Scaling the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+ 
+# 4. Apply K-Means clustering
+kmeans = KMeans(n_clusters=4, random_state=42)  # Assume 4 segments
+df['Segment'] = kmeans.fit_predict(X_scaled)
+ 
+# 5. Visualize the clusters
+plt.figure(figsize=(10, 6))
+plt.scatter(df['account_balance'], df['loan_amount'], c=df['Segment'], cmap='viridis', alpha=0.6)
+plt.title('Customer Segmentation')
+plt.xlabel('Account Balance (USD)')
+plt.ylabel('Loan Amount (USD)')
+plt.colorbar(label='Segment')
+plt.show()
+ 
+# 6. Show summary of each segment
+segment_summary = df.groupby('Segment').mean()
+print("Segment Summary (Average Features per Segment):\n")
+print(segment_summary)
+✅ What It Does:
+Simulates customer data based on features like account balance, number of transactions, loan amount, and age.
+
+Uses K-means clustering to segment customers into 4 groups based on the selected features.
+
+Visualizes the customer segments using a scatter plot with color coding.
+
+Summarizes the average values for each feature in each segment.
+
+Key Extensions and Customizations:
+Real-world datasets: Use actual customer data from banks or financial service providers.
+
+Optimize clusters: Use methods like the Elbow Method to determine the optimal number of clusters.
+
+Advanced segmentation: Use hierarchical clustering or DBSCAN for more flexibility in identifying customer segments.
+
+Targeted marketing: Based on segments, create personalized marketing strategies or product offerings.
+
+
+
+Project 495: Insurance Pricing Optimization
+Description:
+Insurance pricing optimization is the process of determining the best pricing strategy for insurance policies based on customer risk profiles, coverage amounts, and other relevant factors. In this project, we'll simulate an insurance pricing model that uses features like age, health status, coverage type, and previous claims to predict the appropriate insurance premium.
+
+🧪 Python Implementation (Insurance Pricing Optimization with Regression)
+For real-world applications:
+
+Use customer data, such as age, health status, claim history, and coverage types, to determine pricing.
+
+Extend this project to include market conditions, competitor pricing, and regulatory factors.
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate insurance data
+np.random.seed(42)
+data = {
+    'age': np.random.randint(18, 70, 1000),
+    'health_status': np.random.choice(['Excellent', 'Good', 'Fair', 'Poor'], 1000),
+    'coverage_amount': np.random.normal(100000, 25000, 1000),  # Coverage in USD
+    'previous_claims': np.random.randint(0, 5, 1000),  # Number of claims
+    'insurance_premium': np.random.normal(1200, 300, 1000)  # Premium in USD
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Preprocess categorical features (e.g., health_status)
+df['health_status'] = df['health_status'].map({'Excellent': 0, 'Good': 1, 'Fair': 2, 'Poor': 3})
+ 
+# 3. Define features and target variable
+X = df.drop('insurance_premium', axis=1)
+y = df['insurance_premium']
+ 
+# 4. Scale the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+ 
+# 5. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 6. Train the regression model
+model = LinearRegression()
+model.fit(X_train, y_train)
+ 
+# 7. Evaluate the model
+y_pred = model.predict(X_test)
+mae = mean_absolute_error(y_test, y_pred)
+print(f"Mean Absolute Error for Insurance Pricing Model: {mae:.2f}")
+ 
+# 8. Plot the actual vs predicted insurance premiums
+plt.figure(figsize=(10, 6))
+plt.scatter(y_test, y_pred, color='blue', alpha=0.5)
+plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], color='red', linewidth=2)
+plt.title("Actual vs Predicted Insurance Premiums")
+plt.xlabel("Actual Premiums (USD)")
+plt.ylabel("Predicted Premiums (USD)")
+plt.show()
+✅ What It Does:
+Simulates insurance data with features like age, health status, coverage amount, and previous claims.
+
+Uses Linear Regression to predict the insurance premium based on these features.
+
+Evaluates the model with Mean Absolute Error (MAE) to assess prediction accuracy.
+
+Visualizes the predicted premiums vs. actual premiums with a scatter plot.
+
+Key Extensions and Customizations:
+Non-linear models: Use Random Forests or Gradient Boosting Machines to capture non-linear relationships between features and premiums.
+
+Market data: Integrate market conditions or competitor pricing to adjust premiums dynamically.
+
+Dynamic pricing: Implement real-time data updates (e.g., incorporating new claims, market changes) for automated pricing adjustments.
+
+
+
+Project 496: Claims Fraud Detection
+Description:
+Claims fraud detection involves identifying fraudulent insurance claims, such as inflated claims, duplicate claims, or misreported information. In this project, we simulate a fraud detection model that uses features like claim amount, claim type, customer history, and location to predict whether a claim is fraudulent or legitimate.
+
+🧪 Python Implementation (Fraud Detection for Insurance Claims)
+For real-world applications:
+
+Integrate with claims data, customer profiles, and historical fraud data.
+
+Use advanced techniques like anomaly detection, ensemble models, or deep learning.
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate insurance claim data
+np.random.seed(42)
+data = {
+    'claim_amount': np.random.normal(5000, 2000, 1000),  # Claim amount in USD
+    'claim_type': np.random.choice(['Accident', 'Fire', 'Theft', 'Health'], 1000),
+    'customer_age': np.random.randint(18, 70, 1000),
+    'num_previous_claims': np.random.randint(0, 5, 1000),  # Number of previous claims
+    'location': np.random.choice(['Urban', 'Suburban', 'Rural'], 1000),
+    'fraudulent_claim': np.random.choice([0, 1], 1000)  # 0 = Legitimate, 1 = Fraudulent
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Preprocess categorical features
+df['claim_type'] = df['claim_type'].map({'Accident': 0, 'Fire': 1, 'Theft': 2, 'Health': 3})
+df['location'] = df['location'].map({'Urban': 0, 'Suburban': 1, 'Rural': 2})
+ 
+# 3. Define features and target variable
+X = df.drop('fraudulent_claim', axis=1)
+y = df['fraudulent_claim']
+ 
+# 4. Scale the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+ 
+# 5. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 6. Random Forest model for fraud detection
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+ 
+# 7. Evaluate the model
+y_pred = model.predict(X_test)
+print("Fraud Detection Model Report:\n")
+print(classification_report(y_test, y_pred))
+ 
+# 8. Visualize feature importance (optional)
+feature_importances = model.feature_importances_
+plt.bar(X.columns, feature_importances)
+plt.title("Feature Importance in Fraud Detection")
+plt.xlabel("Features")
+plt.ylabel("Importance")
+plt.show()
+ 
+# 9. Predict fraudulent claims for a new claim
+new_claim = np.array([[7000, 2, 45, 1, 0]])  # Example: Claim amount = 7000, Fire claim, customer age = 45, 1 previous claim, Urban location
+new_claim_scaled = scaler.transform(new_claim)
+predicted_fraud = model.predict(new_claim_scaled)
+print(f"\nPredicted Claim Fraud: {'Fraudulent' if predicted_fraud[0] == 1 else 'Legitimate'}")
+✅ What It Does:
+Simulates claim data with features like claim amount, claim type, customer age, and location.
+
+Uses a Random Forest classifier to predict whether a claim is fraudulent (1) or legitimate (0).
+
+Evaluates model performance using classification metrics like precision, recall, and F1-score.
+
+Visualizes feature importance to understand which features most influence the fraud prediction.
+
+Key Extensions and Customizations:
+Use real-world claims data: Integrate with actual insurance claim datasets for more accurate fraud detection.
+
+Advanced techniques: Experiment with XGBoost, Neural Networks, or Anomaly Detection methods for improved performance.
+
+Real-time fraud detection: Build a system that detects fraud in real-time as claims are submitted.
+
+
+
+Project 497: Financial Document Analysis
+Description:
+Financial document analysis involves extracting valuable information, such as financial figures, company names, and transactions from financial reports, tax filings, or earnings calls. In this project, we will use Natural Language Processing (NLP) techniques to analyze and extract key financial information from financial documents like annual reports or income statements.
+
+🧪 Python Implementation (Financial Document Analysis using NLP)
+For real-world systems:
+
+Integrate with company earnings reports, 10-K filings, or financial news articles.
+
+Use named entity recognition (NER) to extract entities like company names, financial terms, and currency values.
+
+import spacy
+import pandas as pd
+import re
+from collections import Counter
+ 
+# 1. Load a pre-trained NLP model for named entity recognition (NER)
+nlp = spacy.load("en_core_web_sm")
+ 
+# 2. Sample financial document (could be extracted from a PDF or text file)
+financial_text = """
+Apple Inc. reported a quarterly revenue of $123.9 billion, a 10% increase year-over-year.
+The company also declared a dividend of $0.22 per share, which will be paid on April 1, 2022.
+CEO Tim Cook announced a 5% growth in their services segment, contributing $19 billion to the revenue.
+In addition, Apple’s cash reserves were reported to be approximately $75 billion.
+"""
+ 
+# 3. Process the document with the NLP model
+doc = nlp(financial_text)
+ 
+# 4. Extract Named Entities (e.g., company names, monetary values, percentages)
+entities = [(ent.text, ent.label_) for ent in doc.ents]
+ 
+# 5. Display the extracted entities
+print("Extracted Entities:\n")
+for entity in entities:
+    print(f"{entity[0]} ({entity[1]})")
+ 
+# 6. Extract key financial figures using regular expressions (e.g., revenue, dividend, etc.)
+# Here we are looking for currency values, percentages, and financial terms
+revenue = re.findall(r"\$\d+(\.\d+)?\s?billion", financial_text)
+dividends = re.findall(r"\$\d+\.\d+\s?per\s?share", financial_text)
+ 
+print("\nExtracted Financial Information:\n")
+print(f"Revenue: {revenue}")
+print(f"Dividends: {dividends}")
+ 
+# 7. Visualize the frequency of entities (such as company names or financial terms)
+# Count frequency of terms (e.g., "Apple" or other company names)
+company_names = [ent.text for ent in doc.ents if ent.label_ == "ORG"]
+company_count = Counter(company_names)
+ 
+print("\nCompany Name Frequency:\n")
+for company, count in company_count.items():
+    print(f"{company}: {count}")
+✅ What It Does:
+Uses spaCy’s Named Entity Recognition (NER) to extract company names, monetary amounts, and other key financial terms from text.
+
+Uses regular expressions to extract specific financial figures such as revenue, dividends, and percentages.
+
+Counts the frequency of company mentions to help identify key players in the document.
+
+Key Extensions and Customizations:
+Advanced NER models: Use domain-specific models like FinancialBERT or FinBERT for more accurate extraction of financial terms.
+
+PDF extraction: Integrate PDF parsing libraries (like PyPDF2 or pdfplumber) to automatically process and extract data from scanned PDF reports.
+
+Text summarization: Implement text summarization techniques (e.g., using T5 or BART) to automatically summarize financial documents for key decision-makers.
+
+
+
+Project 498: Financial Chatbot Implementation
+Description:
+A financial chatbot helps users with various financial tasks such as checking account balances, investing advice, loan status, or financial product recommendations. In this project, we will implement a simple rule-based chatbot using Natural Language Processing (NLP) to assist with basic financial queries.
+
+🧪 Python Implementation (Basic Financial Chatbot with NLP)
+For real-world applications:
+
+Integrate with banking APIs, investment platforms, or personal finance management systems.
+
+Use more advanced techniques like dialog management and reinforcement learning for a better user experience.
+
+import random
+import re
+ 
+# 1. Define a simple rule-based financial chatbot
+class FinancialChatbot:
+    def __init__(self):
+        self.responses = {
+            "greet": ["Hello! How can I assist you with your finances today?", "Hi there! What financial questions do you have?"],
+            "account_balance": ["Your current account balance is $5,200.", "You have $5,200 available in your account."],
+            "loan_status": ["Your loan application is under review and will be processed in 3-5 business days.",
+                             "We are currently reviewing your loan application, and you will hear back within 3-5 days."],
+            "investment_advice": ["I recommend diversifying your portfolio with a mix of stocks, bonds, and ETFs.",
+                                  "You should consider investing in low-cost index funds for long-term growth."],
+            "default": ["I'm sorry, I didn't quite catch that. Can you ask me something else related to finance?"]
+        }
+ 
+    def process_query(self, query):
+        query = query.lower()
+ 
+        # Check for keywords in the query to respond appropriately
+        if re.search(r"(hello|hi|hey)", query):
+            return random.choice(self.responses["greet"])
+        elif re.search(r"(account balance|balance)", query):
+            return random.choice(self.responses["account_balance"])
+        elif re.search(r"(loan status|loan application)", query):
+            return random.choice(self.responses["loan_status"])
+        elif re.search(r"(investment advice|investing)", query):
+            return random.choice(self.responses["investment_advice"])
+        else:
+            return self.responses["default"]
+ 
+# 2. Create the chatbot
+chatbot = FinancialChatbot()
+ 
+# 3. Simulate a conversation with the chatbot
+print("Chatbot: Hi, I'm your financial assistant. How can I help you today?")
+while True:
+    user_input = input("You: ")
+    if user_input.lower() in ['exit', 'quit', 'bye']:
+        print("Chatbot: Goodbye! Have a great day.")
+        break
+    response = chatbot.process_query(user_input)
+    print("Chatbot:", response)
+✅ What It Does:
+Simulates a rule-based financial chatbot that responds to user queries like account balance, loan status, and investment advice.
+
+Processes user input using regular expressions to match specific queries and provide appropriate responses.
+
+Offers simple financial advice and answers basic questions.
+
+Key Extensions and Customizations:
+Integrate with banking APIs to provide real-time account balance and loan status updates.
+
+Use NLP models like GPT-3, Dialogflow, or Rasa for more complex conversational capabilities and natural language understanding.
+
+Expand chatbot capabilities: Add support for transactions, reminders, financial planning, and personalized investment advice.
+
+
+
+Project 499: Financial News Analysis
+Description:
+Financial news analysis involves extracting insights from financial news articles to gauge the market sentiment or understand market trends. In this project, we will implement a simple sentiment analysis model to analyze news headlines related to a specific stock or market, classifying the sentiment as positive, negative, or neutral.
+
+🧪 Python Implementation (Financial News Sentiment Analysis)
+For real-world systems:
+
+Integrate with financial news sources like Reuters, Bloomberg, or Yahoo Finance.
+
+You can enhance this project with advanced NLP models like BERT or FinBERT for more accurate sentiment analysis.
+
+from textblob import TextBlob
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate a dataset of financial news headlines
+data = {
+    "headline": [
+        "Apple hits record high in stock price",
+        "Apple faces regulatory challenges in Europe",
+        "Apple launches new iPhone model",
+        "Apple's revenue growth slows in Q4",
+        "Apple announces plans for environmental sustainability"
+    ]
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Define a function to calculate sentiment polarity
+def get_sentiment(text):
+    blob = TextBlob(text)
+    return blob.sentiment.polarity
+ 
+# 3. Apply sentiment analysis to the headlines
+df['sentiment'] = df['headline'].apply(get_sentiment)
+ 
+# 4. Classify sentiment into categories
+def classify_sentiment(polarity):
+    if polarity > 0:
+        return "Positive"
+    elif polarity < 0:
+        return "Negative"
+    else:
+        return "Neutral"
+ 
+df['sentiment_class'] = df['sentiment'].apply(classify_sentiment)
+ 
+# 5. Display the results
+print("Financial News Sentiment Analysis Results:\n")
+print(df)
+ 
+# 6. Plot the sentiment distribution
+sentiment_counts = df['sentiment_class'].value_counts()
+ 
+plt.figure(figsize=(8, 6))
+sentiment_counts.plot(kind='bar', color=['green', 'red', 'blue'])
+plt.title("Sentiment Distribution of Financial News Headlines")
+plt.xlabel("Sentiment")
+plt.ylabel("Count")
+plt.xticks(rotation=0)
+plt.show()
+✅ What It Does:
+Simulates financial news headlines related to Apple (or any stock) and performs sentiment analysis using TextBlob.
+
+Classifies sentiment as positive, negative, or neutral based on the polarity of the text.
+
+Visualizes the sentiment distribution with a bar chart to show how many headlines are classified as positive, negative, or neutral.
+
+Key Extensions and Customizations:
+Real-time news collection: Integrate with news APIs like NewsAPI or Google News API to collect live news headlines.
+
+Advanced sentiment models: Use FinBERT or VADER for more domain-specific sentiment analysis in the financial industry.
+
+Market trend prediction: Use sentiment analysis results as features in a model to predict stock price movement or market sentiment.
+
+
+
+Project 500: Earnings Call Analysis
+Description:
+Earnings call analysis involves processing transcripts from quarterly earnings calls to extract key insights about a company’s performance, growth outlook, and market sentiment. In this project, we will use Natural Language Processing (NLP) techniques to analyze earnings call transcripts and extract useful information such as sentiment, key financial metrics, and management tone.
+
+🧪 Python Implementation (Earnings Call Sentiment Analysis and Key Insights Extraction)
+For real-world systems:
+
+Use transcripts from earnings call websites or company investor relations pages.
+
+You can enhance this project with advanced NLP models like BERT for improved sentiment classification and key phrase extraction.
+
+import pandas as pd
+import numpy as np
+from textblob import TextBlob
+import re
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate earnings call transcript
+earnings_call_transcript = """
+CEO: Good morning, everyone. We're excited to report that for Q1, the company has achieved a revenue growth of 12% year-over-year.
+We have successfully launched our new product line, which has exceeded initial projections by 20%.
+Our operating income has grown by 15%, and we are on track to meet our 2022 targets.
+CFO: The company has maintained strong liquidity with over $2 billion in cash reserves. Our expenses were well-controlled, and margins improved.
+We are investing heavily in R&D and new product development. Our team remains focused on driving sustainable growth.
+CEO: We're optimistic about the future, and we believe that our recent acquisitions will position us for even greater success in the coming quarters.
+"""
+ 
+# 2. Perform sentiment analysis on the transcript
+def get_sentiment(text):
+    blob = TextBlob(text)
+    return blob.sentiment.polarity
+ 
+# Apply sentiment analysis to the full transcript
+overall_sentiment = get_sentiment(earnings_call_transcript)
+ 
+# 3. Extract key financial terms using regex
+financial_terms = re.findall(r"\$[0-9,]+(?:\.[0-9]{1,2})?", earnings_call_transcript)  # Extract monetary values
+growth_terms = re.findall(r"(revenue growth|operating income|net income|margins|cash reserves)", earnings_call_transcript, re.IGNORECASE)
+ 
+# 4. Visualize sentiment over time (optional)
+# For this, we could break the transcript into sections and assign sentiment to each. For simplicity, we're using the overall sentiment here.
+sentiment_label = "Positive" if overall_sentiment > 0 else "Negative" if overall_sentiment < 0 else "Neutral"
+ 
+# 5. Display the results
+print("Earnings Call Sentiment Analysis and Key Insights Extraction:\n")
+print(f"Overall Sentiment: {sentiment_label} (Polarity: {overall_sentiment:.2f})")
+print("\nKey Financial Terms Found in Transcript:")
+print(financial_terms)
+print("\nKey Growth Metrics Found:")
+print(growth_terms)
+ 
+# 6. Plot sentiment (in this simple case, we plot the overall sentiment)
+plt.figure(figsize=(8, 6))
+plt.bar([sentiment_label], [overall_sentiment], color='green' if overall_sentiment > 0 else 'red')
+plt.title("Earnings Call Sentiment")
+plt.xlabel("Sentiment")
+plt.ylabel("Sentiment Score")
+plt.show()
+✅ What It Does:
+Simulates an earnings call transcript and performs sentiment analysis using TextBlob to classify the overall tone as positive, negative, or neutral.
+
+Extracts key financial terms like revenue, cash reserves, and operating income using regular expressions.
+
+Visualizes the overall sentiment of the earnings call with a bar chart.
+
+Key Extensions and Customizations:
+Real earnings call data: Integrate transcripts from official earnings call reports from company websites or third-party financial news sites.
+
+Advanced NLP models: Use models like BERT or FinBERT to get more accurate sentiment analysis and key phrase extraction.
+
+Topic modeling: Use LDA (Latent Dirichlet Allocation) or BERT-based embeddings to extract broader topics from earnings calls.
+
+Predictive insights: Combine sentiment analysis with stock price prediction models to forecast the market’s response to earnings calls.
+
+
+
+Project 501: High-Frequency Trading Simulation
+Description:
+High-frequency trading (HFT) involves executing a large number of trades at extremely fast speeds, typically leveraging algorithmic strategies to exploit small price movements. In this project, we will simulate an HFT strategy using moving averages and order book data to perform real-time trading simulations based on predefined rules.
+
+🧪 Python Implementation (Simple High-Frequency Trading Strategy)
+For real-world systems:
+
+Integrate with live market data (e.g., from Alpaca, Interactive Brokers, or Binance API).
+
+Implement more advanced strategies like statistical arbitrage or market-making.
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import random
+ 
+# 1. Simulate high-frequency stock price data
+np.random.seed(42)
+ 
+# Simulating 5-minute intervals for 1 day (288 intervals)
+time_steps = 288
+price_data = 100 + np.cumsum(np.random.randn(time_steps))  # Random walk for stock prices
+ 
+# Create a DataFrame with simulated price data
+timestamps = pd.date_range("2023-01-01", periods=time_steps, freq="5T")
+df = pd.DataFrame({"timestamp": timestamps, "price": price_data})
+ 
+# 2. Define the trading strategy: Simple moving average crossover
+short_window = 10  # Short window for fast moving average
+long_window = 50   # Long window for slow moving average
+ 
+df['short_mavg'] = df['price'].rolling(window=short_window, min_periods=1).mean()
+df['long_mavg'] = df['price'].rolling(window=long_window, min_periods=1).mean()
+ 
+# 3. Define buy/sell signals based on crossover strategy
+df['signal'] = 0  # Default: no action
+df['signal'][short_window:] = np.where(df['short_mavg'][short_window:] > df['long_mavg'][short_window:], 1, 0)  # Buy signal
+df['position'] = df['signal'].diff()
+ 
+# 4. Simulate the trading actions (buy = 1, sell = -1)
+initial_balance = 10000  # Starting with $10,000
+balance = initial_balance
+shares_held = 0
+buy_sell_history = []
+ 
+for i, row in df.iterrows():
+    if row['position'] == 1:  # Buy signal
+        shares_held = balance // row['price']  # Buy as many shares as possible
+        balance -= shares_held * row['price']  # Deduct the balance
+        buy_sell_history.append(('Buy', row['timestamp'], row['price'], shares_held))
+    elif row['position'] == -1:  # Sell signal
+        balance += shares_held * row['price']  # Sell all shares
+        buy_sell_history.append(('Sell', row['timestamp'], row['price'], shares_held))
+        shares_held = 0  # Reset shares held after selling
+ 
+# 5. Final balance
+final_balance = balance + (shares_held * df['price'].iloc[-1])  # Add remaining shares value
+ 
+# 6. Plot the results
+plt.figure(figsize=(12, 6))
+plt.plot(df['timestamp'], df['price'], label="Stock Price")
+plt.plot(df['timestamp'], df['short_mavg'], label="Short Moving Average (10)")
+plt.plot(df['timestamp'], df['long_mavg'], label="Long Moving Average (50)")
+plt.scatter(df['timestamp'][df['position'] == 1], df['price'][df['position'] == 1], marker='^', color='g', label="Buy Signal")
+plt.scatter(df['timestamp'][df['position'] == -1], df['price'][df['position'] == -1], marker='v', color='r', label="Sell Signal")
+plt.title("High-Frequency Trading Strategy (Moving Average Crossover)")
+plt.xlabel("Timestamp")
+plt.ylabel("Price")
+plt.legend(loc="best")
+plt.grid(True)
+plt.show()
+ 
+print(f"Initial Balance: ${initial_balance}")
+print(f"Final Balance: ${final_balance:.2f}")
+print(f"Total Profit: ${final_balance - initial_balance:.2f}")
+✅ What It Does:
+Simulates high-frequency price data (price data changing every 5 minutes).
+
+Implements a simple moving average crossover strategy:
+
+Buy when the short-term moving average crosses above the long-term moving average.
+
+Sell when the short-term moving average crosses below the long-term moving average.
+
+Tracks the balance and number of shares held as the strategy executes buy/sell signals.
+
+Visualizes the trading strategy performance by plotting the stock price along with the moving averages and buy/sell signals.
+
+Key Extensions and Customizations:
+Real-time data: Replace simulated data with live market data from Alpaca, Binance, or Interactive Brokers using their APIs.
+
+Advanced strategies: Implement more advanced strategies like statistical arbitrage, momentum trading, or market-making.
+
+Backtesting: Extend the project with a backtesting framework to evaluate performance over multiple years of data.
+
+
+
+Project 502: Trading Signal Generation
+Description:
+Trading signal generation is an essential part of algorithmic trading, where signals indicate whether to buy, sell, or hold an asset. These signals are typically generated based on technical indicators, such as moving averages, RSI, MACD, or custom strategies. In this project, we will generate trading signals based on Moving Average Convergence Divergence (MACD) and Relative Strength Index (RSI).
+
+🧪 Python Implementation (Trading Signal Generation using MACD and RSI)
+For real-world applications:
+
+Integrate with real-time market data from APIs like Alpaca, Binance, or Yahoo Finance.
+
+Enhance the strategy by using other technical indicators or machine learning models for more robust trading signals.
+
+import pandas as pd
+import numpy as np
+import yfinance as yf
+import matplotlib.pyplot as plt
+ 
+# 1. Download historical stock data (e.g., Apple stock)
+stock_data = yf.download("AAPL", start="2019-01-01", end="2021-01-01")
+ 
+# 2. Calculate MACD (12-day EMA - 26-day EMA)
+stock_data['EMA12'] = stock_data['Close'].ewm(span=12, adjust=False).mean()
+stock_data['EMA26'] = stock_data['Close'].ewm(span=26, adjust=False).mean()
+stock_data['MACD'] = stock_data['EMA12'] - stock_data['EMA26']
+stock_data['Signal_Line'] = stock_data['MACD'].ewm(span=9, adjust=False).mean()
+ 
+# 3. Calculate RSI (Relative Strength Index)
+delta = stock_data['Close'].diff()
+gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+ 
+rs = gain / loss
+stock_data['RSI'] = 100 - (100 / (1 + rs))
+ 
+# 4. Generate trading signals based on MACD and RSI
+# Buy when MACD crosses above the signal line and RSI is below 30 (indicating oversold)
+stock_data['Buy_Signal'] = np.where((stock_data['MACD'] > stock_data['Signal_Line']) & (stock_data['RSI'] < 30), 1, 0)
+ 
+# Sell when MACD crosses below the signal line and RSI is above 70 (indicating overbought)
+stock_data['Sell_Signal'] = np.where((stock_data['MACD'] < stock_data['Signal_Line']) & (stock_data['RSI'] > 70), 1, 0)
+ 
+# 5. Plot stock price and trading signals
+plt.figure(figsize=(14, 7))
+ 
+# Plot closing price
+plt.subplot(2, 1, 1)
+plt.plot(stock_data['Close'], label='Stock Price', color='blue')
+plt.scatter(stock_data.index[stock_data['Buy_Signal'] == 1], stock_data['Close'][stock_data['Buy_Signal'] == 1], marker='^', color='green', label='Buy Signal')
+plt.scatter(stock_data.index[stock_data['Sell_Signal'] == 1], stock_data['Close'][stock_data['Sell_Signal'] == 1], marker='v', color='red', label='Sell Signal')
+plt.title('Stock Price with Buy and Sell Signals')
+plt.xlabel('Date')
+plt.ylabel('Stock Price (USD)')
+plt.legend()
+ 
+# Plot RSI and MACD
+plt.subplot(2, 1, 2)
+plt.plot(stock_data['RSI'], label='RSI', color='orange')
+plt.axhline(70, color='red', linestyle='--', label='Overbought (70)')
+plt.axhline(30, color='green', linestyle='--', label='Oversold (30)')
+plt.title('RSI (Relative Strength Index)')
+plt.xlabel('Date')
+plt.ylabel('RSI')
+plt.legend()
+ 
+plt.tight_layout()
+plt.show()
+✅ What It Does:
+Downloads stock data using Yahoo Finance (Apple stock in this case).
+
+Calculates MACD (Moving Average Convergence Divergence) and RSI (Relative Strength Index) indicators.
+
+Generates trading signals:
+
+Buy Signal: When MACD crosses above the signal line and RSI is below 30 (indicating the stock is oversold).
+
+Sell Signal: When MACD crosses below the signal line and RSI is above 70 (indicating the stock is overbought).
+
+Visualizes the stock price, buy/sell signals, and indicators on plots.
+
+Key Extensions and Customizations:
+Real-time data: Replace the static data with real-time stock prices from Alpaca, Binance, or Yahoo Finance.
+
+Additional indicators: Incorporate other indicators like Bollinger Bands, Moving Average Crossovers, or Fibonacci retracements for better signal generation.
+
+Backtesting: Implement a backtesting framework to evaluate the performance of this strategy over a historical dataset.
+
+Machine learning integration: Combine these indicators with machine learning models to generate more robust predictions for trading signals.
+
+Project 503: Pairs Trading Strategy
+Description:
+Pairs trading is a market-neutral strategy that involves identifying two stocks that historically move together (i.e., they are cointegrated) and taking advantage of temporary divergences in their prices. The strategy involves going long on one stock and shorting the other when their price ratio deviates from the historical norm. In this project, we will implement a basic pairs trading strategy using cointegration to select pairs of stocks and generate trading signals.
+
+🧪 Python Implementation (Pairs Trading Strategy using Cointegration)
+For real-world applications:
+
+Use cointegration tests to identify pairs of stocks with historically strong relationships.
+
+This strategy can be expanded by adding stop-loss, take-profit, or risk management.
+
+import pandas as pd
+import numpy as np
+import yfinance as yf
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+ 
+# 1. Download historical stock data for two stocks (e.g., Apple and Microsoft)
+stock1 = yf.download("AAPL", start="2015-01-01", end="2021-01-01")['Close']
+stock2 = yf.download("MSFT", start="2015-01-01", end="2021-01-01")['Close']
+ 
+# 2. Perform cointegration test to check if the stocks are cointegrated
+def cointegration_test(series1, series2):
+    result = sm.tsa.stattools.coint(series1, series2)
+    return result[1]  # p-value
+ 
+# Perform the cointegration test between AAPL and MSFT
+p_value = cointegration_test(stock1, stock2)
+ 
+print(f"P-value of cointegration test between AAPL and MSFT: {p_value:.4f}")
+ 
+# If p-value < 0.05, the series are cointegrated and we can proceed
+if p_value < 0.05:
+    print("The stocks are cointegrated and can be used for pairs trading.")
+else:
+    print("The stocks are not cointegrated. Consider finding a different pair.")
+    
+# 3. Calculate the spread between the two stocks (spread = stock1 - beta * stock2)
+# Calculate beta using linear regression between the two stocks
+X = sm.add_constant(stock2)
+model = sm.OLS(stock1, X).fit()
+beta = model.params[1]  # Coefficient for stock2
+spread = stock1 - beta * stock2
+ 
+# 4. Generate trading signals
+# Buy when the spread is below the mean - 1 standard deviation
+# Sell when the spread is above the mean + 1 standard deviation
+mean_spread = spread.mean()
+std_spread = spread.std()
+ 
+# Define entry and exit points
+buy_signal = spread < mean_spread - std_spread
+sell_signal = spread > mean_spread + std_spread
+ 
+# 5. Plot the spread and the trading signals
+plt.figure(figsize=(14, 7))
+plt.plot(spread, label='Spread (AAPL - Beta * MSFT)', color='blue')
+plt.axhline(mean_spread, color='green', linestyle='--', label='Mean')
+plt.axhline(mean_spread - std_spread, color='red', linestyle='--', label='Buy Signal Threshold')
+plt.axhline(mean_spread + std_spread, color='purple', linestyle='--', label='Sell Signal Threshold')
+plt.scatter(spread.index[buy_signal], spread[buy_signal], marker='^', color='g', label="Buy Signal")
+plt.scatter(spread.index[sell_signal], spread[sell_signal], marker='v', color='r', label="Sell Signal")
+plt.title("Pairs Trading Strategy (AAPL vs MSFT)")
+plt.xlabel('Date')
+plt.ylabel('Spread')
+plt.legend(loc='best')
+plt.show()
+✅ What It Does:
+Performs a cointegration test to check if two stocks (Apple and Microsoft) are cointegrated, which means their price relationship is stable over time.
+
+Calculates the spread between the two stocks using linear regression to determine the relationship.
+
+Generates trading signals:
+
+Buy Signal: When the spread is more than one standard deviation below the mean (indicating the spread is too wide).
+
+Sell Signal: When the spread is more than one standard deviation above the mean (indicating the spread is too narrow).
+
+Plots the spread along with the trading signals, showing where the strategy would have generated buy and sell signals.
+
+Key Extensions and Customizations:
+Real-time data: Replace historical data with live market data to implement the strategy in real-time using APIs such as Alpaca, Binance, or Yahoo Finance.
+
+Multiple pairs: Extend the strategy to trade multiple pairs of stocks and optimize portfolio allocations.
+
+Risk management: Add stop-loss or take-profit rules to manage risk more effectively.
+
+Backtesting: Implement backtesting to evaluate the performance of the strategy over a historical dataset.
+
+Project 504: Mean Reversion Strategy Implementation
+Description:
+A mean reversion strategy is based on the idea that asset prices tend to revert to their historical average over time. This strategy involves buying an asset when its price falls below a certain threshold (indicating it’s undervalued) and selling it when the price exceeds the threshold (indicating it’s overvalued). In this project, we will implement a simple mean reversion strategy using the Z-score to generate buy and sell signals.
+
+🧪 Python Implementation (Mean Reversion Strategy using Z-score)
+For real-world applications:
+
+Implement this strategy on multiple assets (stocks, forex, or commodities).
+
+Enhance this strategy by adding risk management and position sizing for better performance.
+
+import pandas as pd
+import numpy as np
+import yfinance as yf
+import matplotlib.pyplot as plt
+ 
+# 1. Download historical stock data (e.g., Apple stock)
+stock_data = yf.download("AAPL", start="2018-01-01", end="2021-01-01")['Close']
+ 
+# 2. Calculate the rolling mean and rolling standard deviation
+window = 20  # 20-day window
+rolling_mean = stock_data.rolling(window=window).mean()
+rolling_std = stock_data.rolling(window=window).std()
+ 
+# 3. Calculate the Z-score
+z_score = (stock_data - rolling_mean) / rolling_std
+ 
+# 4. Generate buy and sell signals
+buy_signal = z_score < -1  # Buy when the Z-score is below -1 (indicating oversold)
+sell_signal = z_score > 1  # Sell when the Z-score is above 1 (indicating overbought)
+ 
+# 5. Plot the stock price, Z-score, and trading signals
+plt.figure(figsize=(14, 7))
+ 
+# Plot the stock price
+plt.subplot(2, 1, 1)
+plt.plot(stock_data, label="Stock Price", color='blue')
+plt.plot(rolling_mean, label="Rolling Mean (20-day)", color='orange', linestyle='--')
+plt.scatter(stock_data.index[buy_signal], stock_data[buy_signal], marker='^', color='green', label="Buy Signal")
+plt.scatter(stock_data.index[sell_signal], stock_data[sell_signal], marker='v', color='red', label="Sell Signal")
+plt.title("Mean Reversion Strategy (Z-score) - Stock Price")
+plt.xlabel('Date')
+plt.ylabel('Price (USD)')
+plt.legend()
+ 
+# Plot the Z-score
+plt.subplot(2, 1, 2)
+plt.plot(z_score, label="Z-score", color='purple')
+plt.axhline(1, color='red', linestyle='--', label="Sell Threshold (Z=1)")
+plt.axhline(-1, color='green', linestyle='--', label="Buy Threshold (Z=-1)")
+plt.title("Z-score for Mean Reversion Strategy")
+plt.xlabel('Date')
+plt.ylabel('Z-score')
+plt.legend()
+ 
+plt.tight_layout()
+plt.show()
+✅ What It Does:
+Calculates the Z-score for the stock price using a rolling window (20 days in this case).
+
+Z-score measures how far the current price is from the mean, in terms of standard deviations.
+
+Generates trading signals:
+
+Buy signal when the Z-score is below -1 (indicating the stock price is significantly lower than its historical average).
+
+Sell signal when the Z-score is above 1 (indicating the stock price is significantly higher than its historical average).
+
+Plots the stock price, Z-score, and trading signals to visualize the strategy.
+
+Key Extensions and Customizations:
+Adjust the window size: Experiment with different rolling window sizes (e.g., 30-day, 50-day) for more robust signals.
+
+Real-time data: Integrate live market data from APIs like Alpaca, Binance, or Yahoo Finance to implement the strategy in real time.
+
+Multiple assets: Extend this strategy to multiple stocks or other asset classes (e.g., commodities, currencies).
+
+Risk management: Add stop-loss, take-profit, and position sizing for more controlled risk exposure.
+
+Backtesting: Implement backtesting to evaluate the historical performance of the strategy.
+
+Project 505: Momentum Trading Strategy
+Description:
+The momentum trading strategy is based on the idea that assets that have performed well in the past will continue to perform well in the future, and those that have performed poorly will continue to underperform. This strategy involves buying assets with strong upward momentum and selling assets with downward momentum. In this project, we will implement a simple momentum strategy using the rate of change (ROC) to generate trading signals.
+
+🧪 Python Implementation (Momentum Trading Strategy using Rate of Change)
+For real-world applications:
+
+Use technical indicators like Relative Strength Index (RSI), Moving Average Convergence Divergence (MACD), or average directional index (ADX) to refine the strategy.
+
+Backtest the strategy on multiple assets to evaluate its effectiveness.
+
+import pandas as pd
+import numpy as np
+import yfinance as yf
+import matplotlib.pyplot as plt
+ 
+# 1. Download historical stock data (e.g., Apple stock)
+stock_data = yf.download("AAPL", start="2018-01-01", end="2021-01-01")['Close']
+ 
+# 2. Calculate the Rate of Change (ROC)
+window = 14  # 14-day window
+roc = stock_data.pct_change(periods=window) * 100  # Rate of Change in percentage
+ 
+# 3. Generate buy and sell signals based on ROC
+buy_signal = roc > 0  # Buy when ROC is positive (indicating upward momentum)
+sell_signal = roc < 0  # Sell when ROC is negative (indicating downward momentum)
+ 
+# 4. Plot the stock price and momentum signals
+plt.figure(figsize=(14, 7))
+ 
+# Plot the stock price
+plt.subplot(2, 1, 1)
+plt.plot(stock_data, label="Stock Price", color='blue')
+plt.scatter(stock_data.index[buy_signal], stock_data[buy_signal], marker='^', color='green', label="Buy Signal")
+plt.scatter(stock_data.index[sell_signal], stock_data[sell_signal], marker='v', color='red', label="Sell Signal")
+plt.title("Momentum Trading Strategy - Stock Price")
+plt.xlabel('Date')
+plt.ylabel('Price (USD)')
+plt.legend()
+ 
+# Plot the Rate of Change (ROC)
+plt.subplot(2, 1, 2)
+plt.plot(roc, label="Rate of Change (ROC)", color='purple')
+plt.axhline(0, color='black', linestyle='--', label="Zero Line")
+plt.title("Rate of Change for Momentum Trading Strategy")
+plt.xlabel('Date')
+plt.ylabel('ROC (%)')
+plt.legend()
+ 
+plt.tight_layout()
+plt.show()
+✅ What It Does:
+Calculates the Rate of Change (ROC) for the stock price over a specified period (14 days in this case). The ROC measures the percentage change in price over a specified time frame.
+
+Generates trading signals:
+
+Buy signal when the ROC is positive, indicating upward momentum.
+
+Sell signal when the ROC is negative, indicating downward momentum.
+
+Plots the stock price and the ROC, showing the buy and sell signals.
+
+Key Extensions and Customizations:
+Adjust window size: Experiment with different window sizes (e.g., 30-day, 60-day) to adapt to different time frames and trading strategies.
+
+Real-time data: Replace historical data with live market data from APIs like Alpaca, Binance, or Yahoo Finance to implement real-time momentum trading.
+
+Enhance with additional indicators: Combine MACD, RSI, or Bollinger Bands with momentum strategies to improve accuracy and reduce false signals.
+
+Backtesting: Implement backtesting frameworks to assess the performance of the momentum strategy over multiple assets and historical data.
+
+Risk management: Add stop-loss, take-profit, and position sizing for better risk control.
+
+Project 506: Economic Indicator Prediction
+Description:
+Economic indicator prediction involves forecasting key economic metrics, such as GDP growth, inflation, or unemployment rates, based on historical data and economic trends. These predictions are crucial for decision-making in both public policy and investment strategies. In this project, we will predict an economic indicator (e.g., GDP growth) using historical data and regression models.
+
+🧪 Python Implementation (Predicting Economic Indicators with Linear Regression)
+For real-world applications:
+
+Use real economic data from sources like FRED (Federal Reserve Economic Data) or World Bank.
+
+Extend the model with additional features like global market trends, political events, or commodity prices.
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate historical economic data (GDP growth and related indicators)
+np.random.seed(42)
+ 
+years = np.arange(2000, 2021)
+gdp_growth = np.random.normal(2, 0.5, len(years))  # Simulate GDP growth as a normal distribution around 2% with some variability
+interest_rate = np.random.normal(3, 1, len(years))  # Simulate interest rates
+inflation = np.random.normal(2, 0.8, len(years))  # Simulate inflation rates
+ 
+# Create a DataFrame with simulated data
+df = pd.DataFrame({
+    'Year': years,
+    'GDP_Growth': gdp_growth,
+    'Interest_Rate': interest_rate,
+    'Inflation': inflation
+})
+ 
+# 2. Prepare the data for regression
+X = df[['Interest_Rate', 'Inflation']]  # Independent variables: Interest Rate and Inflation
+y = df['GDP_Growth']  # Dependent variable: GDP Growth
+ 
+# 3. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+ 
+# 4. Train the regression model
+model = LinearRegression()
+model.fit(X_train, y_train)
+ 
+# 5. Make predictions
+y_pred = model.predict(X_test)
+ 
+# 6. Evaluate the model
+mse = mean_squared_error(y_test, y_pred)
+print(f"Mean Squared Error: {mse:.4f}")
+ 
+# 7. Visualize the results
+plt.figure(figsize=(10, 6))
+plt.scatter(y_test, y_pred, color='blue')
+plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], color='red', linestyle='--')
+plt.title("Actual vs Predicted GDP Growth")
+plt.xlabel("Actual GDP Growth")
+plt.ylabel("Predicted GDP Growth")
+plt.show()
+ 
+# 8. Display the coefficients
+print(f"Model Coefficients: {model.coef_}")
+print(f"Intercept: {model.intercept_}")
+✅ What It Does:
+Simulates economic data for GDP growth, interest rates, and inflation over a period (2000–2020).
+
+Uses linear regression to predict GDP growth based on interest rates and inflation.
+
+Evaluates the model using Mean Squared Error (MSE) to measure prediction accuracy.
+
+Visualizes the relationship between actual and predicted GDP growth.
+
+Key Extensions and Customizations:
+Use real-world economic data from sources like FRED, OECD, or World Bank for better accuracy.
+
+Feature engineering: Add other features like unemployment rates, consumer confidence, or global commodity prices to improve the model.
+
+Advanced models: Try more advanced models such as Decision Trees, Random Forests, or XGBoost for better performance.
+
+Time series models: Implement ARIMA, Exponential Smoothing, or LSTM for more accurate time-series forecasting.
+
+Project 507: Financial Stress Test Simulation
+Description:
+A financial stress test simulates extreme economic conditions (e.g., a financial crisis or market crash) to evaluate the resilience of financial institutions, portfolios, or individual assets. In this project, we will simulate a stress test by applying shocks to key financial variables, such as stock prices, interest rates, and market volatility, to assess the impact on a hypothetical portfolio.
+
+🧪 Python Implementation (Financial Stress Test Simulation)
+For real-world applications:
+
+Use historical financial crises data (e.g., 2008 Financial Crisis) to simulate stress scenarios.
+
+You can also integrate Monte Carlo simulations or Scenario Analysis to evaluate different stress scenarios.
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate a portfolio of assets (e.g., stocks and bonds)
+np.random.seed(42)
+asset_returns = {
+    'Stock': np.random.normal(0.08, 0.15, 1000),  # 8% annual return, 15% volatility
+    'Bond': np.random.normal(0.03, 0.05, 1000)    # 3% annual return, 5% volatility
+}
+ 
+# Create a DataFrame for portfolio assets
+df = pd.DataFrame(asset_returns)
+ 
+# 2. Simulate portfolio value (initial value of $100,000)
+initial_portfolio_value = 100000
+df['Portfolio Value'] = initial_portfolio_value * (1 + df['Stock'] + df['Bond']).cumprod()
+ 
+# 3. Simulate a financial stress scenario (e.g., stock market crash, interest rate hike)
+# Apply shocks: 30% stock price drop, 10% interest rate increase (shock values can vary)
+shock_stock = 0.30  # 30% drop in stock price
+shock_bond = -0.10  # 10% drop in bond price due to rate hike
+ 
+# Apply shocks to the portfolio value (stress scenario)
+df['Portfolio Value Shocked'] = df['Portfolio Value'] * (1 - shock_stock + shock_bond)
+ 
+# 4. Plot portfolio value before and after stress test
+plt.figure(figsize=(12, 6))
+plt.plot(df['Portfolio Value'], label='Original Portfolio Value', color='blue')
+plt.plot(df['Portfolio Value Shocked'], label='Portfolio Value After Stress Test', color='red', linestyle='--')
+plt.title("Financial Stress Test Simulation: Portfolio Value Before and After Shock")
+plt.xlabel("Time (Simulation Period)")
+plt.ylabel("Portfolio Value (USD)")
+plt.legend(loc='best')
+plt.grid(True)
+plt.show()
+ 
+# 5. Calculate the impact of the stress test on portfolio value
+portfolio_drop = df['Portfolio Value'].iloc[-1] - df['Portfolio Value Shocked'].iloc[-1]
+percent_drop = (portfolio_drop / df['Portfolio Value'].iloc[-1]) * 100
+ 
+print(f"Portfolio Value Drop Due to Stress Test: ${portfolio_drop:.2f}")
+print(f"Percentage Drop in Portfolio Value: {percent_drop:.2f}%")
+✅ What It Does:
+Simulates a portfolio with two assets: stock and bond, with assumed returns and volatilities.
+
+Simulates a stress test by applying shocks (e.g., a 30% stock price drop and 10% bond price drop due to an interest rate hike).
+
+Visualizes the portfolio value before and after the stress test, showing the impact of the shocks.
+
+Calculates the drop in portfolio value due to the stress scenario.
+
+Key Extensions and Customizations:
+Use real historical data: Replace simulated data with actual asset returns from Yahoo Finance or other financial data sources.
+
+Multiple stress scenarios: Implement different stress scenarios such as economic downturns, geopolitical events, or liquidity crises.
+
+Monte Carlo simulation: Use Monte Carlo methods to simulate a range of potential stress test scenarios based on historical volatility.
+
+Portfolio optimization: Extend the model to optimize the portfolio's risk-return trade-off and stress-test different portfolio compositions.
+
+Project 508: Asset Price Bubble Detection
+Description:
+Asset price bubbles occur when the price of an asset exceeds its intrinsic value, often driven by speculation, leading to a crash when the bubble bursts. Detecting these bubbles early can help investors avoid significant losses. In this project, we will use a simple model based on price-to-earnings ratios (P/E ratio), historical price trends, and moving averages to detect potential asset bubbles.
+
+🧪 Python Implementation (Asset Price Bubble Detection using Moving Averages and P/E Ratio)
+For real-world applications:
+
+Use data from real financial markets or specific assets like real estate, stocks, or cryptocurrencies.
+
+Implement more advanced techniques like machine learning or market indicators to improve bubble detection accuracy.
+
+import pandas as pd
+import numpy as np
+import yfinance as yf
+import matplotlib.pyplot as plt
+ 
+# 1. Download stock data (e.g., Apple stock) to analyze potential bubbles
+stock_data = yf.download("AAPL", start="2015-01-01", end="2021-01-01")['Close']
+ 
+# 2. Calculate moving averages (50-day and 200-day moving averages)
+short_window = 50
+long_window = 200
+stock_data['SMA50'] = stock_data.rolling(window=short_window).mean()
+stock_data['SMA200'] = stock_data.rolling(window=long_window).mean()
+ 
+# 3. Detect potential bubbles using price deviation from the long-term average
+stock_data['Price_Deviation'] = stock_data['Close'] / stock_data['SMA200']
+ 
+# Define a threshold for identifying a bubble (e.g., price is 20% above the 200-day moving average)
+threshold = 1.2  # Price deviating 20% above the SMA200 might signal a bubble
+stock_data['Bubble_Detection'] = np.where(stock_data['Price_Deviation'] > threshold, 1, 0)
+ 
+# 4. Plot the price data, moving averages, and bubble detection signals
+plt.figure(figsize=(14, 7))
+ 
+# Plot stock price and moving averages
+plt.plot(stock_data['Close'], label="Stock Price (AAPL)", color='blue')
+plt.plot(stock_data['SMA50'], label="50-Day Moving Average", color='orange', linestyle='--')
+plt.plot(stock_data['SMA200'], label="200-Day Moving Average", color='green', linestyle='--')
+ 
+# Highlight bubble detection signals
+plt.scatter(stock_data.index[stock_data['Bubble_Detection'] == 1], stock_data['Close'][stock_data['Bubble_Detection'] == 1], 
+            marker='o', color='red', label='Potential Bubble')
+ 
+# Title and labels
+plt.title("Asset Price Bubble Detection (AAPL Stock)")
+plt.xlabel("Date")
+plt.ylabel("Price (USD)")
+plt.legend(loc="best")
+plt.grid(True)
+plt.show()
+ 
+# 5. Output the periods with detected bubbles
+bubble_dates = stock_data[stock_data['Bubble_Detection'] == 1].index
+print("Detected Potential Bubbles in Asset Price:\n")
+print(bubble_dates)
+✅ What It Does:
+Downloads stock price data (Apple stock in this case) and calculates 50-day and 200-day moving averages.
+
+Detects potential asset price bubbles based on how much the price deviates from the long-term moving average (using a threshold of 20% above the 200-day moving average).
+
+Visualizes the stock price, moving averages, and bubble detection signals.
+
+Identifies periods where the price exceeds the set threshold (indicating potential bubbles).
+
+Key Extensions and Customizations:
+Use real-world data: Apply the bubble detection model to other asset classes like real estate, commodities, or cryptocurrencies.
+
+Advanced methods: Implement more complex models like machine learning or time-series analysis to detect bubbles based on multiple features such as P/E ratio, market sentiment, and economic conditions.
+
+Different bubble indicators: Combine Bollinger Bands, momentum indicators, and economic data to improve bubble detection accuracy.
+
+Project 509: Financial Crisis Early Warning System
+Description:
+A financial crisis early warning system aims to detect signs of an impending financial crisis by analyzing macroeconomic indicators such as interest rates, inflation, unemployment rates, and stock market performance. In this project, we will build a simple machine learning model to predict the likelihood of a financial crisis based on these indicators.
+
+🧪 Python Implementation (Financial Crisis Early Warning System using Logistic Regression)
+For real-world systems:
+
+Use historical data from sources like FRED (Federal Reserve Economic Data) or OECD to train and validate the model.
+
+Extend this model by incorporating more macroeconomic indicators or financial market data for more robust predictions.
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate macroeconomic data (e.g., interest rates, inflation, unemployment rates)
+np.random.seed(42)
+data = {
+    'interest_rate': np.random.normal(5, 1.5, 1000),  # Simulated interest rate
+    'inflation': np.random.normal(2, 0.8, 1000),  # Simulated inflation rate
+    'unemployment': np.random.normal(4, 1, 1000),  # Simulated unemployment rate
+    'stock_market_performance': np.random.normal(0, 0.2, 1000),  # Simulated stock market returns (daily)
+    'financial_crisis': np.random.choice([0, 1], 1000)  # 0 = No crisis, 1 = Crisis
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Preprocessing
+X = df.drop('financial_crisis', axis=1)
+y = df['financial_crisis']
+ 
+# 3. Scale the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+ 
+# 4. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 5. Logistic Regression model to predict financial crises
+model = LogisticRegression()
+model.fit(X_train, y_train)
+ 
+# 6. Make predictions
+y_pred = model.predict(X_test)
+ 
+# 7. Evaluate the model
+print("Financial Crisis Prediction Report:\n")
+print(classification_report(y_test, y_pred))
+ 
+# 8. Plot the feature importance (coefficients of the logistic regression)
+coefficients = model.coef_[0]
+features = X.columns
+ 
+plt.figure(figsize=(10, 6))
+plt.bar(features, coefficients)
+plt.title("Feature Importance in Financial Crisis Prediction")
+plt.xlabel("Economic Indicators")
+plt.ylabel("Coefficient Value")
+plt.show()
+ 
+# 9. Predict financial crisis for a new set of economic conditions
+new_data = np.array([[6, 3.5, 5, 0.01]])  # Example: interest_rate=6%, inflation=3.5%, unemployment=5%, stock_performance=0.01%
+new_data_scaled = scaler.transform(new_data)
+predicted_crisis = model.predict(new_data_scaled)
+print(f"\nPredicted Financial Crisis: {'Yes' if predicted_crisis[0] == 1 else 'No'}")
+✅ What It Does:
+Simulates macroeconomic data (interest rates, inflation, unemployment, and stock market performance).
+
+Uses Logistic Regression to classify whether a financial crisis is likely based on the given economic conditions.
+
+Evaluates the model’s performance using classification metrics like precision, recall, and F1-score.
+
+Plots the feature importance (coefficients of the logistic regression) to understand which macroeconomic indicators most influence crisis predictions.
+
+Key Extensions and Customizations:
+Real-world data: Replace the simulated data with actual economic indicators from sources like FRED, OECD, or World Bank.
+
+Advanced models: Use more sophisticated models such as Random Forest, SVMs, or XGBoost for better predictive power.
+
+Additional indicators: Include housing market data, consumer sentiment, or global economic factors to improve predictions.
+
+Scenario analysis: Perform scenario analysis to see how different shocks to key economic variables affect the likelihood of a financial crisis.
+
+Project 510: Bankruptcy Prediction Model
+Description:
+Bankruptcy prediction is a critical task for financial institutions to identify firms at risk of defaulting on their obligations. In this project, we will use financial ratios such as debt-to-equity, liquidity ratios, and profitability indicators to predict the likelihood of a company going bankrupt. We will build a predictive model using Logistic Regression and evaluate its performance.
+
+🧪 Python Implementation (Bankruptcy Prediction using Logistic Regression)
+For real-world applications:
+
+Use real financial data such as company balance sheets, income statements, and cash flow statements.
+
+Enhance the model by incorporating machine learning models like Random Forests or Gradient Boosting for better performance.
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate financial data (e.g., debt-to-equity, liquidity ratio, profitability)
+np.random.seed(42)
+data = {
+    'debt_to_equity': np.random.normal(1.5, 0.5, 1000),  # Debt-to-equity ratio
+    'current_ratio': np.random.normal(1.2, 0.3, 1000),  # Current ratio (liquidity ratio)
+    'return_on_assets': np.random.normal(0.05, 0.02, 1000),  # Return on assets
+    'interest_coverage': np.random.normal(3, 1.5, 1000),  # Interest coverage ratio
+    'bankruptcy': np.random.choice([0, 1], 1000)  # 0 = Non-bankrupt, 1 = Bankrupt
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Preprocessing
+X = df.drop('bankruptcy', axis=1)
+y = df['bankruptcy']
+ 
+# 3. Scale the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+ 
+# 4. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 5. Logistic Regression model to predict bankruptcy
+model = LogisticRegression()
+model.fit(X_train, y_train)
+ 
+# 6. Make predictions
+y_pred = model.predict(X_test)
+ 
+# 7. Evaluate the model
+print("Bankruptcy Prediction Report:\n")
+print(classification_report(y_test, y_pred))
+ 
+# 8. Plot the feature importance (coefficients of the logistic regression)
+coefficients = model.coef_[0]
+features = X.columns
+ 
+plt.figure(figsize=(10, 6))
+plt.bar(features, coefficients)
+plt.title("Feature Importance in Bankruptcy Prediction")
+plt.xlabel("Financial Ratios")
+plt.ylabel("Coefficient Value")
+plt.show()
+ 
+# 9. Predict bankruptcy for a new company based on financial ratios
+new_data = np.array([[2.0, 1.1, 0.04, 2]])  # Example: debt_to_equity=2.0, current_ratio=1.1, return_on_assets=4%, interest_coverage=2
+new_data_scaled = scaler.transform(new_data)
+predicted_bankruptcy = model.predict(new_data_scaled)
+print(f"\nPredicted Bankruptcy: {'Yes' if predicted_bankruptcy[0] == 1 else 'No'}")
+✅ What It Does:
+Simulates financial data with features such as debt-to-equity ratio, liquidity ratio, return on assets, and interest coverage ratio.
+
+Uses Logistic Regression to predict whether a company is at risk of bankruptcy (1) or not (0).
+
+Evaluates the model with classification metrics such as precision, recall, and F1-score.
+
+Plots the feature importance to understand which financial ratios most influence bankruptcy predictions.
+
+Key Extensions and Customizations:
+Real-world data: Use actual financial data from companies, such as balance sheets and income statements, available through sources like Yahoo Finance or FRED.
+
+Advanced models: Implement Random Forest, Gradient Boosting, or XGBoost to improve prediction accuracy.
+
+Financial features: Add additional financial ratios like working capital, quick ratio, or operating margin to enhance the model’s performance.
+
+Time-series data: Extend the model to handle time-series data for financial ratios over multiple periods, capturing trends in bankruptcy risk over time.
+
+Project 511: Corporate Credit Rating Prediction
+Description:
+Corporate credit rating prediction is essential for financial institutions to assess the creditworthiness of companies. Credit ratings indicate the likelihood that a company will default on its debt obligations. In this project, we will use financial features such as debt levels, profitability, and liquidity ratios to predict a company's credit rating (e.g., AAA, AA, A, BBB, etc.) using machine learning models.
+
+🧪 Python Implementation (Corporate Credit Rating Prediction with Logistic Regression)
+For real-world applications:
+
+Use real credit rating datasets (e.g., Moody's or S&P Global data) for training the model.
+
+You can extend the model by integrating macroeconomic factors or market data to improve prediction accuracy.
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate financial data for companies (debt-to-equity, return on assets, liquidity, etc.)
+np.random.seed(42)
+data = {
+    'debt_to_equity': np.random.normal(1.5, 0.5, 1000),  # Debt-to-equity ratio
+    'return_on_assets': np.random.normal(0.05, 0.02, 1000),  # Return on assets
+    'current_ratio': np.random.normal(1.2, 0.3, 1000),  # Current ratio (liquidity)
+    'interest_coverage': np.random.normal(3, 1.5, 1000),  # Interest coverage ratio
+    'credit_rating': np.random.choice([1, 2, 3, 4], 1000)  # 1 = AAA, 2 = AA, 3 = A, 4 = BBB
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Preprocessing
+X = df.drop('credit_rating', axis=1)
+y = df['credit_rating']
+ 
+# 3. Scale the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+ 
+# 4. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 5. Logistic Regression model for credit rating prediction
+model = LogisticRegression(multi_class='ovr')
+model.fit(X_train, y_train)
+ 
+# 6. Make predictions
+y_pred = model.predict(X_test)
+ 
+# 7. Evaluate the model
+print("Corporate Credit Rating Prediction Report:\n")
+print(classification_report(y_test, y_pred))
+ 
+# 8. Plot the feature importance (coefficients of the logistic regression)
+coefficients = model.coef_[0]
+features = X.columns
+ 
+plt.figure(figsize=(10, 6))
+plt.bar(features, coefficients)
+plt.title("Feature Importance in Corporate Credit Rating Prediction")
+plt.xlabel("Financial Ratios")
+plt.ylabel("Coefficient Value")
+plt.show()
+ 
+# 9. Predict credit rating for a new company based on financial ratios
+new_data = np.array([[2.0, 0.06, 1.0, 2]])  # Example: debt_to_equity=2.0, return_on_assets=6%, current_ratio=1.0, interest_coverage=2
+new_data_scaled = scaler.transform(new_data)
+predicted_rating = model.predict(new_data_scaled)
+rating_map = {1: 'AAA', 2: 'AA', 3: 'A', 4: 'BBB'}
+print(f"\nPredicted Credit Rating: {rating_map[predicted_rating[0]]}")
+✅ What It Does:
+Simulates financial data for companies, including features like debt-to-equity, return on assets, current ratio, and interest coverage ratio.
+
+Uses Logistic Regression to classify the company's credit rating into categories such as AAA, AA, A, and BBB.
+
+Evaluates the model using classification metrics such as precision, recall, and F1-score.
+
+Visualizes the feature importance (coefficients of the logistic regression) to understand which financial ratios most influence the credit rating prediction.
+
+Key Extensions and Customizations:
+Real-world data: Use actual credit rating datasets from Moody's, S&P Global, or other financial institutions.
+
+Advanced models: Use models like Random Forest, XGBoost, or Neural Networks to improve prediction accuracy.
+
+Macroeconomic data: Integrate broader economic indicators like interest rates, GDP growth, or inflation to enhance the model's forecasting capabilities.
+
+Credit risk analysis: Extend this model to assess credit risk by incorporating additional features such as historical defaults or market volatility.
+
+Project 512: Bond Yield Curve Analysis
+Description:
+The bond yield curve is a graphical representation of the relationship between bond yields (interest rates) and the time to maturity of the bonds. Analyzing the yield curve is crucial for understanding market expectations of interest rates, economic growth, and inflation. In this project, we will analyze the yield curve by plotting the yield vs. maturity for government bonds and interpreting its shape to derive insights.
+
+🧪 Python Implementation (Bond Yield Curve Analysis)
+For real-world applications:
+
+Use data from government bonds (e.g., U.S. Treasury bonds) with different maturities.
+
+Extend this project by analyzing yield curve inversions and their implications for economic forecasting.
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate bond yield data for different maturities (short-term to long-term)
+maturities = np.array([1, 2, 3, 5, 7, 10, 20, 30])  # Bond maturities in years
+# Simulating yields (in %) for each maturity. Normally, long-term bonds have higher yields than short-term ones.
+yields = np.array([1.5, 1.7, 1.8, 2.0, 2.3, 2.5, 3.0, 3.5]) + np.random.normal(0, 0.1, len(maturities))  # Adding some randomness
+ 
+# 2. Plot the bond yield curve
+plt.figure(figsize=(10, 6))
+plt.plot(maturities, yields, marker='o', color='b', label='Bond Yield Curve')
+plt.title('Bond Yield Curve Analysis')
+plt.xlabel('Maturity (Years)')
+plt.ylabel('Yield (%)')
+plt.grid(True)
+plt.xticks(maturities)  # Ensures that all maturity years are shown on the x-axis
+plt.yticks(np.arange(1, 4, 0.25))  # Adjust y-axis ticks for better visualization
+plt.legend(loc="best")
+plt.show()
+ 
+# 3. Analyze the shape of the yield curve
+if np.all(yields[1:] > yields[:-1]):
+    print("The yield curve is upward sloping, indicating normal market conditions (long-term rates > short-term rates).")
+elif np.all(yields[1:] < yields[:-1]):
+    print("The yield curve is downward sloping (inverted), indicating potential recessionary fears.")
+else:
+    print("The yield curve is flat or has mixed slopes, suggesting uncertain or transitioning market conditions.")
+✅ What It Does:
+Simulates bond yields for different maturities (from 1 year to 30 years) using random noise added to realistic yield data.
+
+Plots the bond yield curve (yield vs. maturity) and visualizes it using matplotlib.
+
+Analyzes the shape of the yield curve and classifies it as:
+
+Upward sloping: Typical market condition where long-term yields are higher than short-term yields.
+
+Downward sloping (inverted): Often seen as an indicator of a potential recession.
+
+Flat or mixed slopes: Suggests uncertainty or a transitioning market.
+
+Key Extensions and Customizations:
+Real-world data: Use U.S. Treasury yields or Eurozone bond data from sources like FRED (Federal Reserve Economic Data) or Bloomberg.
+
+Yield curve inversions: Extend this project to track yield curve inversions and analyze their implications on the economy.
+
+Advanced analysis: Use econometric models to analyze the relationship between the yield curve and macroeconomic indicators like GDP growth or inflation.
+
+Project 513: Commodity Price Forecasting
+Description:
+Commodity price forecasting involves predicting the future price of commodities like oil, gold, wheat, or natural gas based on historical data, market trends, and economic factors. In this project, we will predict the price of a commodity (e.g., gold) using time series forecasting methods like ARIMA or LSTM for more advanced predictions.
+
+🧪 Python Implementation (Commodity Price Forecasting using ARIMA)
+For real-world applications:
+
+Use historical commodity price data from sources like Yahoo Finance, FRED, or Quandl.
+
+Enhance the model with external factors like currency exchange rates, geopolitical events, or interest rates.
+
+import pandas as pd
+import numpy as np
+import yfinance as yf
+import matplotlib.pyplot as plt
+from statsmodels.tsa.arima.model import ARIMA
+ 
+# 1. Download historical commodity price data (e.g., Gold price)
+commodity_data = yf.download("GC=F", start="2015-01-01", end="2021-01-01")['Close']
+ 
+# 2. Plot the historical commodity prices
+plt.figure(figsize=(10, 6))
+plt.plot(commodity_data)
+plt.title('Gold Price (Commodity) - Historical Data')
+plt.xlabel('Date')
+plt.ylabel('Price (USD)')
+plt.grid(True)
+plt.show()
+ 
+# 3. Split data into train and test sets
+train_size = int(len(commodity_data) * 0.8)
+train_data, test_data = commodity_data[:train_size], commodity_data[train_size:]
+ 
+# 4. Fit ARIMA model (we choose p=5, d=1, q=0 arbitrarily for simplicity)
+model = ARIMA(train_data, order=(5, 1, 0))
+model_fit = model.fit()
+ 
+# 5. Forecast commodity prices on test data
+forecast_steps = len(test_data)
+forecast = model_fit.forecast(steps=forecast_steps)
+ 
+# 6. Plot the forecasted results vs actual data
+plt.figure(figsize=(10, 6))
+plt.plot(train_data, label='Training Data', color='blue')
+plt.plot(test_data, label='Test Data', color='orange')
+plt.plot(test_data.index, forecast, label='Predicted Data', color='green')
+plt.title('Commodity Price Forecasting (Gold Price using ARIMA)')
+plt.xlabel('Date')
+plt.ylabel('Price (USD)')
+plt.legend()
+plt.grid(True)
+plt.show()
+ 
+# 7. Evaluate the model (e.g., using Mean Absolute Error)
+from sklearn.metrics import mean_absolute_error
+ 
+mae = mean_absolute_error(test_data, forecast)
+print(f'Mean Absolute Error for Commodity Price Forecasting: ${mae:.2f}')
+✅ What It Does:
+Downloads historical commodity price data (e.g., gold price) from Yahoo Finance.
+
+Splits the data into training and test sets (80% for training, 20% for testing).
+
+Fits an ARIMA model on the training data to model the commodity price time series.
+
+Forecasts future prices on the test set using the trained ARIMA model.
+
+Evaluates the model's accuracy using Mean Absolute Error (MAE).
+
+Visualizes the actual and predicted commodity prices.
+
+Key Extensions and Customizations:
+Use multiple commodities: You can extend this project by forecasting prices for multiple commodities (e.g., oil, natural gas, or wheat).
+
+Incorporate external data: Add external factors such as currency exchange rates, inflation rates, or geopolitical events that may impact commodity prices.
+
+Advanced models: Use more advanced models like LSTM (Long Short-Term Memory) or Prophet for better forecasting on complex time series data.
+
+Backtesting: Implement backtesting to simulate real trading conditions using historical data.
+
+Project 514: Real Estate Price Prediction
+Description:
+Real estate price prediction involves forecasting the price of properties based on features like location, size, number of rooms, and age of the property. In this project, we will use a regression model to predict real estate prices based on these features.
+
+🧪 Python Implementation (Real Estate Price Prediction using Linear Regression)
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate real estate data (e.g., property size, number of rooms, etc.)
+np.random.seed(42)
+data = {
+    'size': np.random.normal(1500, 500, 1000),  # Square footage
+    'num_rooms': np.random.randint(2, 6, 1000),  # Number of rooms
+    'age': np.random.randint(1, 50, 1000),  # Age of the property in years
+    'price': np.random.normal(300000, 50000, 1000)  # Price of the property in USD
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Define features and target variable
+X = df[['size', 'num_rooms', 'age']]
+y = df['price']
+ 
+# 3. Scale the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+ 
+# 4. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 5. Train the linear regression model
+model = LinearRegression()
+model.fit(X_train, y_train)
+ 
+# 6. Make predictions
+y_pred = model.predict(X_test)
+ 
+# 7. Evaluate the model
+mae = mean_absolute_error(y_test, y_pred)
+print(f"Mean Absolute Error: ${mae:.2f}")
+ 
+# 8. Plot actual vs predicted prices
+plt.figure(figsize=(10, 6))
+plt.scatter(y_test, y_pred)
+plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], color='red', linestyle='--')
+plt.title("Actual vs Predicted Real Estate Prices")
+plt.xlabel("Actual Prices")
+plt.ylabel("Predicted Prices")
+plt.show()
+Project 515: Wealth Management Recommendation System
+Description:
+A wealth management recommendation system helps individuals manage their finances by providing personalized advice on investments, savings, and asset allocation. In this project, we will build a simple recommendation system that suggests personalized investment portfolios based on user risk preferences and financial goals.
+
+🧪 Python Implementation (Wealth Management Recommendation System using K-Nearest Neighbors)
+import pandas as pd
+import numpy as np
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+ 
+# 1. Simulate user data (e.g., risk tolerance, income, age)
+np.random.seed(42)
+data = {
+    'age': np.random.randint(18, 70, 1000),
+    'income': np.random.randint(30000, 150000, 1000),
+    'risk_tolerance': np.random.choice(['Low', 'Medium', 'High'], 1000),
+    'investment_strategy': np.random.choice(['Conservative', 'Balanced', 'Aggressive'], 1000)
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Encode categorical variables
+df['risk_tolerance'] = df['risk_tolerance'].map({'Low': 0, 'Medium': 1, 'High': 2})
+df['investment_strategy'] = df['investment_strategy'].map({'Conservative': 0, 'Balanced': 1, 'Aggressive': 2})
+ 
+# 3. Define features and target variable
+X = df[['age', 'income', 'risk_tolerance']]
+y = df['investment_strategy']
+ 
+# 4. Scale the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+ 
+# 5. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 6. Train the K-Nearest Neighbors model
+model = KNeighborsClassifier(n_neighbors=5)
+model.fit(X_train, y_train)
+ 
+# 7. Make predictions for a new user
+new_user = np.array([[35, 50000, 1]])  # Example: age=35, income=50k, risk_tolerance=Medium
+new_user_scaled = scaler.transform(new_user)
+predicted_strategy = model.predict(new_user_scaled)
+ 
+strategies = {0: 'Conservative', 1: 'Balanced', 2: 'Aggressive'}
+print(f"Recommended Investment Strategy: {strategies[predicted_strategy[0]]}")
+
+
+
+
+Project 516: Financial Planning Assistant
+Description:
+A financial planning assistant helps individuals plan and manage their finances by offering budgeting, savings goals, and investment advice. In this project, we will create a simple financial planning assistant that helps users manage their monthly expenses, set savings goals, and track their progress.
+
+🧪 Python Implementation (Financial Planning Assistant)
+import pandas as pd
+import numpy as np
+ 
+# 1. Simulate monthly expenses data
+np.random.seed(42)
+categories = ['Rent', 'Groceries', 'Utilities', 'Entertainment', 'Transportation', 'Insurance', 'Miscellaneous']
+expenses = np.random.randint(100, 1500, size=7)
+ 
+df = pd.DataFrame({'Category': categories, 'Expense': expenses})
+ 
+# 2. Calculate total expenses and set savings goal
+total_expenses = df['Expense'].sum()
+monthly_income = 4000  # Example monthly income
+savings_goal = 0.2 * monthly_income  # 20% of income for savings
+ 
+# 3. Calculate remaining income after expenses
+remaining_income = monthly_income - total_expenses
+ 
+# 4. Financial advice based on savings goal and remaining income
+if remaining_income >= savings_goal:
+    advice = "You are on track with your savings goal!"
+else:
+    advice = "Consider reducing some expenses to meet your savings goal."
+ 
+# 5. Display the financial summary and advice
+print("Monthly Expenses Breakdown:")
+print(df)
+print(f"\nTotal Monthly Expenses: ${total_expenses}")
+print(f"Monthly Income: ${monthly_income}")
+print(f"Savings Goal (20% of income): ${savings_goal}")
+print(f"Remaining Income: ${remaining_income}")
+print(f"\nFinancial Advice: {advice}")
+
+
+
+
+Project 517: Tax Optimization System
+Description:
+A tax optimization system helps individuals or businesses reduce their tax liabilities by suggesting optimal strategies based on income, deductions, and tax rates. In this project, we will create a simple system that suggests tax-saving methods like deductions for expenses, investments in tax-efficient instruments, and tax credits.
+
+🧪 Python Implementation (Tax Optimization System)
+import pandas as pd
+import numpy as np
+ 
+# 1. Simulate income and tax data
+np.random.seed(42)
+income = np.random.randint(50000, 150000, 1000)  # Simulate annual income
+tax_rate = 0.2  # Assume a flat 20% tax rate for simplicity
+ 
+# 2. Simulate deductions and tax credits (e.g., education, health expenses, investments)
+deductions = np.random.randint(1000, 5000, 1000)  # Simulate tax-deductible expenses
+tax_credits = np.random.randint(200, 1000, 1000)  # Simulate tax credits (e.g., for children, education)
+ 
+# 3. Calculate tax before and after optimization
+tax_before_optimization = income * tax_rate
+tax_after_optimization = (income - deductions) * tax_rate - tax_credits
+ 
+# 4. Create a DataFrame to display the results
+df = pd.DataFrame({
+    'Income': income,
+    'Deductions': deductions,
+    'Tax Credits': tax_credits,
+    'Tax Before Optimization': tax_before_optimization,
+    'Tax After Optimization': tax_after_optimization
+})
+ 
+# 5. Show the tax optimization results
+df['Tax Savings'] = df['Tax Before Optimization'] - df['Tax After Optimization']
+ 
+# Display the summary of tax savings
+print("Tax Optimization Summary (Top 5 entries):")
+print(df[['Income', 'Deductions', 'Tax Credits', 'Tax Savings']].head())
+ 
+# 6. Calculate the average tax savings across the dataset
+average_tax_savings = df['Tax Savings'].mean()
+print(f"\nAverage Tax Savings per Individual: ${average_tax_savings:.2f}")
+
+
+
+
+Project 518: Financial Sentiment Analysis
+Description:
+Financial sentiment analysis involves analyzing financial news, reports, or social media to gauge market sentiment and predict stock price movements or economic trends. In this project, we will use NLP techniques to perform sentiment analysis on financial news articles and classify them as positive, negative, or neutral.
+
+🧪 Python Implementation (Financial Sentiment Analysis using VADER)
+import pandas as pd
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+ 
+# 1. Sample financial news articles
+data = {
+    'headline': [
+        "Stock market hits record high amidst economic recovery",
+        "Inflation concerns lead to market volatility",
+        "Tech stocks soar after strong earnings reports",
+        "Economic slowdown predicted due to rising interest rates",
+        "Global markets recover as stimulus packages are announced"
+    ]
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Initialize VADER sentiment analyzer
+sia = SentimentIntensityAnalyzer()
+ 
+# 3. Apply sentiment analysis to each headline
+df['sentiment_score'] = df['headline'].apply(lambda x: sia.polarity_scores(x)['compound'])
+ 
+# 4. Classify sentiment into categories
+df['sentiment_class'] = df['sentiment_score'].apply(
+    lambda x: 'Positive' if x > 0.1 else ('Negative' if x < -0.1 else 'Neutral')
+)
+ 
+# 5. Display the results
+print("Sentiment Analysis of Financial News Headlines:")
+print(df)
+ 
+# 6. Plot the distribution of sentiments
+sentiment_counts = df['sentiment_class'].value_counts()
+sentiment_counts.plot(kind='bar', color=['green', 'red', 'blue'])
+plt.title('Sentiment Distribution of Financial News Headlines')
+plt.xlabel('Sentiment')
+plt.ylabel('Frequency')
+plt.xticks(rotation=0)
+plt.show()
+Project 519: Corporate Earnings Prediction
+Description:
+Corporate earnings prediction involves forecasting a company's future earnings per share (EPS) based on historical financial data, market conditions, and economic indicators. In this project, we will use regression models to predict the earnings of a company (e.g., Apple) based on its financial ratios and other relevant features.
+
+🧪 Python Implementation (Corporate Earnings Prediction using Linear Regression)
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate financial data for a company (e.g., revenue, expenses, market sentiment)
+np.random.seed(42)
+data = {
+    'revenue': np.random.normal(50000, 10000, 1000),  # Revenue in USD
+    'expenses': np.random.normal(30000, 8000, 1000),  # Expenses in USD
+    'market_sentiment': np.random.normal(0.5, 0.1, 1000),  # Market sentiment index (0 to 1)
+    'earnings_per_share': np.random.normal(5, 2, 1000)  # Earnings per share in USD
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Define features and target variable
+X = df[['revenue', 'expenses', 'market_sentiment']]
+y = df['earnings_per_share']
+ 
+# 3. Scale the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+ 
+# 4. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 5. Train the linear regression model
+model = LinearRegression()
+model.fit(X_train, y_train)
+ 
+# 6. Make predictions
+y_pred = model.predict(X_test)
+ 
+# 7. Evaluate the model
+mae = mean_absolute_error(y_test, y_pred)
+print(f"Mean Absolute Error: ${mae:.2f}")
+ 
+# 8. Plot actual vs predicted earnings per share
+plt.figure(figsize=(10, 6))
+plt.scatter(y_test, y_pred, color='blue')
+plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], color='red', linestyle='--')
+plt.title("Actual vs Predicted Earnings Per Share")
+plt.xlabel("Actual Earnings Per Share")
+plt.ylabel("Predicted Earnings Per Share")
+plt.show()
+
+
+Project 520: Peer-to-Peer Lending Risk Assessment
+Description:
+In peer-to-peer (P2P) lending, individuals lend money to other individuals through an online platform. The risk assessment involves predicting the likelihood of a borrower defaulting on the loan based on their financial profile, credit score, loan amount, and loan term. In this project, we will build a predictive model using Logistic Regression to assess the risk of loan default.
+
+🧪 Python Implementation (P2P Lending Risk Assessment using Logistic Regression)
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+ 
+# 1. Simulate P2P lending data (e.g., borrower financial profile, loan information)
+np.random.seed(42)
+data = {
+    'credit_score': np.random.randint(600, 850, 1000),  # Credit score (600-850)
+    'loan_amount': np.random.randint(1000, 50000, 1000),  # Loan amount in USD
+    'loan_term': np.random.choice([12, 24, 36, 48, 60], 1000),  # Loan term in months
+    'annual_income': np.random.randint(20000, 100000, 1000),  # Borrower's annual income
+    'default': np.random.choice([0, 1], 1000)  # 0 = No default, 1 = Default
+}
+ 
+df = pd.DataFrame(data)
+ 
+# 2. Define features and target variable
+X = df[['credit_score', 'loan_amount', 'loan_term', 'annual_income']]
+y = df['default']
+ 
+# 3. Scale the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+ 
+# 4. Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+ 
+# 5. Train the logistic regression model
+model = LogisticRegression()
+model.fit(X_train, y_train)
+ 
+# 6. Make predictions
+y_pred = model.predict(X_test)
+ 
+# 7. Evaluate the model
+print("P2P Lending Risk Assessment Report:\n")
+print(classification_report(y_test, y_pred))
+ 
+# 8. Visualize the predicted default probability (e.g., using probability scores)
+y_prob = model.predict_proba(X_test)[:, 1]  # Probability of default (class 1)
+plt.figure(figsize=(10, 6))
+plt.hist(y_prob, bins=30, color='blue', edgecolor='black', alpha=0.7)
+plt.title("Probability of Loan Default")
+plt.xlabel("Probability")
+plt.ylabel("Frequency")
+plt.grid(True)
+plt.show()
