@@ -1,0 +1,1165 @@
+
+Project 521: Question Answering with Transformers
+Description:
+Question answering (QA) is a task in NLP where a system answers questions based on a given text. In this project, we will implement a question answering system using transformer models (e.g., BERT or DistilBERT) to extract answers from context paragraphs.
+
+🧪 Python Implementation (Question Answering with Hugging Face Transformers)
+from transformers import pipeline
+ 
+# 1. Load the pre-trained question answering model
+qa_pipeline = pipeline("question-answering")
+ 
+# 2. Provide the context and the question
+context = """
+Transformers are a deep learning model architecture introduced in the paper "Attention is All You Need" in 2017. 
+They have been widely used in NLP tasks such as machine translation, text summarization, and question answering. 
+Transformers rely on attention mechanisms to process input data in parallel, as opposed to sequential models like RNNs and LSTMs.
+"""
+question = "What are transformers used for?"
+ 
+# 3. Use the pipeline to get the answer
+result = qa_pipeline(question=question, context=context)
+ 
+# 4. Display the result
+print(f"Answer: {result['answer']}")
+Project 522: Abstractive Text Summarization
+Description:
+Abstractive text summarization involves generating a summary of a text by understanding its meaning and then rephrasing it in a concise form. Unlike extractive summarization, which selects portions of the text, abstractive summarization generates new sentences. In this project, we will use a pre-trained transformer model like BART or T5 to perform abstractive summarization.
+
+🧪 Python Implementation (Abstractive Text Summarization with Hugging Face Transformers)
+from transformers import pipeline
+ 
+# 1. Load the pre-trained summarization model (e.g., BART or T5)
+summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+ 
+# 2. Provide the text to be summarized
+text = """
+Abstractive text summarization is an NLP task where the goal is to generate a summary that is a paraphrased version of the original text. 
+This is different from extractive summarization, where the summary is made up of direct excerpts from the original text. 
+Abstractive summarization models, like BART and T5, rely on transformer architectures to understand the context and generate coherent summaries. 
+These models are trained on large datasets and can summarize long pieces of text into concise, coherent summaries that capture the key ideas.
+"""
+ 
+# 3. Use the pipeline to generate the summary
+summary = summarizer(text, max_length=50, min_length=25, do_sample=False)
+ 
+# 4. Display the result
+print(f"Summary: {summary[0]['summary_text']}")
+Project 523: Neural Machine Translation
+Description:
+Neural machine translation (NMT) involves using deep learning models to translate text from one language to another. In this project, we will use a pre-trained transformer model (e.g., MarianMT from Hugging Face) to perform neural machine translation for translating text from one language to another.
+
+🧪 Python Implementation (Neural Machine Translation with Hugging Face MarianMT)
+from transformers import MarianMTModel, MarianTokenizer
+ 
+# 1. Load the pre-trained MarianMT model and tokenizer for English to French translation
+model_name = 'Helsinki-NLP/opus-mt-en-fr'
+model = MarianMTModel.from_pretrained(model_name)
+tokenizer = MarianTokenizer.from_pretrained(model_name)
+ 
+# 2. Provide the text to be translated
+text = "Hello, how are you today?"
+ 
+# 3. Tokenize the input text
+tokens = tokenizer(text, return_tensors="pt", padding=True)
+ 
+# 4. Translate the text
+translated = model.generate(**tokens)
+ 
+# 5. Decode and display the translated text
+translated_text = tokenizer.decode(translated[0], skip_special_tokens=True)
+print(f"Translated Text: {translated_text}")
+Project 524: Few-Shot Learning for Text Classification
+Description:
+Few-shot learning enables a model to learn and generalize from a small number of training examples. In this project, we will apply few-shot learning for text classification using transformers like GPT-3 or T5, allowing the model to classify text into categories based on only a few labeled examples.
+
+🧪 Python Implementation (Few-Shot Learning for Text Classification with GPT-3 via Hugging Face)
+from transformers import pipeline
+ 
+# 1. Load the text classification pipeline (few-shot learning)
+classifier = pipeline("zero-shot-classification")
+ 
+# 2. Provide the text to be classified
+text = "The company just launched a new AI product for healthcare."
+ 
+# 3. Define candidate labels for classification
+candidate_labels = ["technology", "healthcare", "finance", "politics"]
+ 
+# 4. Perform the classification with few-shot learning (zero-shot)
+result = classifier(text, candidate_labels)
+ 
+# 5. Display the result
+print(f"Predicted Category: {result['labels'][0]} with score {result['scores'][0]:.2f}")
+Project 525: Zero-Shot Text Classification
+Description:
+Zero-shot text classification allows the model to classify text into categories without requiring any training data for those categories. Instead, the model uses pre-trained knowledge and is able to classify text into user-defined labels even if it has never seen examples of those categories. We will use a zero-shot classification pipeline from Hugging Face's transformers for this task.
+
+🧪 Python Implementation (Zero-Shot Text Classification with Hugging Face)
+from transformers import pipeline
+ 
+# 1. Load the zero-shot classification pipeline
+classifier = pipeline("zero-shot-classification")
+ 
+# 2. Provide the text to be classified
+text = "The stock market continues to show strong growth despite inflation concerns."
+ 
+# 3. Define candidate labels for classification
+candidate_labels = ["economy", "finance", "politics", "sports", "technology"]
+ 
+# 4. Perform zero-shot classification
+result = classifier(text, candidate_labels)
+ 
+# 5. Display the result
+print(f"Predicted Category: {result['labels'][0]} with score {result['scores'][0]:.2f}")
+Project 526: Transfer Learning for NLP Tasks
+Description:
+Transfer learning involves using a pre-trained model on one task and fine-tuning it for a different but related task. In this project, we will demonstrate transfer learning for NLP tasks by fine-tuning a pre-trained transformer model (like BERT or RoBERTa) for a specific task such as sentiment analysis or text classification.
+
+🧪 Python Implementation (Transfer Learning for NLP Tasks using BERT)
+from transformers import BertForSequenceClassification, BertTokenizer, Trainer, TrainingArguments
+from datasets import load_dataset
+ 
+# 1. Load a pre-trained BERT model and tokenizer
+model_name = "bert-base-uncased"
+model = BertForSequenceClassification.from_pretrained(model_name, num_labels=2)
+tokenizer = BertTokenizer.from_pretrained(model_name)
+ 
+# 2. Load a dataset for text classification (e.g., IMDb dataset for sentiment analysis)
+dataset = load_dataset("imdb")
+ 
+# 3. Tokenize the dataset
+def tokenize_function(examples):
+    return tokenizer(examples['text'], padding="max_length", truncation=True)
+ 
+tokenized_datasets = dataset.map(tokenize_function, batched=True)
+ 
+# 4. Define training arguments
+training_args = TrainingArguments(
+    output_dir="./results",          # output directory
+    evaluation_strategy="epoch",     # evaluation strategy to adopt during training
+    learning_rate=2e-5,              # learning rate
+    per_device_train_batch_size=8,   # batch size for training
+    per_device_eval_batch_size=8,    # batch size for evaluation
+    num_train_epochs=3,              # number of training epochs
+    weight_decay=0.01,               # strength of weight decay
+)
+ 
+# 5. Initialize Trainer and start fine-tuning
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=tokenized_datasets['train'],
+    eval_dataset=tokenized_datasets['test'],
+)
+ 
+# 6. Train the model
+trainer.train()
+ 
+# 7. Evaluate the model
+results = trainer.evaluate()
+print(f"Evaluation Results: {results}")
+
+
+Project 527: Language Model Fine-Tuning
+Description:
+Fine-tuning a language model involves training a pre-trained model like GPT-2 or BERT on a specific task such as text generation, question answering, or text classification. In this project, we will fine-tune a pre-trained language model on a custom dataset to improve its performance on a specific NLP task.
+
+🧪 Python Implementation (Fine-Tuning a Language Model with Hugging Face)
+from transformers import GPT2LMHeadModel, GPT2Tokenizer, Trainer, TrainingArguments
+from datasets import load_dataset
+ 
+# 1. Load pre-trained GPT-2 model and tokenizer
+model_name = "gpt2"
+model = GPT2LMHeadModel.from_pretrained(model_name)
+tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+ 
+# 2. Load custom dataset for fine-tuning (e.g., a text corpus for text generation)
+dataset = load_dataset("wikitext", "wikitext-103-raw-v1")
+ 
+# 3. Tokenize the dataset
+def tokenize_function(examples):
+    return tokenizer(examples['text'], padding="max_length", truncation=True)
+ 
+tokenized_datasets = dataset.map(tokenize_function, batched=True)
+ 
+# 4. Define training arguments
+training_args = TrainingArguments(
+    output_dir="./results",          # output directory
+    evaluation_strategy="epoch",     # evaluation strategy to adopt during training
+    learning_rate=5e-5,              # learning rate
+    per_device_train_batch_size=4,   # batch size for training
+    per_device_eval_batch_size=4,    # batch size for evaluation
+    num_train_epochs=3,              # number of training epochs
+    weight_decay=0.01,               # strength of weight decay
+)
+ 
+# 5. Initialize Trainer and start fine-tuning
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=tokenized_datasets['train'],
+    eval_dataset=tokenized_datasets['test'],
+)
+ 
+# 6. Train the model
+trainer.train()
+ 
+# 7. Generate text using the fine-tuned model
+input_text = "The future of artificial intelligence is"
+inputs = tokenizer.encode(input_text, return_tensors="pt")
+generated_text = model.generate(inputs, max_length=100, num_return_sequences=1)
+ 
+# 8. Decode and print the generated text
+generated_text_decoded = tokenizer.decode(generated_text[0], skip_special_tokens=True)
+print(f"Generated Text: {generated_text_decoded}")
+Project 528: BERT for Sequence Labeling
+Description:
+Sequence labeling involves assigning a label to each element in a sequence, such as part-of-speech tagging, named entity recognition (NER), or chunking. In this project, we will fine-tune BERT for sequence labeling tasks, such as tagging named entities (e.g., people, organizations, locations) in text.
+
+🧪 Python Implementation (BERT for Sequence Labeling with Hugging Face)
+from transformers import BertForTokenClassification, BertTokenizer, Trainer, TrainingArguments
+from datasets import load_dataset
+ 
+# 1. Load pre-trained BERT model and tokenizer for token classification (NER task)
+model_name = "dbmdz/bert-large-cased-finetuned-conll03-english"
+model = BertForTokenClassification.from_pretrained(model_name)
+tokenizer = BertTokenizer.from_pretrained(model_name)
+ 
+# 2. Load dataset for named entity recognition (e.g., CONLL-03 dataset)
+dataset = load_dataset("conll2003")
+ 
+# 3. Tokenize the dataset
+def tokenize_and_align_labels(examples):
+    tokenized_inputs = tokenizer(examples['tokens'], padding='max_length', truncation=True)
+    labels = examples['ner_tags']
+    tokenized_inputs['labels'] = labels
+    return tokenized_inputs
+ 
+tokenized_datasets = dataset.map(tokenize_and_align_labels, batched=True)
+ 
+# 4. Define training arguments
+training_args = TrainingArguments(
+    output_dir="./results",          # output directory
+    evaluation_strategy="epoch",     # evaluation strategy to adopt during training
+    learning_rate=2e-5,              # learning rate
+    per_device_train_batch_size=8,   # batch size for training
+    per_device_eval_batch_size=8,    # batch size for evaluation
+    num_train_epochs=3,              # number of training epochs
+    weight_decay=0.01,               # strength of weight decay
+)
+ 
+# 5. Initialize Trainer and start fine-tuning
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=tokenized_datasets['train'],
+    eval_dataset=tokenized_datasets['test'],
+)
+ 
+# 6. Train the model
+trainer.train()
+ 
+# 7. Evaluate the model
+results = trainer.evaluate()
+print(f"Evaluation Results: {results}")
+ 
+# 8. Predict labels for a sample sentence
+sentence = "Hawking was a renowned theoretical physicist"
+tokens = tokenizer.tokenize(tokenizer.decode(tokenizer.encode(sentence)))
+inputs = tokenizer(sentence, return_tensors="pt")
+ 
+outputs = model(**inputs).logits
+predictions = outputs.argmax(dim=-1)
+ 
+# Display the predicted labels for each token
+predicted_labels = [model.config.id2label[p.item()] for p in predictions[0]]
+for token, label in zip(tokens, predicted_labels):
+    print(f"{token}: {label}")
+Project 529: GPT Model Implementation
+Description:
+GPT (Generative Pre-trained Transformer) is a transformer-based model designed for text generation. It is trained to predict the next word in a sequence, enabling it to generate coherent and contextually relevant text. In this project, we will implement a GPT model for text generation using Hugging Face’s GPT-2 pre-trained model.
+
+🧪 Python Implementation (GPT Model Implementation for Text Generation)
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
+ 
+# 1. Load the pre-trained GPT-2 model and tokenizer
+model_name = "gpt2"
+model = GPT2LMHeadModel.from_pretrained(model_name)
+tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+ 
+# 2. Provide a prompt to generate text
+prompt = "The future of artificial intelligence is"
+ 
+# 3. Tokenize the input prompt
+inputs = tokenizer.encode(prompt, return_tensors="pt")
+ 
+# 4. Generate text using GPT-2
+generated_text = model.generate(inputs, max_length=100, num_return_sequences=1, no_repeat_ngram_size=2)
+ 
+# 5. Decode and print the generated text
+generated_text_decoded = tokenizer.decode(generated_text[0], skip_special_tokens=True)
+print(f"Generated Text: {generated_text_decoded}")
+Project 530: Text Generation with Transformers
+Description:
+Text generation is a task in NLP where a model generates human-like text based on a given prompt. In this project, we will use transformer models like GPT-2 or T5 to generate coherent text based on an initial seed or prompt.
+
+🧪 Python Implementation (Text Generation with GPT-2)
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
+ 
+# 1. Load pre-trained GPT-2 model and tokenizer
+model_name = "gpt2"
+model = GPT2LMHeadModel.from_pretrained(model_name)
+tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+ 
+# 2. Provide a prompt for text generation
+prompt = "Once upon a time, in a land far, far away"
+ 
+# 3. Tokenize the input prompt
+inputs = tokenizer.encode(prompt, return_tensors="pt")
+ 
+# 4. Generate text using GPT-2
+generated_text = model.generate(inputs, max_length=200, num_return_sequences=1, no_repeat_ngram_size=2)
+ 
+# 5. Decode and print the generated text
+generated_text_decoded = tokenizer.decode(generated_text[0], skip_special_tokens=True)
+print(f"Generated Text: {generated_text_decoded}")
+Project 531: Text Style Transfer
+Description:
+Text style transfer is a task in NLP where the goal is to transform the style of a given text without altering its content. Examples include converting formal text into casual language or transforming the sentiment of a piece of text. In this project, we will use transformer models to perform style transfer on text, such as converting a formal sentence into a more casual tone.
+
+🧪 Python Implementation (Text Style Transfer with Pretrained Model)
+from transformers import pipeline
+ 
+# 1. Load pre-trained model for text style transfer
+style_transfer_pipeline = pipeline("text2text-generation", model="facebook/bart-large-cnn")
+ 
+# 2. Provide a formal sentence to be converted into a casual tone
+formal_text = "It is with great pleasure that I write to inform you of our upcoming meeting."
+ 
+# 3. Use the pipeline to generate a casual version of the text
+casual_text = style_transfer_pipeline(formal_text)
+ 
+# 4. Display the transformed text
+print(f"Casual Version: {casual_text[0]['generated_text']}")
+Project 532: Controllable Text Generation
+Description:
+Controllable text generation allows you to control specific attributes of generated text, such as sentiment, style, or length. In this project, we will use transformers to generate text with control over certain attributes, such as generating positive or negative sentiment text.
+
+🧪 Python Implementation (Controllable Text Generation with GPT-2)
+from transformers import pipeline
+ 
+# 1. Load pre-trained text generation model
+generator = pipeline("text-generation", model="gpt2")
+ 
+# 2. Define a prompt for generating positive or negative sentiment text
+prompt = "I feel very excited about the future of technology. The possibilities are endless and full of potential."
+ 
+# 3. Generate text based on the prompt with positive sentiment
+positive_text = generator(prompt, max_length=100, num_return_sequences=1)
+ 
+# Display the generated text with positive sentiment
+print(f"Generated Text (Positive Sentiment): {positive_text[0]['generated_text']}")
+Project 533: Sentiment-Controlled Text Generation
+Description:
+Sentiment-controlled text generation allows you to control the sentiment (positive or negative) of the generated text. In this project, we will use a transformer model to generate text with a specific sentiment based on a given input prompt, enabling us to control whether the output text expresses positive or negative sentiment.
+
+🧪 Python Implementation (Sentiment-Controlled Text Generation with GPT-2)
+from transformers import pipeline
+ 
+# 1. Load pre-trained text generation model
+generator = pipeline("text-generation", model="gpt2")
+ 
+# 2. Define a prompt for generating text with positive sentiment
+positive_prompt = "The weather is great today and I am feeling optimistic about the future."
+ 
+# 3. Generate positive sentiment text
+positive_sentiment_text = generator(positive_prompt, max_length=100, num_return_sequences=1)
+ 
+# 4. Define a prompt for generating text with negative sentiment
+negative_prompt = "I feel like everything is falling apart and there seems to be no hope."
+ 
+# 5. Generate negative sentiment text
+negative_sentiment_text = generator(negative_prompt, max_length=100, num_return_sequences=1)
+ 
+# Display the results
+print(f"Generated Positive Sentiment Text: {positive_sentiment_text[0]['generated_text']}")
+print(f"Generated Negative Sentiment Text: {negative_sentiment_text[0]['generated_text']}")
+Project 534: Text Simplification System
+Description:
+Text simplification aims to rewrite complex text in simpler language while preserving its original meaning. This task is especially useful for making content more accessible, particularly for people with language barriers or learning disabilities. In this project, we will use a pre-trained transformer model for simplifying a given text.
+
+🧪 Python Implementation (Text Simplification using T5)
+from transformers import pipeline
+ 
+# 1. Load pre-trained text simplification model
+simplifier = pipeline("text2text-generation", model="t5-small")
+ 
+# 2. Provide a complex sentence to simplify
+complex_text = "The implementation of the new system was designed to optimize the overall operational efficiency of the organization."
+ 
+# 3. Use the model to simplify the text
+simplified_text = simplifier(complex_text, max_length=100, num_return_sequences=1)
+ 
+# 4. Display the simplified text
+print(f"Simplified Text: {simplified_text[0]['generated_text']}")
+Project 535: Text Complexity Adjustment
+Description:
+Text complexity adjustment involves modifying the complexity of text to suit a target audience. This project will focus on adjusting the complexity of a text by either simplifying or making it more advanced, depending on the desired output. We'll use a transformer model to adjust the complexity level of a given input text.
+
+🧪 Python Implementation (Text Complexity Adjustment using T5)
+from transformers import pipeline
+ 
+# 1. Load pre-trained text generation model for text adjustment
+text_adjuster = pipeline("text2text-generation", model="t5-small")
+ 
+# 2. Provide a complex text to simplify or adjust the complexity
+complex_text = "The implementation of novel algorithms into systems engineering aims to optimize multi-dimensional data streams for better efficiency."
+ 
+# 3. Use the model to adjust the text complexity (simplifying for easier understanding)
+simplified_text = text_adjuster(f"simplify: {complex_text}", max_length=100, num_return_sequences=1)
+ 
+# 4. Use the model to increase complexity (making the text more advanced)
+advanced_text = text_adjuster(f"advance: {complex_text}", max_length=150, num_return_sequences=1)
+ 
+# 5. Display the results
+print(f"Simplified Text: {simplified_text[0]['generated_text']}")
+print(f"Advanced Text: {advanced_text[0]['generated_text']}")
+
+
+Project 536: Grammatical Error Correction
+Description:
+Grammatical error correction involves automatically identifying and fixing grammatical errors in text. This can be applied to written text in various domains, including essays, emails, and social media posts. In this project, we will use a transformer model for correcting grammatical mistakes in a given sentence.
+
+🧪 Python Implementation (Grammatical Error Correction using T5)
+from transformers import pipeline
+ 
+# 1. Load pre-trained model for grammatical error correction
+grammar_corrector = pipeline("text2text-generation", model="t5-base")
+ 
+# 2. Provide a sentence with grammatical errors
+incorrect_text = "She don't like going to the park on weekends."
+ 
+# 3. Use the model to correct grammatical errors
+corrected_text = grammar_corrector(f"correct grammar: {incorrect_text}", max_length=100, num_return_sequences=1)
+ 
+# 4. Display the corrected text
+print(f"Corrected Text: {corrected_text[0]['generated_text']}")
+Project 537: Paraphrase Generation
+Description:
+Paraphrase generation involves creating a new sentence that has the same meaning as the original one but with different wording. This task is useful for creating variations of content while maintaining the original intent. In this project, we will use a transformer model for generating paraphrases of a given sentence.
+
+🧪 Python Implementation (Paraphrase Generation using T5)
+from transformers import pipeline
+ 
+# 1. Load pre-trained model for paraphrase generation
+paraphraser = pipeline("text2text-generation", model="t5-small")
+ 
+# 2. Provide a sentence to generate a paraphrase
+sentence = "The quick brown fox jumps over the lazy dog."
+ 
+# 3. Use the model to generate a paraphrase
+paraphrased_text = paraphraser(f"paraphrase: {sentence}", max_length=100, num_return_sequences=1)
+ 
+# 4. Display the paraphrased text
+print(f"Paraphrased Text: {paraphrased_text[0]['generated_text']}")
+Project 538: Data-to-Text Generation
+Description:
+Data-to-text generation involves converting structured data (like tables or databases) into coherent, human-readable text. This is useful in applications like automated report generation, weather forecasting, and financial summaries. In this project, we will generate text based on structured data using a transformer model.
+
+🧪 Python Implementation (Data-to-Text Generation using T5)
+from transformers import pipeline
+ 
+# 1. Load pre-trained model for text generation from structured data
+data_to_text_generator = pipeline("text2text-generation", model="t5-small")
+ 
+# 2. Define structured data (e.g., weather forecast data)
+weather_data = {
+    'city': 'New York',
+    'temperature': '22°C',
+    'humidity': '60%',
+    'forecast': 'sunny',
+    'wind_speed': '10 km/h'
+}
+ 
+# 3. Convert structured data into a text prompt
+text_input = f"The weather forecast for {weather_data['city']} is as follows: The temperature is {weather_data['temperature']}, the humidity is {weather_data['humidity']}, with {weather_data['forecast']} skies and a wind speed of {weather_data['wind_speed']}."
+ 
+# 4. Use the model to generate text based on the data
+generated_text = data_to_text_generator(text_input, max_length=100, num_return_sequences=1)
+ 
+# 5. Display the generated text
+print(f"Generated Text: {generated_text[0]['generated_text']}")
+Project 539: Table-to-Text Generation
+Description:
+Table-to-text generation involves converting structured tabular data into natural language text. This is useful for automatically generating summaries from data such as financial reports, sports scores, and sales figures. In this project, we will use a transformer model to generate text based on tabular data.
+
+🧪 Python Implementation (Table-to-Text Generation using T5)
+from transformers import pipeline
+ 
+# 1. Load pre-trained model for table-to-text generation
+table_to_text_generator = pipeline("text2text-generation", model="t5-small")
+ 
+# 2. Define tabular data (e.g., sales data for a month)
+sales_data = {
+    'product': ['Product A', 'Product B', 'Product C'],
+    'sales': [5000, 7000, 3000],
+    'profit': [1500, 2000, 1000]
+}
+ 
+# 3. Convert the tabular data into a text prompt
+table_input = f"Sales for the month: {sales_data['product'][0]} sold {sales_data['sales'][0]} units with a profit of {sales_data['profit'][0]}, {sales_data['product'][1]} sold {sales_data['sales'][1]} units with a profit of {sales_data['profit'][1]}, and {sales_data['product'][2]} sold {sales_data['sales'][2]} units with a profit of {sales_data['profit'][2]}."
+ 
+# 4. Use the model to generate text based on the tabular data
+generated_text = table_to_text_generator(table_input, max_length=100, num_return_sequences=1)
+ 
+# 5. Display the generated text
+print(f"Generated Text: {generated_text[0]['generated_text']}")
+Project 540: Knowledge Graph Construction from Text
+Description:
+Knowledge graph construction involves extracting entities, relationships, and facts from unstructured text and representing them in a graph structure. This is useful for creating semantic networks, improving search engines, and enabling question answering systems. In this project, we will use NLP models to extract entities and relationships from text and construct a simple knowledge graph.
+
+🧪 Python Implementation (Knowledge Graph Construction from Text)
+import spacy
+from spacy import displacy
+import networkx as nx
+import matplotlib.pyplot as plt
+ 
+# 1. Load pre-trained SpaCy model for Named Entity Recognition (NER)
+nlp = spacy.load("en_core_web_sm")
+ 
+# 2. Provide a sample text (e.g., a sentence with entities and relationships)
+text = "Albert Einstein was born in Ulm, Germany in 1879. He developed the theory of relativity."
+ 
+# 3. Process the text with SpaCy
+doc = nlp(text)
+ 
+# 4. Extract entities (persons, places, dates, etc.)
+entities = [(ent.text, ent.label_) for ent in doc.ents]
+ 
+# 5. Build a simple knowledge graph (using NetworkX)
+G = nx.Graph()
+ 
+# Add nodes (entities)
+for entity in entities:
+    G.add_node(entity[0], label=entity[1])
+ 
+# Add edges (relationships between entities based on sentence structure)
+G.add_edge("Albert Einstein", "Ulm", relationship="born_in")
+G.add_edge("Albert Einstein", "1879", relationship="born_in")
+G.add_edge("Albert Einstein", "theory of relativity", relationship="developed")
+ 
+# 6. Visualize the knowledge graph
+plt.figure(figsize=(8, 8))
+pos = nx.spring_layout(G, seed=42)
+nx.draw(G, pos, with_labels=True, node_size=3000, node_color='lightblue', font_size=12, font_weight='bold')
+plt.title("Knowledge Graph for Extracted Entities and Relationships")
+plt.show()
+Project 541: Relation Extraction with Distant Supervision
+Description:
+Relation extraction involves identifying and extracting relationships between entities in text. Distant supervision is a technique where a model is trained using labeled data obtained automatically from existing knowledge bases, even if that data is noisy or incomplete. In this project, we will extract relationships between entities in a given text using distant supervision.
+
+🧪 Python Implementation (Relation Extraction with Distant Supervision)
+import spacy
+from spacy import displacy
+ 
+# 1. Load pre-trained SpaCy model for Named Entity Recognition (NER)
+nlp = spacy.load("en_core_web_sm")
+ 
+# 2. Provide a sample text (e.g., text with multiple entities and potential relations)
+text = "Steve Jobs co-founded Apple in 1976. Bill Gates is the co-founder of Microsoft."
+ 
+# 3. Process the text with SpaCy
+doc = nlp(text)
+ 
+# 4. Extract entities and potential relationships
+entities = [(ent.text, ent.label_) for ent in doc.ents]
+ 
+# 5. Simple rule-based extraction of relations using distance supervision
+relations = []
+for i in range(len(entities) - 1):
+    entity1, entity2 = entities[i], entities[i+1]
+    if entity1[1] == "PERSON" and entity2[1] == "ORG":
+        relations.append((entity1[0], "co-founded", entity2[0]))
+    elif entity1[1] == "PERSON" and entity2[1] == "PERSON":
+        relations.append((entity1[0], "is associated with", entity2[0]))
+ 
+# 6. Display the extracted relations
+print("Extracted Relations:")
+for relation in relations:
+    print(f"{relation[0]} - {relation[1]} - {relation[2]}")
+Project 542: Open Domain Question Answering
+Description:
+Open domain question answering (QA) systems answer questions posed by users without being restricted to a specific domain. These systems need to understand natural language and retrieve relevant information from large amounts of unstructured text. In this project, we will use a pre-trained transformer model like T5 or BERT to build a simple open domain question answering system.
+
+🧪 Python Implementation (Open Domain Question Answering with Hugging Face)
+from transformers import pipeline
+ 
+# 1. Load the pre-trained question answering model
+qa_pipeline = pipeline("question-answering")
+ 
+# 2. Provide a context and a question
+context = """
+Open domain question answering systems are designed to answer any question, regardless of the subject matter. 
+They achieve this by retrieving relevant information from a large corpus of unstructured data. These systems use 
+techniques such as natural language processing (NLP) and machine learning to provide accurate and relevant answers.
+"""
+question = "What are open domain question answering systems?"
+ 
+# 3. Use the pipeline to get the answer from the context
+result = qa_pipeline(question=question, context=context)
+ 
+# 4. Display the result
+print(f"Answer: {result['answer']}")
+
+
+Project 543: Multi-Document Summarization
+Description:
+Multi-document summarization involves generating a concise summary by combining information from multiple documents. The goal is to create a summary that captures the most important points from all documents, without redundant information. In this project, we will use a pre-trained transformer model to generate a summary based on multiple input texts.
+
+🧪 Python Implementation (Multi-Document Summarization using T5)
+from transformers import pipeline
+ 
+# 1. Load pre-trained model for summarization
+summarizer = pipeline("summarization", model="t5-small")
+ 
+# 2. Provide multiple documents to summarize
+documents = [
+    "Artificial intelligence (AI) is intelligence demonstrated by machines, unlike the natural intelligence displayed by humans and animals. Leading AI textbooks define the field as the study of 'intelligent agents': any device that perceives its environment and takes actions that maximize its chance of successfully achieving its goals.",
+    "Machine learning (ML) is a method of data analysis that automates analytical model building. It is a branch of artificial intelligence based on the idea that systems can learn from data, identify patterns, and make decisions with minimal human intervention.",
+    "Natural language processing (NLP) is a field of computer science, artificial intelligence, and computational linguistics concerned with the interactions between computers and human (natural) languages, and, in particular, concerned with programming computers to fruitfully process large natural language data."
+]
+ 
+# 3. Concatenate the documents into one text
+text = " ".join(documents)
+ 
+# 4. Use the model to summarize the concatenated text
+summary = summarizer(text, max_length=100, min_length=50, do_sample=False)
+ 
+# 5. Display the summary
+print(f"Generated Summary: {summary[0]['summary_text']}")
+Project 544: Multilingual Text Processing
+Description:
+Multilingual text processing involves handling text data in multiple languages, including tasks like translation, text classification, and summarization. In this project, we will demonstrate multilingual text processing using a pre-trained transformer model such as mBERT or XLM-R, capable of processing text in various languages.
+
+🧪 Python Implementation (Multilingual Text Processing using XLM-R)
+from transformers import pipeline
+ 
+# 1. Load pre-trained multilingual model for text classification (using XLM-R)
+classifier = pipeline("zero-shot-classification", model="xlm-roberta-base")
+ 
+# 2. Provide a multilingual text (e.g., English and Spanish)
+text_en = "The economy is growing rapidly."
+text_es = "La economía está creciendo rápidamente."
+ 
+# 3. Define candidate labels for classification
+candidate_labels = ["economy", "sports", "technology", "politics"]
+ 
+# 4. Classify the English text
+result_en = classifier(text_en, candidate_labels)
+# Classify the Spanish text
+result_es = classifier(text_es, candidate_labels)
+ 
+# 5. Display the results
+print(f"English Text Classification: {result_en['labels'][0]} with score {result_en['scores'][0]:.2f}")
+print(f"Spanish Text Classification: {result_es['labels'][0]} with score {result_es['scores'][0]:.2f}")
+Project 545: Cross-lingual Transfer Learning
+Description:
+Cross-lingual transfer learning involves leveraging a model trained in one language and applying it to other languages. This enables NLP models to work across languages, even with limited data in the target language. In this project, we will demonstrate cross-lingual transfer learning using a multilingual transformer model (e.g., XLM-R or mBERT) to classify text in a language different from the one it was trained on.
+
+🧪 Python Implementation (Cross-lingual Transfer Learning using XLM-R)
+from transformers import pipeline
+ 
+# 1. Load pre-trained multilingual model for text classification (using XLM-R)
+classifier = pipeline("zero-shot-classification", model="xlm-roberta-base")
+ 
+# 2. Provide a French text (target language) for classification
+text_fr = "L'économie mondiale continue de croître malgré les défis économiques."
+ 
+# 3. Define candidate labels for classification
+candidate_labels = ["economy", "sports", "technology", "politics"]
+ 
+# 4. Classify the French text using cross-lingual transfer
+result_fr = classifier(text_fr, candidate_labels)
+ 
+# 5. Display the result
+print(f"French Text Classification: {result_fr['labels'][0]} with score {result_fr['scores'][0]:.2f}")
+
+
+Project 546: Conversational AI System
+Description:
+A conversational AI system allows machines to engage in dialogue with humans in a natural, interactive manner. This system can be built using pre-trained models like GPT, BERT, or specialized architectures like DialoGPT. In this project, we will build a simple conversational AI system using a pre-trained model that can generate responses to user inputs.
+
+🧪 Python Implementation (Conversational AI System using DialoGPT)
+from transformers import pipeline
+ 
+# 1. Load pre-trained DialoGPT model for conversational AI
+chatbot = pipeline("conversational", model="microsoft/DialoGPT-medium")
+ 
+# 2. Define a function to simulate conversation with the chatbot
+def chat_with_bot(user_input):
+    # Provide the user's input to the chatbot
+    response = chatbot(user_input)
+    return response[0]['generated_text']
+ 
+# 3. Example conversation with the chatbot
+user_input = "Hello, how are you?"
+bot_response = chat_with_bot(user_input)
+print(f"Bot: {bot_response}")
+ 
+# Continue the conversation
+user_input = "What's the weather like today?"
+bot_response = chat_with_bot(user_input)
+print(f"Bot: {bot_response}")
+Project 547: Dialogue State Tracking
+Description:
+Dialogue state tracking is a core component of task-oriented dialogue systems, where the system keeps track of the context and the state of the conversation. This project involves implementing a system that can monitor and maintain the dialogue state, which includes user intents, slot values, and previous interactions. We will simulate a state tracking model that can be used to track user goals in a conversation.
+
+🧪 Python Implementation (Dialogue State Tracking)
+class DialogueStateTracker:
+    def __init__(self):
+        self.state = {
+            "intent": None,
+            "slots": {}
+        }
+ 
+    def update_state(self, intent, slots):
+        self.state["intent"] = intent
+        self.state["slots"] = slots
+ 
+    def get_state(self):
+        return self.state
+ 
+# 1. Instantiate the dialogue state tracker
+tracker = DialogueStateTracker()
+ 
+# 2. Simulate an example conversation
+user_input_1 = "Book a flight from New York to Paris."
+intent_1 = "book_flight"
+slots_1 = {"from": "New York", "to": "Paris", "date": "tomorrow"}
+ 
+# Update the dialogue state with user input
+tracker.update_state(intent_1, slots_1)
+ 
+# 3. Retrieve and display the current state
+current_state = tracker.get_state()
+print(f"Current Dialogue State: {current_state}")
+ 
+# 4. Simulate another user input
+user_input_2 = "I want to depart in the evening."
+intent_2 = "set_departure_time"
+slots_2 = {"departure_time": "evening"}
+ 
+# Update the dialogue state again
+tracker.update_state(intent_2, slots_2)
+ 
+# 5. Retrieve and display the updated state
+updated_state = tracker.get_state()
+print(f"Updated Dialogue State: {updated_state}")
+Project 548: Response Generation for Chatbots
+Description:
+Response generation is a crucial component of chatbots, where the goal is to generate relevant and coherent responses based on user inputs. In this project, we will use a pre-trained transformer model (e.g., DialoGPT or GPT-2) to generate human-like responses to user queries.
+
+🧪 Python Implementation (Response Generation for Chatbots using DialoGPT)
+from transformers import pipeline
+ 
+# 1. Load pre-trained DialoGPT model for response generation
+chatbot = pipeline("conversational", model="microsoft/DialoGPT-medium")
+ 
+# 2. Define a function to generate a response based on user input
+def generate_response(user_input):
+    response = chatbot(user_input)
+    return response[0]['generated_text']
+ 
+# 3. Simulate a conversation with the chatbot
+user_input = "Hi there! How are you doing today?"
+bot_response = generate_response(user_input)
+print(f"Bot: {bot_response}")
+ 
+# Continue the conversation with another user input
+user_input = "Tell me something interesting."
+bot_response = generate_response(user_input)
+print(f"Bot: {bot_response}")
+Project 549: Empathetic Dialogue System
+Description:
+An empathetic dialogue system aims to respond to user inputs with emotional understanding, providing responses that reflect empathy, support, and consideration of the user's emotional state. In this project, we will build a simple empathetic chatbot using a pre-trained model and add functionality for identifying and responding to emotional cues in user inputs.
+
+🧪 Python Implementation (Empathetic Dialogue System)
+from transformers import pipeline
+ 
+# 1. Load pre-trained model for empathetic response generation
+chatbot = pipeline("conversational", model="microsoft/DialoGPT-medium")
+ 
+# 2. Define a function to detect empathy cues in text and generate an empathetic response
+def generate_empathetic_response(user_input):
+    # Simple check for emotional words (e.g., sadness, happiness)
+    if "sad" in user_input or "upset" in user_input:
+        response = "I'm really sorry you're feeling this way. Is there anything I can do to help?"
+    elif "happy" in user_input or "good" in user_input:
+        response = "That's great to hear! I'm so glad you're feeling good today!"
+    else:
+        # Use the chatbot to generate a more general response
+        response = chatbot(user_input)[0]['generated_text']
+    return response
+ 
+# 3. Simulate a conversation with empathetic responses
+user_input = "I am feeling really sad today."
+bot_response = generate_empathetic_response(user_input)
+print(f"Bot: {bot_response}")
+ 
+user_input = "I just got some great news!"
+bot_response = generate_empathetic_response(user_input)
+print(f"Bot: {bot_response}")
+Project 550: Task-Oriented Dialogue System
+Description:
+A task-oriented dialogue system is designed to help users accomplish specific tasks, such as booking a flight, ordering food, or setting a reminder. These systems focus on extracting user intent and fulfilling specific goals. In this project, we will create a simple task-oriented dialogue system that interacts with the user to complete a predefined task, such as flight booking.
+
+🧪 Python Implementation (Task-Oriented Dialogue System for Flight Booking)
+class FlightBookingSystem:
+    def __init__(self):
+        self.state = {
+            "intent": None,
+            "from": None,
+            "to": None,
+            "date": None,
+        }
+ 
+    def update_state(self, intent, slots):
+        self.state["intent"] = intent
+        self.state.update(slots)
+ 
+    def get_state(self):
+        return self.state
+ 
+# 1. Instantiate the flight booking system
+booking_system = FlightBookingSystem()
+ 
+# 2. Simulate user interaction (providing details to book a flight)
+user_input_1 = "I want to book a flight from New York to Paris."
+intent_1 = "book_flight"
+slots_1 = {"from": "New York", "to": "Paris", "date": "tomorrow"}
+ 
+# Update the system's state
+booking_system.update_state(intent_1, slots_1)
+ 
+# 3. Retrieve and display the current state of the booking system
+current_state = booking_system.get_state()
+print(f"Current Flight Booking State: {current_state}")
+ 
+# 4. Simulate another user input (e.g., user wants to change the flight date)
+user_input_2 = "Can I book it for next Monday instead?"
+intent_2 = "change_date"
+slots_2 = {"date": "next Monday"}
+ 
+# Update the system's state again
+booking_system.update_state(intent_2, slots_2)
+ 
+# 5. Retrieve and display the updated state
+updated_state = booking_system.get_state()
+print(f"Updated Flight Booking State: {updated_state}")
+Project 551: Multimodal Dialogue System
+Description:
+A multimodal dialogue system incorporates multiple types of input data, such as text, images, or audio, to engage in more natural and dynamic interactions. In this project, we will create a simple multimodal dialogue system that combines text input and image data to generate responses based on both modalities. For instance, the system might respond to a user's query with both text and images.
+
+🧪 Python Implementation (Multimodal Dialogue System using Text and Images)
+from transformers import pipeline
+from PIL import Image
+import requests
+ 
+# 1. Load pre-trained models for text and image generation
+text_generator = pipeline("text-generation", model="gpt2")
+image_captioning = pipeline("image-captioning")
+ 
+# 2. Function to generate a response based on both text and an image
+def multimodal_response(user_input, image_path=None):
+    # Text-based response generation
+    text_response = text_generator(user_input, max_length=50)[0]['generated_text']
+    
+    # If an image is provided, generate a caption for it
+    if image_path:
+        image = Image.open(image_path)
+        image_caption = image_captioning(image)
+        response = f"Text Response: {text_response}\nImage Caption: {image_caption[0]['caption']}"
+    else:
+        response = f"Text Response: {text_response}"
+    
+    return response
+ 
+# 3. Example user input and image (local path or URL to the image)
+user_input = "Describe the picture of a cat."
+image_path = "path_to_image_of_cat.jpg"  # Update with the actual image path
+ 
+# 4. Generate multimodal response
+response = multimodal_response(user_input, image_path)
+print(response)
+Project 552: Document-Level Sentiment Analysis
+Description:
+Document-level sentiment analysis involves classifying the overall sentiment of a document as positive, negative, or neutral, rather than analyzing sentiment at the sentence or aspect level. In this project, we will use a pre-trained transformer model to classify the sentiment of an entire document.
+
+🧪 Python Implementation (Document-Level Sentiment Analysis using BERT)
+from transformers import pipeline
+ 
+# 1. Load pre-trained model for document-level sentiment analysis
+classifier = pipeline("sentiment-analysis", model="bert-base-uncased")
+ 
+# 2. Provide a sample document for sentiment analysis
+document = """
+The market has seen significant growth this quarter, with many industries reporting increased earnings. 
+Despite this, some sectors are facing challenges due to rising inflation and supply chain disruptions. 
+Overall, however, the economic outlook remains positive, and experts are optimistic about the future.
+"""
+ 
+# 3. Analyze the sentiment of the document
+sentiment = classifier(document)
+ 
+# 4. Display the result
+print(f"Sentiment: {sentiment[0]['label']} with a score of {sentiment[0]['score']:.2f}")
+Project 553: Aspect-Based Sentiment Analysis
+Description:
+Aspect-based sentiment analysis (ABSA) involves determining the sentiment towards specific aspects or features of a product or service, such as the quality of service, price, or delivery time. In this project, we will use a pre-trained transformer model to perform aspect-based sentiment analysis on product reviews.
+
+🧪 Python Implementation (Aspect-Based Sentiment Analysis using BERT)
+from transformers import pipeline
+ 
+# 1. Load pre-trained model for sentiment analysis
+classifier = pipeline("sentiment-analysis", model="bert-base-uncased")
+ 
+# 2. Provide a sample text with multiple aspects to analyze sentiment for
+text = """
+The food at the restaurant was delicious, but the service was slow. The ambiance was great, but the price was a bit high for the portion size.
+"""
+ 
+# 3. Define aspects to analyze sentiment for
+aspects = ["food", "service", "ambiance", "price"]
+ 
+# 4. Analyze sentiment for each aspect
+aspect_sentiments = {}
+for aspect in aspects:
+    sentiment = classifier(f"The {aspect} is {text}")
+    aspect_sentiments[aspect] = sentiment[0]['label']
+ 
+# 5. Display the aspect-based sentiment analysis results
+for aspect, sentiment in aspect_sentiments.items():
+    print(f"Sentiment for {aspect}: {sentiment}")
+Project 554: Stance Detection in Text
+Description:
+Stance detection involves determining the stance or position a writer takes in a piece of text toward a target, such as whether the text is supporting, against, or neutral toward the target. In this project, we will build a stance detection model using a transformer-based model for classifying the stance of text toward a target.
+
+🧪 Python Implementation (Stance Detection using BERT)
+from transformers import pipeline
+ 
+# 1. Load pre-trained model for stance detection (can be fine-tuned for specific task)
+classifier = pipeline("text-classification", model="bert-base-uncased")
+ 
+# 2. Provide a target and text expressing a stance toward that target
+target = "climate change"
+text = "I believe that the evidence strongly supports the need for immediate action on climate change."
+ 
+# 3. Classify the stance (support, against, or neutral)
+stance = classifier(f"The stance toward {target} is: {text}")
+ 
+# 4. Display the result
+print(f"Detected Stance: {stance[0]['label']} with confidence {stance[0]['score']:.2f}")
+Project 555: Hate Speech Detection
+Description:
+Hate speech detection is the task of identifying harmful or offensive content, typically in online communication, such as social media or forums. In this project, we will use a transformer model to detect hate speech in text and classify it as hate speech or non-hate speech.
+
+🧪 Python Implementation (Hate Speech Detection using BERT)
+from transformers import pipeline
+ 
+# 1. Load pre-trained model for hate speech detection
+classifier = pipeline("text-classification", model="unitary/toxic-bert")
+ 
+# 2. Provide a text input to check for hate speech
+text = "You are a worthless person and should not be here."
+ 
+# 3. Classify the input text for hate speech
+result = classifier(text)
+ 
+# 4. Display the result
+if result[0]['label'] == 'LABEL_1':  # LABEL_1 typically corresponds to toxic or hate speech
+    print(f"Hate Speech Detected: {text}")
+else:
+    print(f"Non-Hate Speech: {text}")
+Project 556: Bias Detection in Text
+Description:
+Bias detection involves identifying biased, prejudiced, or unfair representations in text, such as gender bias, racial bias, or ideological bias. In this project, we will use a pre-trained transformer model to detect biases in text and classify it based on the type of bias (if any).
+
+🧪 Python Implementation (Bias Detection in Text using BERT)
+from transformers import pipeline
+ 
+# 1. Load pre-trained model for bias detection
+classifier = pipeline("text-classification", model="unitary/bias-bert")
+ 
+# 2. Provide a text input to check for bias
+text = "Women are not as good at math as men."
+ 
+# 3. Classify the input text for bias
+result = classifier(text)
+ 
+# 4. Display the result
+if result[0]['label'] == 'LABEL_1':  # LABEL_1 typically corresponds to biased content
+    print(f"Bias Detected: {text}")
+else:
+    print(f"No Bias Detected: {text}")
+Project 557: Fairness in NLP Applications
+Description:
+Fairness in NLP applications focuses on ensuring that models do not exhibit biased behavior or make discriminatory decisions based on sensitive attributes like gender, race, or age. In this project, we will analyze the fairness of an NLP model using various fairness metrics and identify potential biases in its predictions.
+
+🧪 Python Implementation (Fairness Analysis in NLP using Pretrained Model)
+from transformers import pipeline
+ 
+# 1. Load pre-trained model for text classification
+classifier = pipeline("text-classification", model="bert-base-uncased")
+ 
+# 2. Define text examples with potential fairness concerns
+example_1 = "She is a doctor."  # Positive gender stereotype
+example_2 = "He is a nurse."  # Negative gender stereotype
+ 
+# 3. Analyze the sentiment or classification for both examples
+result_1 = classifier(example_1)
+result_2 = classifier(example_2)
+ 
+# 4. Display the results and analyze for fairness
+print(f"Example 1: '{example_1}' -> Prediction: {result_1[0]['label']}")
+print(f"Example 2: '{example_2}' -> Prediction: {result_2[0]['label']}")
+ 
+# 5. Fairness check: Does the model apply stereotypical labels based on gender?
+if result_1[0]['label'] == result_2[0]['label']:
+    print("The model might be treating gender-neutral or gender-stereotypical terms similarly, indicating potential fairness issues.")
+else:
+    print("The model's responses seem to be fair without gender bias.")
+
+
+Project 558: Explainable NLP Models
+Description:
+Explainability in NLP models refers to the ability to understand and interpret the decisions made by a machine learning model. This is particularly important for high-stakes applications such as healthcare, finance, and legal systems, where model decisions need to be transparent. In this project, we will use a pre-trained model and techniques like attention visualization or LIME to provide explanations for the model's predictions.
+
+🧪 Python Implementation (Explainable NLP using Attention Visualization)
+from transformers import BertTokenizer, BertForSequenceClassification
+import torch
+import matplotlib.pyplot as plt
+ 
+# 1. Load pre-trained model and tokenizer for sequence classification
+model_name = "bert-base-uncased"
+tokenizer = BertTokenizer.from_pretrained(model_name)
+model = BertForSequenceClassification.from_pretrained(model_name)
+ 
+# 2. Tokenize a sample text for explanation
+text = "The quick brown fox jumped over the lazy dog."
+inputs = tokenizer(text, return_tensors="pt")
+ 
+# 3. Get model's attention weights for explanation
+with torch.no_grad():
+    outputs = model(**inputs, output_attentions=True)
+    attentions = outputs.attentions  # Attention from each layer
+ 
+# 4. Visualize attention weights (e.g., for the first layer and head)
+attention_weights = attentions[0][0]  # First layer, first head
+attention_matrix = attention_weights.sum(dim=0).cpu().numpy()
+ 
+# 5. Plot the attention weights
+plt.figure(figsize=(10, 8))
+plt.imshow(attention_matrix, cmap='hot', interpolation='nearest')
+plt.colorbar()
+plt.title("Attention Visualization for Token Pairing")
+plt.xticks(range(len(inputs.tokens())), inputs.tokens(), rotation=90)
+plt.yticks(range(len(inputs.tokens())), inputs.tokens())
+plt.show()
+Project 559: Active Learning for NLP
+Description:
+Active learning is a machine learning approach where the model queries the user (or an oracle) for labels on the most informative data points, instead of using random samples. This is particularly useful in NLP tasks where labeling data can be expensive. In this project, we will implement an active learning loop to iteratively improve the performance of an NLP model by labeling the most uncertain examples.
+
+🧪 Python Implementation (Active Learning for NLP using BERT)
+from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
+from datasets import load_dataset
+import numpy as np
+import random
+ 
+# 1. Load dataset and pre-trained BERT model
+dataset = load_dataset("imdb", split="train[:10%]")
+tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2)
+ 
+# 2. Tokenize the dataset
+def tokenize_function(examples):
+    return tokenizer(examples['text'], padding="max_length", truncation=True)
+ 
+dataset = dataset.map(tokenize_function, batched=True)
+ 
+# 3. Define the active learning loop
+def active_learning(model, dataset, num_iterations=5):
+    for i in range(num_iterations):
+        # Randomly select a small sample from the unlabeled data
+        unlabeled_data = dataset.shuffle(seed=42).select(range(10))  # Select the first 10 samples for simplicity
+        inputs = tokenizer(unlabeled_data['text'], padding=True, truncation=True, return_tensors="pt")
+ 
+        # Get predictions from the model
+        model.eval()
+        with torch.no_grad():
+            outputs = model(**inputs)
+            predictions = torch.softmax(outputs.logits, dim=-1)
+        
+        # Select the most uncertain samples (lowest confidence)
+        uncertainties = -torch.max(predictions, dim=1)[0]  # Negative log-likelihood
+        most_uncertain_indices = uncertainties.argsort()[:3]  # Select 3 most uncertain examples
+        
+        # Simulate labeling the uncertain examples (in real case, get human labels)
+        labeled_data = unlabeled_data[most_uncertain_indices]
+ 
+        # Add the labeled data to the training set
+        dataset = dataset.concatenate(labeled_data)
+ 
+        print(f"Iteration {i+1}: Added {len(labeled_data)} labeled samples.")
+        
+    return model
+ 
+# 4. Run active learning loop
+trained_model = active_learning(model, dataset)
+ 
+# 5. Evaluate the model performance (for simplicity, not using a validation set here)
+trainer = Trainer(model=trained_model, args=TrainingArguments(output_dir='./results'))
+trainer.train()
+Project 560: Continual Learning for NLP
+Description:
+Continual learning is the ability of a model to learn continuously from new data without forgetting previously learned knowledge. In NLP, this could involve adapting models to new topics, domains, or languages without retraining the model from scratch. In this project, we will implement a simple continual learning system where a model progressively learns from new batches of text data.
+
+🧪 Python Implementation (Continual Learning for NLP using BERT)
+from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
+from datasets import load_dataset
+ 
+# 1. Load initial dataset and pre-trained BERT model
+dataset = load_dataset("imdb", split="train[:10%]")  # Start with a small portion for simplicity
+tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2)
+ 
+# 2. Tokenize the dataset
+def tokenize_function(examples):
+    return tokenizer(examples['text'], padding="max_length", truncation=True)
+ 
+dataset = dataset.map(tokenize_function, batched=True)
+ 
+# 3. Function to simulate continual learning by adding new batches
+def continual_learning(model, dataset, num_batches=5):
+    for i in range(num_batches):
+        # Simulate loading new data (here, we simply shuffle the dataset and take a slice)
+        new_data = dataset.shuffle(seed=42).select(range(10))  # Select the first 10 samples for each new batch
+        inputs = tokenizer(new_data['text'], padding=True, truncation=True, return_tensors="pt")
+ 
+        # Train the model on the new batch (fine-tuning)
+        trainer = Trainer(
+            model=model,
+            args=TrainingArguments(output_dir='./results'),
+            train_dataset=new_data
+        )
+        trainer.train()
+        
+        print(f"Batch {i+1}: Model trained on new data.")
+        
+    return model
+ 
+# 4. Simulate continual learning process
+model = continual_learning(model, dataset)
+ 
+# 5. Evaluate the model performance after continual learning
+trainer = Trainer(model=model, args=TrainingArguments(output_dir='./results'))
+trainer.evaluate()
