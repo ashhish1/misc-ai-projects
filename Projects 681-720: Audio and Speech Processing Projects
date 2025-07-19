@@ -1,0 +1,3226 @@
+
+Project 681: Speech Recognition System
+Description:
+A speech recognition system converts spoken language into text. It can be used for a wide range of applications such as voice assistants, transcription services, and accessibility tools. In this project, we will implement a basic speech recognition system using a pre-trained model like Google's Speech-to-Text API or a library such as SpeechRecognition to transcribe audio into text.
+
+🧪 Python Implementation (Speech Recognition using SpeechRecognition Library)
+import speech_recognition as sr
+ 
+# 1. Initialize the recognizer
+recognizer = sr.Recognizer()
+ 
+# 2. Capture the audio from the microphone
+with sr.Microphone() as source:
+    print("Please say something...")
+    recognizer.adjust_for_ambient_noise(source)  # Adjust for ambient noise
+    audio = recognizer.listen(source)  # Capture the audio
+ 
+# 3. Recognize the speech using Google Speech Recognition API
+try:
+    text = recognizer.recognize_google(audio)
+    print(f"You said: {text}")
+except sr.UnknownValueError:
+    print("Sorry, I could not understand the audio.")
+except sr.RequestError:
+    print("Could not request results from Google Speech Recognition service.")
+Project 682: Speaker Identification
+Description:
+Speaker identification involves determining who is speaking based on their voice characteristics. It is used in applications like voice biometrics, user authentication, and forensics. In this project, we will implement a speaker identification system that can recognize different speakers from a set of recorded speech data. We'll use MFCC (Mel-frequency cepstral coefficients) for feature extraction and a machine learning model (e.g., KNN or SVM) to classify the speakers based on their voice features.
+
+🧪 Python Implementation (Speaker Identification using MFCC and KNN)
+import os
+import numpy as np
+import librosa
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+ 
+# 1. Load audio files and extract MFCC features
+def extract_mfcc(file_path):
+    audio, sr = librosa.load(file_path, sr=None)  # Load the audio file
+    mfcc = librosa.feature.mfcc(audio, sr=sr, n_mfcc=13)  # Extract MFCC features
+    return np.mean(mfcc, axis=1)  # Use the mean MFCC features for classification
+ 
+# 2. Collect dataset (folder with subfolders named by speaker names)
+def collect_data(directory):
+    X = []  # Features
+    y = []  # Labels
+    speakers = os.listdir(directory)  # List of speaker folders
+    
+    for speaker in speakers:
+        speaker_folder = os.path.join(directory, speaker)
+        if os.path.isdir(speaker_folder):
+            for file in os.listdir(speaker_folder):
+                file_path = os.path.join(speaker_folder, file)
+                if file.endswith('.wav'):  # Assuming all audio files are .wav format
+                    mfcc_features = extract_mfcc(file_path)
+                    X.append(mfcc_features)
+                    y.append(speaker)  # Label is the folder name (speaker)
+    
+    return np.array(X), np.array(y)
+ 
+# 3. Train a KNN classifier for speaker identification
+def train_speaker_recognition_model(X, y):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    model = KNeighborsClassifier(n_neighbors=3)  # Initialize KNN classifier
+    model.fit(X_train, y_train)  # Train the model
+    
+    # Evaluate the model
+    y_pred = model.predict(X_test)
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    
+    return model
+ 
+# 4. Test speaker identification with a new audio file
+def identify_speaker(model, file_path):
+    mfcc_features = extract_mfcc(file_path)  # Extract MFCC features from the input file
+    predicted_speaker = model.predict([mfcc_features])
+    print(f"The speaker is: {predicted_speaker[0]}")
+ 
+# 5. Example usage
+directory = "path_to_your_speaker_dataset"  # Replace with the path to your dataset folder
+X, y = collect_data(directory)  # Collect features and labels from the dataset
+model = train_speaker_recognition_model(X, y)  # Train the model
+ 
+# Test the model with a new audio file
+test_file = "path_to_test_audio.wav"  # Replace with a test audio file
+identify_speaker(model, test_file)
+Project 683: Speaker Verification
+Description:
+Speaker verification is the process of verifying the identity of a speaker based on their voice. It is a type of biometric authentication that checks whether the speaker is who they claim to be. In this project, we will implement a speaker verification system that compares the voice of a person to a stored voice model (template) and decides whether the person is authenticated. We will use MFCC features for voice feature extraction and a distance-based classifier like cosine similarity for speaker verification.
+
+🧪 Python Implementation (Speaker Verification using MFCC and Cosine Similarity)
+import numpy as np
+import librosa
+from sklearn.metrics.pairwise import cosine_similarity
+ 
+# 1. Extract MFCC features from an audio file
+def extract_mfcc(file_path):
+    audio, sr = librosa.load(file_path, sr=None)  # Load the audio file
+    mfcc = librosa.feature.mfcc(audio, sr=sr, n_mfcc=13)  # Extract MFCC features
+    return np.mean(mfcc, axis=1)  # Use the mean of the MFCC features for verification
+ 
+# 2. Store the voice model of a person (template)
+def create_speaker_model(file_path):
+    """
+    Generate a speaker model by extracting the MFCC features from an audio file.
+    :param file_path: The path to the audio file of the speaker.
+    :return: The MFCC features representing the speaker's voice.
+    """
+    return extract_mfcc(file_path)
+ 
+# 3. Verify the speaker by comparing the input voice to the stored model using cosine similarity
+def verify_speaker(stored_model, input_audio_file, threshold=0.8):
+    """
+    Verify if the input audio matches the stored model based on cosine similarity.
+    :param stored_model: MFCC features representing the stored speaker's model.
+    :param input_audio_file: Path to the input audio file for verification.
+    :param threshold: Cosine similarity threshold for accepting the match.
+    :return: True if the speaker is verified, False otherwise.
+    """
+    input_model = extract_mfcc(input_audio_file)  # Extract MFCC features from the input audio
+    similarity = cosine_similarity([stored_model], [input_model])  # Calculate cosine similarity
+    print(f"Cosine Similarity: {similarity[0][0]}")
+ 
+    if similarity[0][0] > threshold:
+        print("Speaker verified!")
+        return True
+    else:
+        print("Speaker not verified!")
+        return False
+ 
+# 4. Example usage
+# 4.1 Create a model for the speaker by providing an audio sample
+speaker_model_file = "path_to_speaker_audio.wav"  # Replace with the path to the speaker's voice file
+stored_model = create_speaker_model(speaker_model_file)
+ 
+# 4.2 Verify the speaker using a new audio sample
+verification_audio_file = "path_to_input_audio.wav"  # Replace with the path to the input audio for verification
+verify_speaker(stored_model, verification_audio_file)
+Project 684: Speech Emotion Recognition
+Description:
+Speech emotion recognition involves detecting emotional states (such as happiness, sadness, anger, etc.) from speech signals. This is important for applications like affective computing, virtual assistants, and customer service automation. In this project, we will implement a speech emotion recognition system using MFCC (Mel-frequency cepstral coefficients) for feature extraction and a machine learning model (such as SVM or Random Forest) to classify emotions based on the features extracted from the audio.
+
+🧪 Python Implementation (Speech Emotion Recognition using MFCC and SVM)
+import numpy as np
+import librosa
+from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+import os
+ 
+# 1. Extract MFCC features from an audio file
+def extract_mfcc(file_path):
+    audio, sr = librosa.load(file_path, sr=None)  # Load the audio file
+    mfcc = librosa.feature.mfcc(audio, sr=sr, n_mfcc=13)  # Extract MFCC features
+    return np.mean(mfcc, axis=1)  # Use the mean of the MFCC features for classification
+ 
+# 2. Collect emotion dataset (folder with subfolders named by emotions)
+def collect_data(directory):
+    X = []  # Features (MFCCs)
+    y = []  # Labels (Emotions)
+    emotions = os.listdir(directory)  # List of emotion folders
+    
+    for emotion in emotions:
+        emotion_folder = os.path.join(directory, emotion)
+        if os.path.isdir(emotion_folder):
+            for file in os.listdir(emotion_folder):
+                file_path = os.path.join(emotion_folder, file)
+                if file.endswith('.wav'):  # Assuming all audio files are .wav format
+                    mfcc_features = extract_mfcc(file_path)
+                    X.append(mfcc_features)
+                    y.append(emotion)  # Label is the emotion
+    return np.array(X), np.array(y)
+ 
+# 3. Train the emotion recognition model
+def train_emotion_recognition_model(X, y):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    model = SVC(kernel='linear')  # Support Vector Classifier for emotion recognition
+    model.fit(X_train, y_train)  # Train the model
+    
+    # Evaluate the model
+    y_pred = model.predict(X_test)
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    
+    return model
+ 
+# 4. Test emotion recognition with a new audio file
+def predict_emotion(model, file_path):
+    mfcc_features = extract_mfcc(file_path)  # Extract MFCC features from the input file
+    predicted_emotion = model.predict([mfcc_features])
+    print(f"The emotion is: {predicted_emotion[0]}")
+ 
+# 5. Example usage
+directory = "path_to_your_emotion_dataset"  # Replace with the path to your emotion dataset folder
+X, y = collect_data(directory)  # Collect features and labels from the dataset
+model = train_emotion_recognition_model(X, y)  # Train the model
+ 
+# Test the model with a new audio file
+test_file = "path_to_test_audio.wav"  # Replace with a test audio file
+predict_emotion(model, test_file)
+Project 685: Speech Enhancement System
+Description:
+A speech enhancement system improves the quality and clarity of speech signals, especially in noisy environments. This is important for applications such as voice recognition, telecommunication, and assistive devices. In this project, we will implement a simple speech enhancement system that removes background noise from a speech signal using spectral subtraction or Wiener filtering. The goal is to improve the quality of the speech signal by reducing noise while preserving speech details.
+
+🧪 Python Implementation (Speech Enhancement using Spectral Subtraction)
+import numpy as np
+import librosa
+import matplotlib.pyplot as plt
+ 
+# 1. Load the noisy speech signal
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Apply spectral subtraction to enhance speech
+def spectral_subtraction(noisy_signal, noise_estimate):
+    """
+    Perform spectral subtraction for speech enhancement.
+    :param noisy_signal: Noisy speech signal
+    :param noise_estimate: Estimated noise signal
+    :return: Enhanced speech signal
+    """
+    # Perform STFT (Short-Time Fourier Transform) to get frequency-domain representation
+    noisy_stft = librosa.stft(noisy_signal)
+    noise_stft = librosa.stft(noise_estimate)
+ 
+    # Subtract the noise spectrum from the noisy signal's spectrum
+    enhanced_stft = noisy_stft - noise_stft
+    enhanced_stft = np.maximum(enhanced_stft, 0)  # Ensure no negative values in the spectrum
+ 
+    # Perform inverse STFT to get the enhanced time-domain signal
+    enhanced_signal = librosa.istft(enhanced_stft)
+    return enhanced_signal
+ 
+# 3. Visualize the original and enhanced signals
+def plot_signals(noisy_signal, enhanced_signal, sr):
+    plt.figure(figsize=(10, 6))
+ 
+    # Plot the noisy signal
+    plt.subplot(2, 1, 1)
+    plt.plot(noisy_signal)
+    plt.title("Noisy Speech Signal")
+    plt.xlabel("Time (samples)")
+    plt.ylabel("Amplitude")
+ 
+    # Plot the enhanced signal
+    plt.subplot(2, 1, 2)
+    plt.plot(enhanced_signal)
+    plt.title("Enhanced Speech Signal (After Spectral Subtraction)")
+    plt.xlabel("Time (samples)")
+    plt.ylabel("Amplitude")
+ 
+    plt.tight_layout()
+    plt.show()
+ 
+# 4. Example usage
+noisy_file = "path_to_noisy_audio.wav"  # Replace with the path to the noisy speech file
+noise_file = "path_to_noise_audio.wav"  # Replace with the path to a noise sample
+ 
+# Load the audio signals
+noisy_signal, sr = load_audio(noisy_file)
+noise_signal, _ = load_audio(noise_file)
+ 
+# Apply spectral subtraction to enhance the speech signal
+enhanced_signal = spectral_subtraction(noisy_signal, noise_signal)
+ 
+# Visualize the original and enhanced signals
+plot_signals(noisy_signal, enhanced_signal, sr)
+ 
+# Optionally, save the enhanced signal
+librosa.output.write_wav("enhanced_speech.wav", enhanced_signal, sr)
+Project 686: Speech Separation (Cocktail Party Problem)
+Description:
+The cocktail party problem refers to the challenge of separating multiple overlapping speech signals from a mixture, much like trying to hear a single conversation in a noisy room with many people talking. In this project, we will implement a speech separation system that uses a Deep Learning-based approach (e.g., Convolutional Neural Networks or U-Net) to separate mixed audio signals into individual speech sources. We will simulate this using a mixture of two speech signals and apply a separation algorithm.
+
+🧪 Python Implementation (Speech Separation using Deep Learning)
+To implement speech separation using a deep learning approach, such as U-Net, you'll need a dataset of mixed speech signals (e.g., LibriMix) and pre-trained models. Here's a high-level implementation using PyTorch and Wave-U-Net.
+
+Since actual deep learning-based speech separation is quite complex and typically requires a large dataset, I'll show a simplified approach to separate two mixed signals using scipy for basic signal separation. For deep learning methods, a library like Spleeter (developed by Deezer) can be used for real-world applications.
+
+import numpy as np
+import librosa
+import matplotlib.pyplot as plt
+from scipy.signal import stft, istft
+ 
+# 1. Load two speech signals to simulate a cocktail party scenario
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Simulate a cocktail party by mixing two speech signals
+def mix_speech_signals(signal1, signal2, snr_db=10):
+    """
+    Mix two speech signals at a specified signal-to-noise ratio (SNR).
+    :param signal1: First speech signal
+    :param signal2: Second speech signal
+    :param snr_db: Signal-to-noise ratio in decibels
+    :return: Mixed signal
+    """
+    # Calculate the power of both signals
+    power1 = np.sum(signal1**2)
+    power2 = np.sum(signal2**2)
+ 
+    # Calculate scaling factor based on desired SNR
+    snr_linear = 10 ** (snr_db / 10)
+    scale_factor = np.sqrt((power1 + power2) / (snr_linear * power2))
+ 
+    # Mix signals
+    mixed_signal = signal1 + scale_factor * signal2
+    return mixed_signal
+ 
+# 3. Simple speech separation using basic spectral subtraction
+def spectral_subtraction_separation(mixed_signal, original_signal1, original_signal2):
+    """
+    Perform a basic separation using spectral subtraction.
+    :param mixed_signal: The mixed signal
+    :param original_signal1: Original first signal (used for estimating noise)
+    :param original_signal2: Original second signal (used for estimating noise)
+    :return: Separated signals
+    """
+    # Compute Short-Time Fourier Transform (STFT) of the mixed signal
+    f, t, Zxx = stft(mixed_signal, nperseg=1024)
+ 
+    # Estimate the magnitude and phase of the signals
+    mag = np.abs(Zxx)
+    phase = np.angle(Zxx)
+ 
+    # Estimate noise magnitude using original signals
+    f, t, Zxx1 = stft(original_signal1, nperseg=1024)
+    f, t, Zxx2 = stft(original_signal2, nperseg=1024)
+    mag1 = np.abs(Zxx1)
+    mag2 = np.abs(Zxx2)
+ 
+    # Spectral subtraction (very simplified version)
+    mag_separated1 = mag - mag1
+    mag_separated2 = mag - mag2
+    mag_separated1 = np.maximum(mag_separated1, 0)  # Avoid negative values
+    mag_separated2 = np.maximum(mag_separated2, 0)  # Avoid negative values
+ 
+    # Reconstruct signals
+    _, separated_signal1 = istft(mag_separated1 * np.exp(1j * phase), nperseg=1024)
+    _, separated_signal2 = istft(mag_separated2 * np.exp(1j * phase), nperseg=1024)
+ 
+    return separated_signal1, separated_signal2
+ 
+# 4. Example usage
+signal1_file = "path_to_speech1.wav"  # Replace with path to first speech file
+signal2_file = "path_to_speech2.wav"  # Replace with path to second speech file
+ 
+# Load the speech signals
+signal1, sr = load_audio(signal1_file)
+signal2, _ = load_audio(signal2_file)
+ 
+# Mix the speech signals with a desired SNR
+mixed_signal = mix_speech_signals(signal1, signal2, snr_db=10)
+ 
+# Separate the mixed signal into individual speech signals
+separated_signal1, separated_signal2 = spectral_subtraction_separation(mixed_signal, signal1, signal2)
+ 
+# Plot the original, mixed, and separated signals
+plt.figure(figsize=(10, 6))
+plt.subplot(3, 1, 1)
+plt.plot(signal1, label="Original Speech 1")
+plt.title("Original Speech 1")
+plt.subplot(3, 1, 2)
+plt.plot(mixed_signal, label="Mixed Signal")
+plt.title("Mixed Signal")
+plt.subplot(3, 1, 3)
+plt.plot(separated_signal1, label="Separated Speech 1")
+plt.title("Separated Speech 1")
+plt.tight_layout()
+plt.show()
+This example shows how to simulate a cocktail party problem by mixing two speech signals and applying a basic spectral subtraction technique to attempt separation. However, for real-world use, more advanced techniques like Wave-U-Net, Spleeter, or Deep Clustering should be used for high-quality speech separation.
+
+Project 687: Voice Activity Detection
+Description:
+Voice Activity Detection (VAD) is the process of detecting the presence or absence of human speech in an audio signal. This is a crucial preprocessing step for speech-related applications like speech recognition, audio compression, and telecommunication. In this project, we will implement a VAD system that identifies speech segments in an audio signal and separates them from non-speech segments (e.g., silence or noise). The system will use energy-based detection or spectral features like MFCC to distinguish between speech and non-speech segments.
+
+🧪 Python Implementation (Voice Activity Detection using Energy-based Method)
+import numpy as np
+import librosa
+import matplotlib.pyplot as plt
+ 
+# 1. Load the audio signal
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Voice Activity Detection using energy-based method
+def voice_activity_detection(audio, frame_size=1024, threshold=0.02):
+    """
+    Perform Voice Activity Detection (VAD) using an energy-based method.
+    :param audio: Input audio signal
+    :param frame_size: Size of the frame for energy calculation (samples)
+    :param threshold: Energy threshold for detecting speech activity
+    :return: A binary array (1 for speech, 0 for non-speech)
+    """
+    # Compute the energy of the signal in short frames
+    energy = np.array([np.sum(np.abs(audio[i:i+frame_size])**2) for i in range(0, len(audio), frame_size)])
+ 
+    # Normalize energy for consistent thresholding
+    energy = energy / np.max(energy)
+ 
+    # Detect voice activity based on energy threshold
+    vad = (energy > threshold).astype(int)
+    return vad, energy
+ 
+# 3. Plot the audio signal and VAD result
+def plot_vad(audio, vad, energy, sr, frame_size=1024):
+    """
+    Plot the audio signal with the Voice Activity Detection (VAD) results.
+    :param audio: Audio signal
+    :param vad: VAD binary array (1 for speech, 0 for non-speech)
+    :param energy: Energy of the audio signal
+    :param sr: Sample rate
+    :param frame_size: Size of the frame for energy calculation (samples)
+    """
+    time = np.arange(len(audio)) / sr
+    time_frames = np.arange(0, len(audio), frame_size) / sr
+ 
+    # Plot audio signal
+    plt.figure(figsize=(10, 6))
+    plt.subplot(2, 1, 1)
+    plt.plot(time, audio, label="Audio Signal")
+    plt.title("Audio Signal")
+    plt.xlabel("Time [s]")
+    plt.ylabel("Amplitude")
+ 
+    # Plot VAD result
+    plt.subplot(2, 1, 2)
+    plt.plot(time_frames, energy, label="Energy", color="orange")
+    plt.step(time_frames, vad, where='post', label="VAD (Speech/Non-speech)", color="blue", linestyle='--')
+    plt.title("Voice Activity Detection (VAD)")
+    plt.xlabel("Time [s]")
+    plt.ylabel("Energy")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+ 
+# 4. Example usage
+audio_file = "path_to_audio.wav"  # Replace with your audio file path
+ 
+# Load the audio signal
+audio, sr = load_audio(audio_file)
+ 
+# Apply VAD
+vad, energy = voice_activity_detection(audio, frame_size=1024, threshold=0.02)
+ 
+# Plot the audio signal and VAD result
+plot_vad(audio, vad, energy, sr)
+This VAD system uses an energy-based method to detect voice activity by calculating the energy of the signal in short frames. If the energy in a frame exceeds a predefined threshold, it is considered as speech (voice activity); otherwise, it is labeled as non-speech (silence or noise).
+
+Project 688: Automatic Speech Segmentation
+Description:
+Speech segmentation is the process of dividing continuous speech into meaningful units such as words, phrases, or sentences. In this project, we will implement an automatic speech segmentation system that segments a speech signal into different speech regions. This system will rely on voice activity detection (VAD) to differentiate between speech and non-speech segments, then apply boundary detection techniques to identify where individual speech events begin and end.
+
+🧪 Python Implementation (Automatic Speech Segmentation using VAD and Boundary Detection)
+import numpy as np
+import librosa
+import matplotlib.pyplot as plt
+ 
+# 1. Load the audio signal
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Voice Activity Detection (VAD) to identify speech segments
+def voice_activity_detection(audio, frame_size=1024, threshold=0.02):
+    """
+    Perform Voice Activity Detection (VAD) using an energy-based method.
+    :param audio: Input audio signal
+    :param frame_size: Size of the frame for energy calculation (samples)
+    :param threshold: Energy threshold for detecting speech activity
+    :return: A binary array (1 for speech, 0 for non-speech)
+    """
+    # Compute the energy of the signal in short frames
+    energy = np.array([np.sum(np.abs(audio[i:i+frame_size])**2) for i in range(0, len(audio), frame_size)])
+ 
+    # Normalize energy for consistent thresholding
+    energy = energy / np.max(energy)
+ 
+    # Detect voice activity based on energy threshold
+    vad = (energy > threshold).astype(int)
+    return vad, energy
+ 
+# 3. Detect speech segment boundaries from VAD
+def detect_speech_boundaries(vad):
+    """
+    Detect boundaries between speech and non-speech regions.
+    :param vad: Binary VAD array (1 for speech, 0 for non-speech)
+    :return: List of speech segment start and end indices
+    """
+    boundaries = []
+    is_speech = False
+    start = None
+ 
+    for i in range(len(vad)):
+        if vad[i] == 1 and not is_speech:  # Speech starts
+            start = i
+            is_speech = True
+        elif vad[i] == 0 and is_speech:  # Speech ends
+            boundaries.append((start, i - 1))
+            is_speech = False
+ 
+    # If the last segment is speech, add it
+    if is_speech:
+        boundaries.append((start, len(vad) - 1))
+ 
+    return boundaries
+ 
+# 4. Visualize the speech segments
+def plot_speech_segmentation(audio, vad, energy, sr, boundaries, frame_size=1024):
+    """
+    Visualize the speech segmentation, showing the audio signal, energy, and identified speech segments.
+    :param audio: Audio signal
+    :param vad: VAD binary array (1 for speech, 0 for non-speech)
+    :param energy: Energy of the audio signal
+    :param sr: Sample rate
+    :param boundaries: List of detected speech segment boundaries
+    :param frame_size: Size of the frame for energy calculation (samples)
+    """
+    time = np.arange(len(audio)) / sr
+    time_frames = np.arange(0, len(audio), frame_size) / sr
+ 
+    # Plot audio signal
+    plt.figure(figsize=(10, 6))
+    plt.subplot(3, 1, 1)
+    plt.plot(time, audio, label="Audio Signal")
+    plt.title("Audio Signal")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Amplitude")
+ 
+    # Plot energy
+    plt.subplot(3, 1, 2)
+    plt.plot(time_frames, energy, label="Energy", color="orange")
+    plt.title("Energy of the Signal")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Energy")
+ 
+    # Plot speech segments
+    plt.subplot(3, 1, 3)
+    plt.plot(time, audio, label="Audio Signal", alpha=0.5)
+    for start, end in boundaries:
+        plt.axvspan(start / sr, (end + 1) / sr, color='green', alpha=0.5, label="Speech Segment")
+    plt.title("Speech Segments")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Amplitude")
+    plt.tight_layout()
+    plt.show()
+ 
+# 5. Example usage
+audio_file = "path_to_audio.wav"  # Replace with your audio file path
+ 
+# Load the audio signal
+audio, sr = load_audio(audio_file)
+ 
+# Apply VAD to detect speech regions
+vad, energy = voice_activity_detection(audio, frame_size=1024, threshold=0.02)
+ 
+# Detect speech boundaries
+boundaries = detect_speech_boundaries(vad)
+ 
+# Plot the segmentation results
+plot_speech_segmentation(audio, vad, energy, sr, boundaries)
+This speech segmentation system uses voice activity detection (VAD) to detect speech and non-speech segments and then applies boundary detection to identify the start and end of speech regions. The system visualizes the audio signal, its energy, and the detected speech segments.
+
+Project 689: Text-to-Speech Synthesis
+Description:
+Text-to-Speech (TTS) synthesis is the process of converting written text into spoken words. It has applications in various fields, including virtual assistants, assistive technologies, and audiobooks. In this project, we will implement a basic TTS system using Google Text-to-Speech (gTTS), which converts input text into speech. The system will generate audio files from given text inputs, which can then be played back to the user.
+
+🧪 Python Implementation (Text-to-Speech Synthesis using gTTS)
+from gtts import gTTS
+import os
+ 
+# 1. Define the text-to-speech synthesis function
+def text_to_speech(text, language='en', output_file='output.mp3'):
+    """
+    Convert text to speech and save the output as an audio file.
+    :param text: Text to convert to speech
+    :param language: Language for speech synthesis (default is English)
+    :param output_file: The name of the output audio file
+    """
+    # Initialize gTTS object with text and language
+    tts = gTTS(text=text, lang=language, slow=False)  # slow=False makes the speech faster
+ 
+    # Save the generated speech to an audio file
+    tts.save(output_file)
+    print(f"Speech saved as {output_file}")
+ 
+    # Play the generated speech (optional)
+    os.system(f"start {output_file}")  # This works on Windows. On macOS use 'afplay', on Linux 'mpg321' or 'aplay'
+ 
+# 2. Example usage
+text = "Hello, welcome to the Text-to-Speech project. I hope you enjoy learning!"
+text_to_speech(text)  # Convert the text to speech and save as 'output.mp3'
+In this Text-to-Speech synthesis project, we use Google Text-to-Speech (gTTS) to convert a given text string into an audio file and save it as an MP3 file. The speech is generated using the English language, but you can change the language parameter for different languages (e.g., 'es' for Spanish, 'de' for German).
+
+Project 690: Voice Conversion System
+Description:
+Voice conversion (VC) involves transforming the speech signal of one person to sound like it is spoken by another person. This is commonly used in voice modification applications such as personalized assistants and speech synthesis. In this project, we will implement a simple voice conversion system using speech feature extraction (e.g., MFCC or spectrograms) and a neural network or traditional signal processing techniques to map the voice features of one speaker to another.
+
+🧪 Python Implementation (Voice Conversion using Simple Feature Mapping)
+This example demonstrates a basic voice conversion using MFCC features and linear regression for mapping the voice of one speaker to another. For a more advanced system, techniques like CycleGAN or autoencoders can be used.
+
+import numpy as np
+import librosa
+from sklearn.linear_model import LinearRegression
+import matplotlib.pyplot as plt
+ 
+# 1. Load audio and extract MFCC features
+def extract_mfcc(file_path):
+    audio, sr = librosa.load(file_path, sr=None)  # Load the audio file
+    mfcc = librosa.feature.mfcc(audio, sr=sr, n_mfcc=13)  # Extract MFCC features
+    return np.mean(mfcc, axis=1)  # Use the mean of the MFCC features for conversion
+ 
+# 2. Train the voice conversion model (mapping from source to target speaker)
+def train_voice_conversion_model(source_audio, target_audio):
+    source_mfcc = extract_mfcc(source_audio)  # Extract MFCC from source speaker
+    target_mfcc = extract_mfcc(target_audio)  # Extract MFCC from target speaker
+ 
+    # Linear regression model to map source features to target features
+    model = LinearRegression()
+    model.fit(source_mfcc.reshape(-1, 1), target_mfcc.reshape(-1, 1))  # Train on MFCC features
+ 
+    return model
+ 
+# 3. Convert source voice to target voice using the trained model
+def convert_voice(model, source_audio):
+    source_mfcc = extract_mfcc(source_audio)  # Extract MFCC from the source speaker
+    converted_mfcc = model.predict(source_mfcc.reshape(-1, 1))  # Map to target speaker's MFCC
+    return converted_mfcc
+ 
+# 4. Visualize the original and converted MFCC features
+def plot_conversion(source_audio, target_audio, converted_mfcc):
+    source_mfcc = extract_mfcc(source_audio)
+    target_mfcc = extract_mfcc(target_audio)
+ 
+    plt.figure(figsize=(10, 6))
+    plt.subplot(3, 1, 1)
+    plt.plot(source_mfcc, label="Source Speaker MFCC")
+    plt.title("Source Speaker MFCC")
+    plt.subplot(3, 1, 2)
+    plt.plot(target_mfcc, label="Target Speaker MFCC")
+    plt.title("Target Speaker MFCC")
+    plt.subplot(3, 1, 3)
+    plt.plot(converted_mfcc, label="Converted MFCC")
+    plt.title("Converted Speaker MFCC")
+    plt.tight_layout()
+    plt.show()
+ 
+# 5. Example usage
+source_audio = "path_to_source_speaker_audio.wav"  # Replace with source speaker's audio file
+target_audio = "path_to_target_speaker_audio.wav"  # Replace with target speaker's audio file
+ 
+# Train the voice conversion model
+model = train_voice_conversion_model(source_audio, target_audio)
+ 
+# Convert the source speaker's voice to the target speaker's voice
+converted_mfcc = convert_voice(model, source_audio)
+ 
+# Visualize the MFCC features
+plot_conversion(source_audio, target_audio, converted_mfcc)
+In this Voice Conversion project, we first extract MFCC features from both the source and target speaker's audio. Then, a Linear Regression model is trained to map the source speaker's features to the target speaker's features. The system then applies this learned mapping to convert the voice features of the source speaker into the target speaker's voice features.
+
+For more advanced voice conversion, methods like CycleGAN or Autoencoders can be used to perform non-linear transformations between speakers.
+
+Project 690: Voice Conversion System
+Description:
+A Voice Conversion (VC) system transforms the voice of one speaker (source) into the voice of another speaker (target). The goal is to modify the source speaker's features (e.g., pitch, tone, and timbre) to match those of the target speaker, while preserving the content of the speech. In this project, we will implement a basic voice conversion system using feature extraction (e.g., MFCC), speech synthesis (e.g., WaveNet or Vocoder), and simple transformations such as pitch shifting or spectral manipulation to convert a speaker's voice.
+
+🧪 Python Implementation (Voice Conversion using Pitch Shifting)
+For simplicity, we will use pitch shifting to perform basic voice conversion. For more advanced systems, neural networks like CycleGANs or Autoencoders are used for high-quality conversion, but here we will focus on a basic technique using librosa.
+
+import librosa
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Load the source audio signal
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Apply pitch shifting for voice conversion
+def pitch_shift(audio, sr, n_steps):
+    """
+    Perform pitch shifting on the audio signal.
+    :param audio: Input audio signal
+    :param sr: Sample rate of the audio
+    :param n_steps: Number of semitones to shift (positive for higher pitch, negative for lower pitch)
+    :return: Pitch-shifted audio signal
+    """
+    shifted_audio = librosa.effects.pitch_shift(audio, sr, n_steps=n_steps)
+    return shifted_audio
+ 
+# 3. Plot original and converted audio for comparison
+def plot_audio_comparison(original_audio, converted_audio, sr):
+    time = np.arange(len(original_audio)) / sr
+ 
+    plt.figure(figsize=(10, 6))
+ 
+    plt.subplot(2, 1, 1)
+    plt.plot(time, original_audio, label="Original Audio")
+    plt.title("Original Audio Signal")
+    plt.xlabel("Time [s]")
+    plt.ylabel("Amplitude")
+    
+    plt.subplot(2, 1, 2)
+    plt.plot(time, converted_audio, label="Converted Audio", color='orange')
+    plt.title("Converted Audio (Pitch Shifted)")
+    plt.xlabel("Time [s]")
+    plt.ylabel("Amplitude")
+ 
+    plt.tight_layout()
+    plt.show()
+ 
+# 4. Example usage
+source_file = "path_to_source_audio.wav"  # Replace with the path to the source audio file (speaker's voice)
+target_pitch_shift = 2  # Shift the pitch by 2 semitones (for example, to increase the pitch)
+ 
+# Load the source audio
+audio, sr = load_audio(source_file)
+ 
+# Perform voice conversion by pitch shifting
+converted_audio = pitch_shift(audio, sr, n_steps=target_pitch_shift)
+ 
+# Plot the comparison of original and converted audio
+plot_audio_comparison(audio, converted_audio, sr)
+ 
+# Optionally, save the converted audio
+librosa.output.write_wav("converted_audio.wav", converted_audio, sr)
+In this Voice Conversion System, we use pitch shifting as a simple technique to change the pitch of the source speaker's voice to match that of a target speaker. More sophisticated techniques could involve deep learning models or advanced signal processing methods.
+
+Project 691: Audio Classification System
+Description:
+An audio classification system automatically assigns labels to audio data based on its content. This is useful for applications like genre classification, emotion detection, and speech recognition. In this project, we will build a simple audio classification system using MFCC (Mel-frequency cepstral coefficients) features and a machine learning model such as SVM or Random Forest to classify different audio types. We will use a dataset of labeled audio files for training and testing.
+
+🧪 Python Implementation (Audio Classification using MFCC and SVM)
+import numpy as np
+import librosa
+from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+import os
+ 
+# 1. Extract MFCC features from an audio file
+def extract_mfcc(file_path):
+    audio, sr = librosa.load(file_path, sr=None)  # Load the audio file
+    mfcc = librosa.feature.mfcc(audio, sr=sr, n_mfcc=13)  # Extract MFCC features
+    return np.mean(mfcc, axis=1)  # Use the mean of the MFCC features for classification
+ 
+# 2. Collect audio dataset (folder with subfolders named by class labels)
+def collect_data(directory):
+    X = []  # Features (MFCCs)
+    y = []  # Labels (Audio class labels)
+    classes = os.listdir(directory)  # List of class folders
+    
+    for audio_class in classes:
+        class_folder = os.path.join(directory, audio_class)
+        if os.path.isdir(class_folder):
+            for file in os.listdir(class_folder):
+                file_path = os.path.join(class_folder, file)
+                if file.endswith('.wav'):  # Assuming all audio files are .wav format
+                    mfcc_features = extract_mfcc(file_path)
+                    X.append(mfcc_features)
+                    y.append(audio_class)  # Label is the class folder name
+    return np.array(X), np.array(y)
+ 
+# 3. Train the audio classification model
+def train_audio_classification_model(X, y):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    model = SVC(kernel='linear')  # Support Vector Classifier for audio classification
+    model.fit(X_train, y_train)  # Train the model
+    
+    # Evaluate the model
+    y_pred = model.predict(X_test)
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    
+    return model
+ 
+# 4. Test the audio classification model with a new audio file
+def classify_audio(model, file_path):
+    mfcc_features = extract_mfcc(file_path)  # Extract MFCC features from the input file
+    predicted_class = model.predict([mfcc_features])
+    print(f"The audio class is: {predicted_class[0]}")
+ 
+# 5. Example usage
+directory = "path_to_audio_dataset"  # Replace with the path to your audio dataset folder
+X, y = collect_data(directory)  # Collect features and labels from the dataset
+model = train_audio_classification_model(X, y)  # Train the model
+ 
+# Test the model with a new audio file
+test_file = "path_to_test_audio.wav"  # Replace with a test audio file
+classify_audio(model, test_file)
+In this Audio Classification System, we use MFCC features extracted from audio files to train a Support Vector Classifier (SVC). The model is then used to classify new audio samples based on the learned features.
+
+Project 692: Environmental Sound Classification
+Description:
+Environmental sound classification involves categorizing various types of sounds in the environment (such as traffic noise, birds chirping, or people talking). It is important for applications like smart home systems, urban monitoring, and wildlife observation. In this project, we will implement an environmental sound classification system using MFCC (Mel-frequency cepstral coefficients) for feature extraction and a machine learning classifier (such as Random Forest or SVM) to classify different environmental sounds.
+
+🧪 Python Implementation (Environmental Sound Classification using MFCC and SVM)
+import numpy as np
+import librosa
+from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+import os
+ 
+# 1. Extract MFCC features from an audio file
+def extract_mfcc(file_path):
+    audio, sr = librosa.load(file_path, sr=None)  # Load the audio file
+    mfcc = librosa.feature.mfcc(audio, sr=sr, n_mfcc=13)  # Extract MFCC features
+    return np.mean(mfcc, axis=1)  # Use the mean of the MFCC features for classification
+ 
+# 2. Collect environmental sound dataset (folder with subfolders named by sound types)
+def collect_data(directory):
+    X = []  # Features (MFCCs)
+    y = []  # Labels (Sound types)
+    sound_types = os.listdir(directory)  # List of sound type folders
+    
+    for sound_type in sound_types:
+        sound_folder = os.path.join(directory, sound_type)
+        if os.path.isdir(sound_folder):
+            for file in os.listdir(sound_folder):
+                file_path = os.path.join(sound_folder, file)
+                if file.endswith('.wav'):  # Assuming all audio files are .wav format
+                    mfcc_features = extract_mfcc(file_path)
+                    X.append(mfcc_features)
+                    y.append(sound_type)  # Label is the sound type (folder name)
+    return np.array(X), np.array(y)
+ 
+# 3. Train the environmental sound classification model
+def train_sound_classification_model(X, y):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    model = SVC(kernel='linear')  # Support Vector Classifier for environmental sound classification
+    model.fit(X_train, y_train)  # Train the model
+    
+    # Evaluate the model
+    y_pred = model.predict(X_test)
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    
+    return model
+ 
+# 4. Test the environmental sound classification model with a new audio file
+def classify_sound(model, file_path):
+    mfcc_features = extract_mfcc(file_path)  # Extract MFCC features from the input file
+    predicted_class = model.predict([mfcc_features])
+    print(f"The sound type is: {predicted_class[0]}")
+ 
+# 5. Example usage
+directory = "path_to_sound_dataset"  # Replace with the path to your environmental sound dataset folder
+X, y = collect_data(directory)  # Collect features and labels from the dataset
+model = train_sound_classification_model(X, y)  # Train the model
+ 
+# Test the model with a new audio file
+test_file = "path_to_test_audio.wav"  # Replace with a test audio file
+classify_sound(model, test_file)
+In this Environmental Sound Classification project, we use MFCC features to represent environmental sounds, and a Support Vector Classifier (SVC) to categorize these sounds into different classes (e.g., traffic noise, rain, birds). You can expand this project by incorporating more advanced models like Convolutional Neural Networks (CNNs) for better accuracy in sound classification.
+
+Project 693: Music Genre Classification
+Description:
+Music genre classification is the task of automatically assigning a genre label (e.g., rock, pop, jazz) to a given music track based on its audio features. This project uses MFCC features for audio analysis, and machine learning techniques (like SVM or Random Forest) to classify music into predefined genres. The goal is to analyze music tracks and categorize them into appropriate genres based on their sound features.
+
+🧪 Python Implementation (Music Genre Classification using MFCC and SVM)
+import numpy as np
+import librosa
+from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+import os
+ 
+# 1. Extract MFCC features from an audio file
+def extract_mfcc(file_path):
+    audio, sr = librosa.load(file_path, sr=None)  # Load the audio file
+    mfcc = librosa.feature.mfcc(audio, sr=sr, n_mfcc=13)  # Extract MFCC features
+    return np.mean(mfcc, axis=1)  # Use the mean of the MFCC features for classification
+ 
+# 2. Collect music genre dataset (folder with subfolders named by genres)
+def collect_data(directory):
+    X = []  # Features (MFCCs)
+    y = []  # Labels (Genres)
+    genres = os.listdir(directory)  # List of genre folders
+    
+    for genre in genres:
+        genre_folder = os.path.join(directory, genre)
+        if os.path.isdir(genre_folder):
+            for file in os.listdir(genre_folder):
+                file_path = os.path.join(genre_folder, file)
+                if file.endswith('.wav'):  # Assuming all audio files are .wav format
+                    mfcc_features = extract_mfcc(file_path)
+                    X.append(mfcc_features)
+                    y.append(genre)  # Label is the genre (folder name)
+    return np.array(X), np.array(y)
+ 
+# 3. Train the music genre classification model
+def train_genre_classification_model(X, y):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    model = SVC(kernel='linear')  # Support Vector Classifier for music genre classification
+    model.fit(X_train, y_train)  # Train the model
+    
+    # Evaluate the model
+    y_pred = model.predict(X_test)
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    
+    return model
+ 
+# 4. Test the music genre classification model with a new audio file
+def classify_genre(model, file_path):
+    mfcc_features = extract_mfcc(file_path)  # Extract MFCC features from the input file
+    predicted_genre = model.predict([mfcc_features])
+    print(f"The predicted genre is: {predicted_genre[0]}")
+ 
+# 5. Example usage
+directory = "path_to_music_genre_dataset"  # Replace with the path to your music genre dataset folder
+X, y = collect_data(directory)  # Collect features and labels from the dataset
+model = train_genre_classification_model(X, y)  # Train the model
+ 
+# Test the model with a new audio file
+test_file = "path_to_test_music.wav"  # Replace with a test music file
+classify_genre(model, test_file)
+In this Music Genre Classification project, we extract MFCC features from audio files and use an SVM classifier to categorize music into genres such as pop, rock, or classical. You can expand the project by using deeper neural networks or incorporating additional audio features like chroma, spectral contrast, or tonnetz for better genre recognition.
+
+
+
+Project 694: Musical Instrument Recognition
+Description:
+Musical instrument recognition involves classifying the type of instrument producing a given sound, such as piano, guitar, or violin. This can be applied in fields like music analysis, automatic tagging of music, and music education. In this project, we will implement a musical instrument recognition system using MFCC features for sound feature extraction and a machine learning classifier (e.g., SVM or Random Forest) to classify different musical instruments from their audio signals.
+
+🧪 Python Implementation (Musical Instrument Recognition using MFCC and SVM)
+import numpy as np
+import librosa
+from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+import os
+ 
+# 1. Extract MFCC features from an audio file
+def extract_mfcc(file_path):
+    audio, sr = librosa.load(file_path, sr=None)  # Load the audio file
+    mfcc = librosa.feature.mfcc(audio, sr=sr, n_mfcc=13)  # Extract MFCC features
+    return np.mean(mfcc, axis=1)  # Use the mean of the MFCC features for classification
+ 
+# 2. Collect music instrument dataset (folder with subfolders named by instrument types)
+def collect_data(directory):
+    X = []  # Features (MFCCs)
+    y = []  # Labels (Instrument types)
+    instruments = os.listdir(directory)  # List of instrument folders
+    
+    for instrument in instruments:
+        instrument_folder = os.path.join(directory, instrument)
+        if os.path.isdir(instrument_folder):
+            for file in os.listdir(instrument_folder):
+                file_path = os.path.join(instrument_folder, file)
+                if file.endswith('.wav'):  # Assuming all audio files are .wav format
+                    mfcc_features = extract_mfcc(file_path)
+                    X.append(mfcc_features)
+                    y.append(instrument)  # Label is the instrument type (folder name)
+    return np.array(X), np.array(y)
+ 
+# 3. Train the musical instrument recognition model
+def train_instrument_classification_model(X, y):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    model = SVC(kernel='linear')  # Support Vector Classifier for instrument classification
+    model.fit(X_train, y_train)  # Train the model
+    
+    # Evaluate the model
+    y_pred = model.predict(X_test)
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    
+    return model
+ 
+# 4. Test the musical instrument recognition model with a new audio file
+def classify_instrument(model, file_path):
+    mfcc_features = extract_mfcc(file_path)  # Extract MFCC features from the input file
+    predicted_instrument = model.predict([mfcc_features])
+    print(f"The predicted instrument is: {predicted_instrument[0]}")
+ 
+# 5. Example usage
+directory = "path_to_instrument_dataset"  # Replace with the path to your instrument dataset folder
+X, y = collect_data(directory)  # Collect features and labels from the dataset
+model = train_instrument_classification_model(X, y)  # Train the model
+ 
+# Test the model with a new audio file
+test_file = "path_to_test_instrument_audio.wav"  # Replace with a test instrument audio file
+classify_instrument(model, test_file)
+In this Musical Instrument Recognition project, we use MFCC features to represent the audio characteristics of musical instruments, and a Support Vector Classifier (SVC) to classify them into instrument categories. The system can be extended to include other feature sets like chroma, spectral contrast, or zero-crossing rate for more robust recognition.
+
+Project 695: Chord Recognition System
+Description:
+Chord recognition involves detecting musical chords from an audio signal. This is essential for applications like music transcription, music analysis, and automatic accompaniment systems. In this project, we will implement a chord recognition system that analyzes an audio file, extracts relevant features (such as MFCC, chromagram, or spectrogram), and classifies them into musical chord types (e.g., C major, A minor). We will use a machine learning model like SVM or Random Forest to perform chord classification.
+
+🧪 Python Implementation (Chord Recognition using Chromagram and SVM)
+import numpy as np
+import librosa
+from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+import os
+ 
+# 1. Extract chromagram from an audio file for chord recognition
+def extract_chromagram(file_path):
+    audio, sr = librosa.load(file_path, sr=None)  # Load the audio file
+    chroma = librosa.feature.chroma_stft(audio, sr=sr)  # Extract chroma features
+    return np.mean(chroma, axis=1)  # Use the mean chroma values for classification
+ 
+# 2. Collect chord dataset (folder with subfolders named by chord types)
+def collect_data(directory):
+    X = []  # Features (Chroma)
+    y = []  # Labels (Chord types)
+    chords = os.listdir(directory)  # List of chord folders
+    
+    for chord in chords:
+        chord_folder = os.path.join(directory, chord)
+        if os.path.isdir(chord_folder):
+            for file in os.listdir(chord_folder):
+                file_path = os.path.join(chord_folder, file)
+                if file.endswith('.wav'):  # Assuming all audio files are .wav format
+                    chroma_features = extract_chromagram(file_path)
+                    X.append(chroma_features)
+                    y.append(chord)  # Label is the chord type (folder name)
+    return np.array(X), np.array(y)
+ 
+# 3. Train the chord recognition model
+def train_chord_classification_model(X, y):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    model = SVC(kernel='linear')  # Support Vector Classifier for chord classification
+    model.fit(X_train, y_train)  # Train the model
+    
+    # Evaluate the model
+    y_pred = model.predict(X_test)
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    
+    return model
+ 
+# 4. Test the chord recognition model with a new audio file
+def classify_chord(model, file_path):
+    chroma_features = extract_chromagram(file_path)  # Extract chroma features from the input file
+    predicted_chord = model.predict([chroma_features])
+    print(f"The predicted chord is: {predicted_chord[0]}")
+ 
+# 5. Example usage
+directory = "path_to_chord_dataset"  # Replace with the path to your chord dataset folder
+X, y = collect_data(directory)  # Collect features and labels from the dataset
+model = train_chord_classification_model(X, y)  # Train the model
+ 
+# Test the model with a new audio file
+test_file = "path_to_test_chord_audio.wav"  # Replace with a test chord audio file
+classify_chord(model, test_file)
+In this Chord Recognition System, we use chromagram features, which represent the energy content in each pitch class, to detect musical chords in audio signals. A Support Vector Classifier (SVC) is used to classify the chords. This system can be extended to include more advanced features or neural networks for more complex chord recognition tasks.
+
+Project 696: Beat Tracking Implementation
+Description:
+Beat tracking is the task of detecting the rhythmic beats in a musical signal. It is important for music analysis, DJing software, and music synchronization. In this project, we will implement a beat tracking system that detects the beats in a music track using onset detection and tempo estimation techniques. We will use librosa to extract rhythmic features and implement a simple beat tracking algorithm.
+
+🧪 Python Implementation (Beat Tracking using Onset Detection)
+import librosa
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+# 1. Load the audio file
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Perform onset detection to detect the beats
+def beat_tracking(audio, sr):
+    # Perform onset detection (detect the onset of beats in the signal)
+    onset_env = librosa.onset.onset_strength(audio, sr=sr)  # Calculate onset envelope
+    tempo, beats = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)  # Estimate tempo and beats
+    return tempo, beats, onset_env
+ 
+# 3. Plot the audio signal with beat locations
+def plot_beats(audio, beats, onset_env, sr):
+    plt.figure(figsize=(10, 6))
+ 
+    # Plot the audio signal
+    plt.subplot(2, 1, 1)
+    plt.plot(audio)
+    plt.title("Audio Signal")
+    plt.xlabel("Samples")
+    plt.ylabel("Amplitude")
+ 
+    # Plot onset envelope
+    plt.subplot(2, 1, 2)
+    plt.plot(onset_env, label="Onset Envelope")
+    plt.vlines(beats, 0, np.max(onset_env), color='r', label="Detected Beats")
+    plt.title("Onset Envelope and Detected Beats")
+    plt.xlabel("Frames")
+    plt.ylabel("Amplitude")
+    plt.legend()
+ 
+    plt.tight_layout()
+    plt.show()
+ 
+# 4. Example usage
+audio_file = "path_to_music_audio.wav"  # Replace with your audio file path
+ 
+# Load the audio signal
+audio, sr = load_audio(audio_file)
+ 
+# Track beats using onset detection
+tempo, beats, onset_env = beat_tracking(audio, sr)
+ 
+# Print the detected tempo and beats
+print(f"Estimated Tempo: {tempo} BPM")
+print(f"Detected Beats: {beats}")
+ 
+# Plot the audio signal with the detected beats
+plot_beats(audio, beats, onset_env, sr)
+In this Beat Tracking Implementation, we use onset detection to identify the locations of beats in a music track. The librosa library's beat_track function estimates the tempo and locates the beats in the signal. The system visualizes the audio signal and its detected beats, allowing us to assess the accuracy of the beat tracking process.
+
+Project 697: Music Generation System
+Description:
+Music generation is the process of creating new musical pieces, either from scratch or based on existing musical patterns. This is a fundamental task in AI-driven music composition, creative applications, and personalized music creation. In this project, we will implement a music generation system using Recurrent Neural Networks (RNNs) or Long Short-Term Memory (LSTM) networks to generate music based on learned patterns from a dataset of musical compositions. We will use a basic melody dataset and train the model to generate melodies.
+
+🧪 Python Implementation (Music Generation using LSTM)
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers
+import music21  # A library for working with music notation
+import random
+ 
+# 1. Prepare the dataset (e.g., MIDI files converted to music21 format)
+def prepare_dataset(midi_files):
+    notes = []
+    for file in midi_files:
+        midi = music21.converter.parse(file)
+        for element in midi.flat.notes:
+            if isinstance(element, music21.note.Note):
+                notes.append(str(element.pitch))
+            elif isinstance(element, music21.note.Rest):
+                notes.append('rest')
+    return notes
+ 
+# 2. Preprocess data for LSTM input
+def preprocess_data(notes):
+    # Create a sorted list of unique notes
+    unique_notes = sorted(set(notes))
+    note_to_int = {note: number for number, note in enumerate(unique_notes)}
+    int_to_note = {number: note for number, note in enumerate(unique_notes)}
+    
+    # Convert the notes into integer sequences
+    input_sequences = []
+    output_notes = []
+    sequence_length = 100  # Length of input sequence for the LSTM
+ 
+    for i in range(len(notes) - sequence_length):
+        sequence_in = notes[i:i + sequence_length]
+        sequence_out = notes[i + sequence_length]
+        input_sequences.append([note_to_int[note] for note in sequence_in])
+        output_notes.append(note_to_int[sequence_out])
+ 
+    # Reshape the data into the format required by LSTM
+    X = np.reshape(input_sequences, (len(input_sequences), sequence_length, 1))
+    X = X / float(len(unique_notes))  # Normalize the input
+    y = tf.keras.utils.to_categorical(output_notes, num_classes=len(unique_notes))
+ 
+    return X, y, int_to_note
+ 
+# 3. Build the LSTM model for music generation
+def build_model(X, y, sequence_length, n_notes):
+    model = tf.keras.Sequential()
+    model.add(layers.LSTM(256, input_shape=(X.shape[1], X.shape[2]), return_sequences=True))
+    model.add(layers.Dropout(0.3))
+    model.add(layers.LSTM(256))
+    model.add(layers.Dropout(0.3))
+    model.add(layers.Dense(128, activation='relu'))
+    model.add(layers.Dense(n_notes, activation='softmax'))  # Output layer for note probabilities
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+    return model
+ 
+# 4. Train the music generation model
+def train_model(model, X, y, epochs=200):
+    model.fit(X, y, epochs=epochs, batch_size=64)
+    return model
+ 
+# 5. Generate new music based on the trained model
+def generate_music(model, int_to_note, sequence_length, seed_notes, n_generate=500):
+    # Generate a sequence of notes based on the seed notes
+    generated_notes = []
+    for _ in range(n_generate):
+        prediction_input = np.reshape(seed_notes, (1, len(seed_notes), 1))
+        prediction_input = prediction_input / float(len(int_to_note))  # Normalize the input
+        predicted_probs = model.predict(prediction_input, verbose=0)
+        index = np.argmax(predicted_probs)
+        predicted_note = int_to_note[index]
+ 
+        # Add the predicted note to the generated notes list
+        generated_notes.append(predicted_note)
+        seed_notes.append(index)  # Add the prediction to the input sequence
+        seed_notes = seed_notes[1:]
+ 
+    return generated_notes
+ 
+# 6. Convert the generated notes back to music21 format and save as a MIDI file
+def create_midi(generated_notes, output_file='generated_music.mid'):
+    stream = music21.stream.Stream()
+    for note in generated_notes:
+        if note == 'rest':
+            stream.append(music21.note.Rest())
+        else:
+            stream.append(music21.note.Note(note))
+    stream.write('midi', fp=output_file)
+ 
+# 7. Example usage
+midi_files = ['path_to_midi_file_1.mid', 'path_to_midi_file_2.mid']  # Replace with paths to MIDI files
+notes = prepare_dataset(midi_files)  # Prepare the dataset
+X, y, int_to_note = preprocess_data(notes)  # Preprocess the data
+ 
+# Build and train the model
+model = build_model(X, y, sequence_length=100, n_notes=len(int_to_note))
+model = train_model(model, X, y, epochs=200)
+ 
+# Generate new music
+seed_notes = [random.choice(range(len(int_to_note)))] * 100  # Starting with a random seed
+generated_notes = generate_music(model, int_to_note, sequence_length=100, seed_notes=seed_notes, n_generate=500)
+ 
+# Save the generated music to a MIDI file
+create_midi(generated_notes, output_file='generated_music.mid')
+In this Music Generation System, we use an LSTM (Long Short-Term Memory) neural network to generate new music. The model is trained on MIDI files, where it learns the patterns of musical notes (chords, melodies) and generates a sequence of notes. The system uses MFCC features and chromagram for feature extraction from the raw audio and creates a MIDI file from the generated sequence.
+
+Project 698: Singing Voice Synthesis
+Description:
+Singing voice synthesis refers to generating realistic singing voices from text or melodies. This is particularly useful in applications such as virtual singers, music production, and automated song creation. In this project, we will implement a singing voice synthesis system using a pre-trained model like DeepSinger or a text-to-speech model trained on singing data. The system will generate a singing voice from a given melody and lyrics.
+
+🧪 Python Implementation (Singing Voice Synthesis using a Pre-trained Model)
+For singing voice synthesis, advanced models like DeepSinger are typically used. These models are trained on large datasets of singing voices and convert MIDI sequences or text input into singing voice output.
+
+Since the actual implementation involves complex models that require large datasets and fine-tuning, I'll provide a simplified example using a pre-trained TTS (text-to-speech) model and a basic melody generation system. However, for more advanced real-world applications, you would likely need to explore WaveNet, Tacotron, or DeepSinger for high-quality results.
+
+For the simplified version, we can use Google's Text-to-Speech (gTTS) to synthesize speech based on input lyrics, and combine that with a simple melody generation system. This won't produce true "singing" but can be a basic starting point.
+
+import numpy as np
+import librosa
+from gtts import gTTS
+import matplotlib.pyplot as plt
+ 
+# 1. Generate a simple melody (a sine wave of different pitches)
+def generate_melody(frequencies, duration=0.5, sr=22050):
+    t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+    melody = np.array([])
+ 
+    for freq in frequencies:
+        tone = 0.5 * np.sin(2 * np.pi * freq * t)  # Generate a sine wave tone for each frequency
+        melody = np.concatenate([melody, tone])  # Append to melody
+ 
+    return melody
+ 
+# 2. Synthesize singing voice using gTTS (text-to-speech)
+def text_to_speech_singing(lyrics, melody, output_file="singing_output.mp3"):
+    # Use gTTS to synthesize singing voice from lyrics (although it's not singing in this case)
+    tts = gTTS(text=lyrics, lang='en', slow=False)
+    tts.save(output_file)
+    print(f"Singing voice saved as {output_file}")
+ 
+    # Optionally, combine melody and speech (you can explore more advanced synthesis here)
+    # For now, just play back the synthesized singing (no melody integration here)
+    return output_file
+ 
+# 3. Example usage
+frequencies = [440, 466, 493, 523, 554, 587]  # A simple melody in Hz (A4, A#4, B4, C5, C#5, D5)
+melody = generate_melody(frequencies)
+ 
+lyrics = "Hello, I am a virtual singer, listen to my voice."  # Example lyrics
+ 
+# Generate singing (voice synthesis)
+output_file = "singing_output.mp3"
+text_to_speech_singing(lyrics, melody, output_file)
+ 
+# You can visualize the generated melody (simple sine wave)
+plt.plot(melody[:1000])  # Show the first part of the generated melody
+plt.title("Generated Melody (Sine Wave)")
+plt.xlabel("Samples")
+plt.ylabel("Amplitude")
+plt.show()
+This basic singing voice synthesis project uses a sine wave melody for simplicity and the gTTS library for synthesizing speech from lyrics. The resulting audio combines the generated speech with a melody, but for real singing synthesis, deep learning models like WaveNet, Tacotron, or DeepSinger are typically employed.
+
+Project 699: Audio Source Separation
+Description:
+Audio source separation refers to the task of separating individual sources (e.g., voices, instruments, or noise) from a mixed audio signal. This is important in applications like music production, speech enhancement, and audio forensics. In this project, we will implement an audio source separation system that separates a mixed audio signal (e.g., a song with vocals and accompaniment) into individual components (e.g., the vocal track and the instrumental track). We will use deep learning models like U-Net, Spleeter, or Wave-U-Net for this task.
+
+🧪 Python Implementation (Audio Source Separation using Spleeter)
+For this project, we will use Spleeter, a pre-trained model developed by Deezer, that performs audio source separation. It can separate audio into two sources (vocals and accompaniment) or more (e.g., vocals, drums, bass, and other instruments).
+
+Here is how you can use Spleeter for source separation:
+
+Install Spleeter:
+
+pip install spleeter
+Use Spleeter to separate an audio file into two sources: vocals and accompaniment.
+
+from spleeter.separator import Separator
+import os
+ 
+# 1. Initialize Spleeter Separator with the pre-trained model for 2 stems (vocals and accompaniment)
+separator = Separator('spleeter:2stems')  # '2stems' separates the vocals and accompaniment
+ 
+# 2. Separate the audio into vocals and accompaniment
+def separate_audio(input_file, output_dir='output'):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+ 
+    # Separate the audio
+    separator.separate(input_file)  # The result will be saved in the 'output' folder by default
+ 
+    print(f"Audio separated and saved in: {output_dir}")
+ 
+# 3. Example usage
+input_file = 'path_to_your_audio_file.mp3'  # Replace with the path to your audio file
+separate_audio(input_file)
+Expected Output:
+The audio will be separated into two components:
+
+vocals.wav: The isolated vocal track.
+
+accompaniment.wav: The instrumental (accompaniment) track.
+
+Explanation of Spleeter:
+Spleeter is a deep learning model trained on a large dataset of music, and it can separate the audio into two or more sources. It has models for 2 stems (vocals + accompaniment) and 4 stems (vocals, drums, bass, and other).
+
+The model uses a neural network architecture (like U-Net) that processes the audio spectrogram and performs source separation in the time-frequency domain.
+
+Project 700: Audio Super-Resolution
+Description:
+Audio super-resolution is the process of improving the quality of low-resolution audio signals, particularly to enhance fine details like high frequencies or subtle sounds. This can be useful for applications in music restoration, speech enhancement, and audio forensics. In this project, we will implement an audio super-resolution system using a deep learning model to upscale low-resolution audio (e.g., low sample rate) to a higher quality (higher sample rate) and recover lost details.
+
+🧪 Python Implementation (Audio Super-Resolution using Neural Networks)
+We can use WaveNet or a deep learning model trained for audio super-resolution. Here's a simple implementation of upsampling audio using neural networks for audio restoration. For this example, we'll focus on a simple interpolation method (i.e., increasing the sample rate) combined with wavelet transforms for better results. A more advanced system would involve WaveNet or SRCNN.
+
+import numpy as np
+import librosa
+import matplotlib.pyplot as plt
+from scipy.signal import resample
+ 
+# 1. Load the low-resolution audio signal
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Upsample the audio (simple interpolation for super-resolution)
+def upsample_audio(audio, target_sr, original_sr):
+    """
+    Perform audio super-resolution by upsampling the low-resolution audio to the target sample rate.
+    :param audio: Input low-resolution audio signal
+    :param target_sr: Target sample rate (higher)
+    :param original_sr: Original sample rate (lower)
+    :return: Upsampled audio signal
+    """
+    # Compute the upsampling factor
+    factor = target_sr / original_sr
+ 
+    # Resample the audio signal to the target sample rate using interpolation
+    upsampled_audio = resample(audio, int(len(audio) * factor))
+    return upsampled_audio
+ 
+# 3. Plot the audio waveforms for comparison
+def plot_audio_comparison(original_audio, upsampled_audio, original_sr, target_sr):
+    time_original = np.arange(0, len(original_audio)) / original_sr
+    time_upsampled = np.arange(0, len(upsampled_audio)) / target_sr
+ 
+    plt.figure(figsize=(10, 6))
+ 
+    # Plot the original audio
+    plt.subplot(2, 1, 1)
+    plt.plot(time_original, original_audio, label="Original Audio")
+    plt.title(f"Original Audio at {original_sr} Hz")
+    plt.xlabel("Time [s]")
+    plt.ylabel("Amplitude")
+ 
+    # Plot the upsampled audio
+    plt.subplot(2, 1, 2)
+    plt.plot(time_upsampled, upsampled_audio, label="Upsampled Audio", color='orange')
+    plt.title(f"Upsampled Audio at {target_sr} Hz")
+    plt.xlabel("Time [s]")
+    plt.ylabel("Amplitude")
+ 
+    plt.tight_layout()
+    plt.show()
+ 
+# 4. Example usage
+low_res_audio_file = "path_to_low_resolution_audio.wav"  # Replace with the path to your low-resolution audio file
+ 
+# Load the low-resolution audio
+low_res_audio, original_sr = load_audio(low_res_audio_file)
+ 
+# Set the target sample rate (higher than the original)
+target_sr = original_sr * 2  # Double the sample rate for upsampling
+ 
+# Perform audio super-resolution (upsampling)
+upsampled_audio = upsample_audio(low_res_audio, target_sr, original_sr)
+ 
+# Plot the original and upsampled audio waveforms for comparison
+plot_audio_comparison(low_res_audio, upsampled_audio, original_sr, target_sr)
+In this Audio Super-Resolution project, we upsample low-resolution audio by increasing the sample rate, using a simple interpolation method (resample). This helps to recover high-frequency details that are lost when the audio is downsampled.
+
+To improve quality, neural network-based models like WaveNet or SRCNN can be used for more sophisticated super-resolution, which learns to enhance the audio details from data.
+
+Project 701: Audio Compression with Deep Learning
+Description:
+Audio compression is the process of reducing the size of an audio file without sacrificing too much quality. It is used in applications like streaming and storage to minimize file size while maintaining a good listening experience. In this project, we will implement an audio compression system using deep learning techniques, such as autoencoders, to learn efficient representations of audio and compress it.
+
+🧪 Python Implementation (Audio Compression using Autoencoders)
+Here, we will use a simple autoencoder for audio compression. The autoencoder will learn a compressed representation of the audio, and then reconstruct the audio from this compressed representation. The model will be trained using the mean squared error loss function, which measures the difference between the original and reconstructed audio.
+
+import numpy as np
+import librosa
+import tensorflow as tf
+from tensorflow.keras import layers
+import matplotlib.pyplot as plt
+ 
+# 1. Load the audio file
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Preprocess the audio (normalize and reshape)
+def preprocess_audio(audio, target_length=16000):
+    # Normalize the audio signal to a range of [-1, 1]
+    audio = audio / np.max(np.abs(audio))
+    
+    # Trim or pad the audio to match the target length
+    if len(audio) > target_length:
+        audio = audio[:target_length]
+    else:
+        audio = np.pad(audio, (0, target_length - len(audio)))
+ 
+    return audio
+ 
+# 3. Define the autoencoder model for audio compression
+def build_autoencoder(input_shape):
+    model = tf.keras.Sequential()
+ 
+    # Encoder: Reduce dimensionality
+    model.add(layers.InputLayer(input_shape=input_shape))
+    model.add(layers.Dense(512, activation='relu'))
+    model.add(layers.Dense(256, activation='relu'))
+    model.add(layers.Dense(128, activation='relu'))  # Compressed representation
+ 
+    # Decoder: Reconstruct the original audio
+    model.add(layers.Dense(256, activation='relu'))
+    model.add(layers.Dense(512, activation='relu'))
+    model.add(layers.Dense(input_shape[0], activation='sigmoid'))  # Output layer with same size as input
+ 
+    model.compile(optimizer='adam', loss='mean_squared_error')
+    return model
+ 
+# 4. Train the autoencoder model
+def train_autoencoder(model, audio_data, epochs=10):
+    # Reshape data for training
+    audio_data = np.reshape(audio_data, (-1, len(audio_data)))  # Flatten the audio into vectors
+ 
+    # Train the model on the audio data
+    model.fit(audio_data, audio_data, epochs=epochs, batch_size=16)
+ 
+# 5. Compress and reconstruct the audio
+def compress_and_reconstruct(model, audio):
+    compressed_audio = model.predict(np.reshape(audio, (-1, len(audio))))  # Compress and reconstruct
+    return compressed_audio[0]
+ 
+# 6. Example usage
+audio_file = "path_to_audio.wav"  # Replace with the path to your audio file
+ 
+# Load and preprocess the audio
+audio, sr = load_audio(audio_file)
+processed_audio = preprocess_audio(audio)
+ 
+# Build and train the autoencoder model
+model = build_autoencoder(input_shape=(len(processed_audio),))
+train_autoencoder(model, processed_audio, epochs=50)
+ 
+# Compress and reconstruct the audio
+reconstructed_audio = compress_and_reconstruct(model, processed_audio)
+ 
+# Plot the original and reconstructed audio for comparison
+plt.figure(figsize=(10, 6))
+plt.subplot(2, 1, 1)
+plt.plot(processed_audio)
+plt.title("Original Audio")
+ 
+plt.subplot(2, 1, 2)
+plt.plot(reconstructed_audio)
+plt.title("Reconstructed Audio (After Compression)")
+ 
+plt.tight_layout()
+plt.show()
+ 
+Explanation:
+In this audio compression project, we use a simple autoencoder for learning a compressed representation of the audio. The autoencoder consists of an encoder that reduces the dimensionality of the input and a decoder that reconstructs the original audio from the compressed representation. The autoencoder is trained using mean squared error loss to minimize the reconstruction error between the original and reconstructed audio.
+
+This basic implementation can be improved by using more sophisticated architectures such as variational autoencoders (VAE) or convolutional autoencoders for better audio compression.
+
+Project 702: Audio Inpainting System
+Description:
+Audio inpainting is the process of filling in missing parts of an audio signal, similar to how image inpainting works for missing pixels. This can be useful in scenarios where parts of an audio recording are corrupted or missing, such as in audio restoration or noise removal. In this project, we will implement an audio inpainting system that uses a simple neural network or interpolation methods to restore missing parts of the audio signal.
+
+🧪 Python Implementation (Audio Inpainting using Simple Interpolation)
+In this simple implementation, we will use linear interpolation to fill in missing audio segments. For more advanced methods, deep learning models like WaveNet or autoencoders can be used for high-quality inpainting. Here, we will demonstrate filling missing values with interpolation.
+
+import numpy as np
+import librosa
+import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
+ 
+# 1. Load the audio file
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Simulate missing data (for inpainting) by setting parts of the audio to NaN
+def simulate_missing_data(audio, missing_percentage=0.2):
+    # Create a mask to simulate missing audio data
+    n_samples = len(audio)
+    missing_samples = int(n_samples * missing_percentage)
+    missing_indices = np.random.choice(n_samples, missing_samples, replace=False)
+    
+    # Set the selected indices to NaN to simulate missing data
+    audio_with_missing = audio.copy()
+    audio_with_missing[missing_indices] = np.nan
+    
+    return audio_with_missing, missing_indices
+ 
+# 3. Inpaint the missing audio data using linear interpolation
+def inpaint_audio(audio_with_missing):
+    # Find the indices where the data is missing (NaN values)
+    not_nan_indices = ~np.isnan(audio_with_missing)
+    missing_indices = np.isnan(audio_with_missing)
+    
+    # Interpolate the missing data using linear interpolation
+    f = interp1d(np.where(not_nan_indices)[0], audio_with_missing[not_nan_indices], kind='linear', fill_value="extrapolate")
+    inpainted_audio = f(np.arange(len(audio_with_missing)))
+    
+    return inpainted_audio
+ 
+# 4. Visualize the original, missing, and inpainted audio
+def plot_audio_comparison(original_audio, audio_with_missing, inpainted_audio, sr):
+    time = np.arange(len(original_audio)) / sr
+ 
+    plt.figure(figsize=(10, 6))
+ 
+    # Plot the original audio
+    plt.subplot(3, 1, 1)
+    plt.plot(time, original_audio, label="Original Audio")
+    plt.title("Original Audio")
+    plt.xlabel("Time [s]")
+    plt.ylabel("Amplitude")
+ 
+    # Plot the audio with missing data
+    plt.subplot(3, 1, 2)
+    plt.plot(time, audio_with_missing, label="Audio with Missing Data", color='orange')
+    plt.title("Audio with Missing Data")
+    plt.xlabel("Time [s]")
+    plt.ylabel("Amplitude")
+ 
+    # Plot the inpainted audio
+    plt.subplot(3, 1, 3)
+    plt.plot(time, inpainted_audio, label="Inpainted Audio", color='green')
+    plt.title("Inpainted Audio")
+    plt.xlabel("Time [s]")
+    plt.ylabel("Amplitude")
+ 
+    plt.tight_layout()
+    plt.show()
+ 
+# 5. Example usage
+audio_file = "path_to_audio.wav"  # Replace with your audio file path
+ 
+# Load the audio signal
+audio, sr = load_audio(audio_file)
+ 
+# Simulate missing data
+audio_with_missing, missing_indices = simulate_missing_data(audio)
+ 
+# Inpaint the missing audio using linear interpolation
+inpainted_audio = inpaint_audio(audio_with_missing)
+ 
+# Visualize the comparison
+plot_audio_comparison(audio, audio_with_missing, inpainted_audio, sr)
+Explanation:
+In this audio inpainting project, we simulate missing data by randomly setting portions of the audio to NaN (Not a Number). Then, we use linear interpolation to fill in the missing parts of the audio. The interp1d function from scipy is used to perform the interpolation. This is a basic approach for audio restoration; for better results, deep learning models such as WaveNet or autoencoders can be applied to learn the best way to restore missing audio parts.
+
+Project 703: Audio Captioning
+Description:
+Audio captioning involves automatically generating descriptive captions for audio content. This is particularly useful in applications like media indexing, accessibility, and audio search engines. In this project, we will implement an audio captioning system that uses a convolutional neural network (CNN) or a recurrent neural network (RNN) to generate captions describing the content of an audio clip. The system will analyze the audio, extract features, and generate a textual description based on its content (e.g., "sound of a dog barking" or "music with piano").
+
+🧪 Python Implementation (Audio Captioning using CNN + LSTM)
+For audio captioning, we will first extract audio features (e.g., MFCC or spectrograms) and use an LSTM (Long Short-Term Memory) model to generate captions. We'll use Librosa for feature extraction and TensorFlow/Keras for building the model.
+
+import numpy as np
+import librosa
+import tensorflow as tf
+from tensorflow.keras import layers
+import matplotlib.pyplot as plt
+ 
+# 1. Load the audio file
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Extract features (e.g., MFCC) from the audio
+def extract_features(audio, sr, n_mfcc=13):
+    mfcc = librosa.feature.mfcc(audio, sr=sr, n_mfcc=n_mfcc)  # Extract MFCC features
+    return np.mean(mfcc, axis=1)  # Use the mean of the MFCC features for captioning
+ 
+# 3. Build a simple captioning model (CNN + LSTM)
+def build_captioning_model(input_shape):
+    model = tf.keras.Sequential()
+    model.add(layers.InputLayer(input_shape=input_shape))
+    
+    # CNN layers for feature extraction
+    model.add(layers.Conv1D(64, 3, activation='relu'))
+    model.add(layers.MaxPooling1D(2))
+    model.add(layers.Conv1D(128, 3, activation='relu'))
+    model.add(layers.MaxPooling1D(2))
+    
+    # LSTM for sequence processing (caption generation)
+    model.add(layers.LSTM(256, return_sequences=False))
+    
+    # Fully connected layer to generate the caption
+    model.add(layers.Dense(128, activation='relu'))
+    model.add(layers.Dense(1))  # Output a single score (you can expand this for multi-class captioning)
+    
+    model.compile(optimizer='adam', loss='mse')  # Using MSE for regression-based captioning
+    return model
+ 
+# 4. Generate captions for new audio input
+def generate_caption(model, audio):
+    features = extract_features(audio, sr)  # Extract features from the audio
+    caption = model.predict(np.expand_dims(features, axis=0))  # Generate the caption
+    return caption
+ 
+# 5. Example usage
+audio_file = "path_to_audio_file.wav"  # Replace with your audio file path
+ 
+# Load the audio signal
+audio, sr = load_audio(audio_file)
+ 
+# Extract features from the audio
+features = extract_features(audio, sr)
+ 
+# Build and train the model (you would need a labeled dataset for real training)
+model = build_captioning_model(input_shape=(features.shape[0], 1))
+ 
+# Generate the caption (this is just an example; real captions require training)
+caption = generate_caption(model, audio)
+print(f"Generated caption: {caption}")
+ 
+Explanation:
+In this audio captioning system, we first extract MFCC features from the audio. Then, we use a simple CNN for feature extraction followed by an LSTM layer to process the sequential data and generate the output caption. The system can be extended to output more complex captions, and you could use pre-trained models or datasets like AudioSet to train it for a wide variety of audio descriptions.
+
+This example provides a basic architecture, and real-world applications would involve training on large labeled audio datasets to generate meaningful captions.
+
+Project 704: Sound Event Detection
+Description:
+Sound event detection involves identifying and classifying specific sounds within an audio stream, such as detecting the sound of a dog barking, a doorbell ringing, or a car honking. This is important for applications like smart home systems, surveillance, and environmental monitoring. In this project, we will implement a sound event detection system that uses spectrograms and deep learning models (such as CNNs or LSTMs) to detect and classify different sound events.
+
+🧪 Python Implementation (Sound Event Detection using CNN)
+We'll use spectrograms as input features for the CNN model. A spectrogram represents the time-frequency distribution of an audio signal and is commonly used for audio classification tasks. The system will classify sound events based on the audio signal's spectrogram.
+
+import numpy as np
+import librosa
+import tensorflow as tf
+from tensorflow.keras import layers
+import matplotlib.pyplot as plt
+ 
+# 1. Load the audio file
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Extract spectrogram from the audio
+def extract_spectrogram(audio, sr, n_fft=2048, hop_length=512, n_mels=128):
+    # Convert audio to spectrogram using Mel-frequency scaling
+    mel_spectrogram = librosa.feature.melspectrogram(audio, sr=sr, n_fft=n_fft, hop_length=hop_length, n_mels=n_mels)
+    spectrogram_db = librosa.power_to_db(mel_spectrogram, ref=np.max)  # Convert to dB scale for better visualization
+    return spectrogram_db
+ 
+# 3. Build a simple CNN for sound event detection
+def build_cnn_model(input_shape):
+    model = tf.keras.Sequential()
+    
+    # CNN layers for feature extraction
+    model.add(layers.InputLayer(input_shape=input_shape))
+    model.add(layers.Conv2D(32, (3, 3), activation='relu'))
+    model.add(layers.MaxPooling2D((2, 2)))
+    model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+    model.add(layers.MaxPooling2D((2, 2)))
+    
+    # Flatten and classify the sound event
+    model.add(layers.Flatten())
+    model.add(layers.Dense(128, activation='relu'))
+    model.add(layers.Dense(10, activation='softmax'))  # 10 classes for sound events (can be adjusted)
+    
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
+ 
+# 4. Train the model on a labeled sound event dataset (use a proper dataset for training)
+def train_model(model, X_train, y_train, epochs=10):
+    model.fit(X_train, y_train, epochs=epochs, batch_size=32)
+ 
+# 5. Predict the sound event for a new audio file
+def predict_sound_event(model, audio, sr):
+    spectrogram = extract_spectrogram(audio, sr)
+    spectrogram = np.expand_dims(spectrogram, axis=-1)  # Add channel dimension (needed for CNN)
+    spectrogram = np.expand_dims(spectrogram, axis=0)  # Add batch dimension
+    
+    prediction = model.predict(spectrogram)
+    predicted_class = np.argmax(prediction)
+    return predicted_class
+ 
+# 6. Visualize the spectrogram of the audio
+def plot_spectrogram(spectrogram):
+    plt.figure(figsize=(10, 6))
+    plt.imshow(spectrogram, cmap='viridis', origin='lower', aspect='auto')
+    plt.title("Spectrogram")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Frequency (Hz)")
+    plt.colorbar(format="%+2.0f dB")
+    plt.show()
+ 
+# 7. Example usage
+audio_file = "path_to_audio_file.wav"  # Replace with your audio file path
+ 
+# Load the audio signal
+audio, sr = load_audio(audio_file)
+ 
+# Extract the spectrogram from the audio signal
+spectrogram = extract_spectrogram(audio, sr)
+ 
+# Plot the spectrogram
+plot_spectrogram(spectrogram)
+ 
+# Build and train the model (requires a dataset for real training)
+model = build_cnn_model(input_shape=spectrogram.shape + (1,))  # Add channel dimension for CNN
+# Train the model here with a real dataset (X_train, y_train)
+ 
+# Predict the sound event for a new audio file
+predicted_event = predict_sound_event(model, audio, sr)
+print(f"Predicted sound event: {predicted_event}")
+Explanation:
+In this sound event detection system, we extract spectrograms from the audio signal, which represent the frequency content of the audio over time. A Convolutional Neural Network (CNN) is then used to classify the spectrograms into different sound events (e.g., dog barking, car honking). The model is trained on a labeled dataset of audio clips, and it can be used to predict the presence of specific sound events in new audio files.
+
+For real-world applications, you would need a dataset like UrbanSound8K or AudioSet, which contains labeled environmental sounds for training the model.
+
+Project 705: Audio-Visual Speech Recognition
+Description:
+Audio-Visual Speech Recognition (AVSR) involves using both audio (speech signal) and visual (lip movements or facial expressions) information to improve the accuracy of speech recognition. This is especially useful in noisy environments where the audio alone might not be sufficient for accurate recognition. In this project, we will build an audio-visual speech recognition system that combines both audio features (such as MFCC) and visual features (such as mouth region images) for speech recognition.
+
+🧪 Python Implementation (Audio-Visual Speech Recognition)
+We will use a deep learning model to process both the audio and video data. In this simplified implementation, we'll extract audio features using MFCC and visual features by processing the mouth region from video frames using OpenCV. The model will be a simple neural network that takes both types of input to predict the spoken words.
+
+Requirements:
+OpenCV: For extracting video frames.
+
+Librosa: For extracting audio features.
+
+TensorFlow/Keras: For building the deep learning model.
+
+First, ensure you have the required libraries:
+
+pip install opencv-python librosa tensorflow
+Audio-Visual Speech Recognition Implementation
+import numpy as np
+import librosa
+import cv2
+import tensorflow as tf
+from tensorflow.keras import layers
+import matplotlib.pyplot as plt
+ 
+# 1. Extract audio features (MFCC)
+def extract_audio_features(file_path, n_mfcc=13):
+    audio, sr = librosa.load(file_path, sr=None)
+    mfcc = librosa.feature.mfcc(audio, sr=sr, n_mfcc=n_mfcc)
+    return np.mean(mfcc, axis=1)
+ 
+# 2. Extract visual features (mouth region)
+def extract_visual_features(video_file):
+    # Open video capture
+    cap = cv2.VideoCapture(video_file)
+    
+    # Load pre-trained face and mouth detectors
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    mouth_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_mcs_mouth.xml')
+    
+    frames = []
+    
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        
+        # Convert to grayscale for detection
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # Detect faces in the frame
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        
+        for (x, y, w, h) in faces:
+            # Crop the mouth region (mouth is usually at the lower half of the face)
+            roi_gray = gray[y + int(h/2): y + h, x: x + w]
+            mouth = mouth_cascade.detectMultiScale(roi_gray, 1.7, 11)
+            
+            for (mx, my, mw, mh) in mouth:
+                mouth_img = frame[y + int(h/2) + my: y + int(h/2) + my + mh, x + mx: x + mx + mw]
+                mouth_resized = cv2.resize(mouth_img, (64, 64))  # Resize for input into the model
+                frames.append(mouth_resized)
+                
+    cap.release()
+    return np.array(frames)
+ 
+# 3. Build the audio-visual speech recognition model
+def build_avsr_model(audio_input_shape, visual_input_shape):
+    audio_input = layers.Input(shape=audio_input_shape)
+    visual_input = layers.Input(shape=visual_input_shape)
+    
+    # Audio Model: Simple Dense Layers
+    audio_x = layers.Dense(128, activation='relu')(audio_input)
+    audio_x = layers.Dense(64, activation='relu')(audio_x)
+    
+    # Visual Model: Convolutional Layers for Image Processing
+    visual_x = layers.Conv2D(32, (3, 3), activation='relu')(visual_input)
+    visual_x = layers.MaxPooling2D((2, 2))(visual_x)
+    visual_x = layers.Flatten()(visual_x)
+    visual_x = layers.Dense(64, activation='relu')(visual_x)
+    
+    # Concatenate audio and visual features
+    combined = layers.concatenate([audio_x, visual_x])
+    
+    # Final Dense Layer for classification
+    output = layers.Dense(10, activation='softmax')(combined)  # Assuming 10 classes for output (words or commands)
+    
+    model = tf.keras.Model(inputs=[audio_input, visual_input], outputs=output)
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
+ 
+# 4. Example usage
+audio_file = 'path_to_audio_file.wav'  # Replace with your audio file path
+video_file = 'path_to_video_file.mp4'  # Replace with your video file path
+ 
+# Extract audio features (MFCC)
+audio_features = extract_audio_features(audio_file)
+ 
+# Extract visual features (mouth region)
+visual_features = extract_visual_features(video_file)
+ 
+# Reshape data for model input
+audio_features = np.reshape(audio_features, (1, -1))  # Add batch dimension
+visual_features = np.reshape(visual_features, (1, 64, 64, 3))  # Add batch and channel dimension
+ 
+# Build and compile the model
+model = build_avsr_model(audio_input_shape=(audio_features.shape[1],), visual_input_shape=(64, 64, 3))
+ 
+# Train the model (use a labeled dataset for real training)
+# model.fit([audio_features, visual_features], labels, epochs=10)
+ 
+# Predict the speech event (class) for the input
+prediction = model.predict([audio_features, visual_features])
+predicted_class = np.argmax(prediction)
+print(f"Predicted Speech Event Class: {predicted_class}")
+Explanation:
+In this Audio-Visual Speech Recognition (AVSR) project, we process both audio and visual inputs:
+
+Audio Features: We use MFCC to extract audio features, which represent the spectral properties of the audio signal.
+
+Visual Features: We extract the mouth region from the video using OpenCV, and use it as a source of visual features for speech recognition.
+
+Deep Learning Model: We build a CNN-based model for visual features and a simple feed-forward network for audio features. These are then combined in a concatenation layer, and the output layer classifies the speech event.
+
+For real training, you would need a large audio-visual dataset (e.g., GRID corpus, AVSpeech, or LRS2) containing both the audio and video of speech for training and validation.
+
+Project 706: Audio-Visual Synchronization
+Description:
+Audio-Visual Synchronization involves aligning audio and video streams to ensure that they are in sync, especially in applications such as lip-syncing, video dubbing, and multimedia editing. In this project, we will implement a system that synchronizes audio and visual streams using cross-correlation techniques and neural networks. The goal is to align the audio features with the corresponding visual features, ensuring accurate synchronization between the two.
+
+🧪 Python Implementation (Audio-Visual Synchronization using Cross-Correlation)
+In this implementation, we'll align the audio signal with its corresponding video by extracting audio features (MFCC) and visual features (mouth region images), and using cross-correlation to find the time shift that best aligns the two streams.
+
+import numpy as np
+import librosa
+import cv2
+from scipy.signal import correlate
+import matplotlib.pyplot as plt
+ 
+# 1. Load the audio file
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Extract MFCC features from the audio
+def extract_audio_features(audio, sr, n_mfcc=13):
+    mfcc = librosa.feature.mfcc(audio, sr=sr, n_mfcc=n_mfcc)
+    return np.mean(mfcc, axis=1)
+ 
+# 3. Extract visual features (mouth region) from the video
+def extract_visual_features(video_file):
+    cap = cv2.VideoCapture(video_file)
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    frames = []
+ 
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        mouth_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_mcs_mouth.xml')
+        faces = mouth_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        
+        for (x, y, w, h) in faces:
+            roi = frame[y + h // 2:y + h, x:x + w]
+            roi_resized = cv2.resize(roi, (64, 64))  # Resize mouth region for consistency
+            frames.append(roi_resized)
+            
+    cap.release()
+    return np.array(frames)
+ 
+# 4. Cross-correlation to synchronize audio and video
+def synchronize_audio_video(audio_features, visual_features):
+    # Normalize the audio and visual features
+    audio_features = (audio_features - np.mean(audio_features)) / np.std(audio_features)
+    visual_features = (visual_features - np.mean(visual_features)) / np.std(visual_features)
+ 
+    # Compute the cross-correlation between audio and visual features
+    correlation = correlate(audio_features, visual_features, mode='full')
+ 
+    # Find the lag (shift) with the highest correlation
+    lag = np.argmax(correlation) - len(audio_features) + 1
+    return lag
+ 
+# 5. Example usage
+audio_file = "path_to_audio.wav"  # Replace with your audio file path
+video_file = "path_to_video.mp4"  # Replace with your video file path
+ 
+# Load the audio signal
+audio, sr = load_audio(audio_file)
+ 
+# Extract audio features (MFCC)
+audio_features = extract_audio_features(audio, sr)
+ 
+# Extract visual features (mouth region) from the video
+visual_features = extract_visual_features(video_file)
+ 
+# Synchronize the audio and video using cross-correlation
+lag = synchronize_audio_video(audio_features, visual_features)
+ 
+# Output the calculated lag for synchronization
+print(f"Optimal synchronization lag (in frames): {lag}")
+Explanation:
+In this Audio-Visual Synchronization system:
+
+Audio Features: We extract MFCC features from the audio signal using Librosa.
+
+Visual Features: We extract the mouth region from the video frames using OpenCV.
+
+Cross-Correlation: We use cross-correlation to find the optimal time shift (lag) that aligns the audio features with the visual features. The lag represents the time shift needed to synchronize the two streams.
+
+This approach is based on feature alignment, where we compute the degree of similarity between the audio and visual features over different time shifts and identify the best alignment.
+
+Would you like to proceed with Project 707: Audio Fingerprinting System?
+
+🧠 Project 707: Audio Fingerprinting System
+Description:
+Audio fingerprinting is a technique used to create a unique identifier (or "fingerprint") for an audio signal, which can be used for applications like audio matching, music recognition, and content identification. The goal is to generate a compact, unique representation of an audio signal that can be compared to others in a large database to identify the audio. In this project, we will implement a basic audio fingerprinting system using spectrograms and hashing to create audio fingerprints and perform audio matching.
+
+🧪 Python Implementation (Audio Fingerprinting using Spectrogram and Hashing)
+We'll create audio fingerprints by generating spectrograms for the audio signals and then apply hashing to convert the spectrogram into a compact, unique fingerprint. We will then match fingerprints to identify audio.
+
+import librosa
+import numpy as np
+import hashlib
+import matplotlib.pyplot as plt
+ 
+# 1. Load the audio file
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Create a spectrogram for the audio
+def create_spectrogram(audio, sr, n_fft=2048, hop_length=512, n_mels=128):
+    # Generate a mel spectrogram
+    mel_spectrogram = librosa.feature.melspectrogram(audio, sr=sr, n_fft=n_fft, hop_length=hop_length, n_mels=n_mels)
+    # Convert to decibels for better representation
+    spectrogram_db = librosa.power_to_db(mel_spectrogram, ref=np.max)
+    return spectrogram_db
+ 
+# 3. Generate an audio fingerprint from the spectrogram
+def generate_fingerprint(spectrogram):
+    # Flatten the spectrogram to a 1D array
+    flattened_spectrogram = spectrogram.flatten()
+    
+    # Convert the array into a string to generate a unique hash
+    spectrogram_str = ''.join([str(val) for val in flattened_spectrogram])
+    
+    # Generate a hash from the spectrogram string
+    fingerprint = hashlib.sha256(spectrogram_str.encode('utf-8')).hexdigest()
+    
+    return fingerprint
+ 
+# 4. Match the audio fingerprint with an existing database (for simplicity, we compare with a single known fingerprint)
+def match_fingerprint(fingerprint, known_fingerprints):
+    if fingerprint in known_fingerprints:
+        return "Audio Matched!"
+    else:
+        return "No Match Found."
+ 
+# 5. Visualize the spectrogram (optional)
+def plot_spectrogram(spectrogram):
+    plt.figure(figsize=(10, 6))
+    plt.imshow(spectrogram, cmap='viridis', origin='lower', aspect='auto')
+    plt.title("Spectrogram")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Frequency (Hz)")
+    plt.colorbar(format="%+2.0f dB")
+    plt.show()
+ 
+# 6. Example usage
+audio_file = 'path_to_audio_file.wav'  # Replace with your audio file path
+ 
+# Load the audio signal
+audio, sr = load_audio(audio_file)
+ 
+# Create the spectrogram for the audio
+spectrogram = create_spectrogram(audio, sr)
+ 
+# Generate the audio fingerprint
+fingerprint = generate_fingerprint(spectrogram)
+ 
+# Visualize the spectrogram
+plot_spectrogram(spectrogram)
+ 
+# Compare the generated fingerprint with known fingerprints
+known_fingerprints = ['known_fingerprint_1', 'known_fingerprint_2', fingerprint]  # Replace with real known fingerprints
+match_result = match_fingerprint(fingerprint, known_fingerprints)
+print(match_result)
+Explanation:
+In this audio fingerprinting system:
+
+Spectrogram Generation: We create a mel spectrogram from the audio signal using Librosa, which provides a time-frequency representation of the audio.
+
+Fingerprint Generation: We flatten the spectrogram into a 1D array and then generate a hash (SHA-256) from it. This hash serves as the fingerprint for the audio.
+
+Matching: The generated fingerprint is compared with a list of known fingerprints to determine whether a match exists. In real-world scenarios, the fingerprints are stored in a large database, and the system performs fast matching.
+
+For a production system, locality-sensitive hashing (LSH) or other techniques can be used to improve the matching efficiency.
+
+Project 708: Query by Humming Implementation
+Description:
+Query by humming allows users to search for a song or melody by humming a portion of the song. This is a common feature in music recognition applications like Shazam or SoundHound. In this project, we will implement a basic query by humming system where the system extracts melody features from the hummed audio and compares them with stored song melodies to identify the song. The system will use dynamic time warping (DTW) or nearest neighbor search for matching.
+
+🧪 Python Implementation (Query by Humming using Dynamic Time Warping)
+To implement the Query by Humming system, we will first extract the melody features from both the hummed audio and the reference songs. We will use Dynamic Time Warping (DTW) to compare the two audio signals and find the closest match.
+
+Install Required Libraries:
+pip install librosa scipy numpy matplotlib
+Python Code for Query by Humming:
+import librosa
+import numpy as np
+from scipy.spatial.distance import cdist
+import matplotlib.pyplot as plt
+ 
+# 1. Load the audio file
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Extract melody features (MFCC) from the hummed query or reference song
+def extract_melody_features(audio, sr, n_mfcc=13):
+    # Extract MFCC features
+    mfcc = librosa.feature.mfcc(audio, sr=sr, n_mfcc=n_mfcc)
+    return np.mean(mfcc, axis=1)
+ 
+# 3. Dynamic Time Warping (DTW) for comparing two audio signals
+def dynamic_time_warping(query_features, reference_features):
+    # Compute the DTW distance between the query and reference features
+    distance_matrix = cdist(query_features.reshape(-1, 1), reference_features.reshape(-1, 1), metric='euclidean')
+    return np.sum(distance_matrix)
+ 
+# 4. Match the hummed query to reference songs in the database
+def query_by_humming(query_audio, reference_audios):
+    # Extract features from the query
+    query_features = extract_melody_features(query_audio, sr)
+    
+    # Compare the query with each reference audio in the database
+    distances = []
+    for ref_audio in reference_audios:
+        ref_features = extract_melody_features(ref_audio, sr)
+        distance = dynamic_time_warping(query_features, ref_features)
+        distances.append(distance)
+    
+    # Find the best match (minimum distance)
+    best_match_index = np.argmin(distances)
+    return best_match_index, distances[best_match_index]
+ 
+# 5. Example usage
+query_audio_file = "path_to_query_humming.wav"  # Replace with the path to the hummed query
+reference_audio_files = ["path_to_reference_song1.wav", "path_to_reference_song2.wav"]  # Replace with reference songs
+ 
+# Load the query humming and reference songs
+query_audio, sr = load_audio(query_audio_file)
+reference_audios = [load_audio(file)[0] for file in reference_audio_files]
+ 
+# Find the best match for the hummed query
+best_match_index, distance = query_by_humming(query_audio, reference_audios)
+ 
+# Print the best match result
+print(f"The best match is reference song {best_match_index + 1} with a distance of {distance}")
+ 
+Explanation:
+Audio Features Extraction: We use MFCC to extract melody features from the hummed query and reference songs. MFCC captures the spectral properties of the audio, which is useful for matching melodies.
+
+Dynamic Time Warping (DTW): We use DTW to compare the sequence of features from the hummed query with the reference songs. DTW finds the optimal alignment between the two signals by calculating the distance matrix.
+
+Matching: The system computes the DTW distance between the hummed query and each reference song. The song with the smallest distance is considered the best match.
+
+This system is a simplified version. For better results, advanced models like Siamese networks or neural networks trained on large datasets of hummed queries and reference songs can be used.
+
+Project 709: Cover Song Identification
+Description:
+Cover song identification is the task of identifying if a song has been covered by another artist. The challenge lies in identifying the same song despite changes in performance style, instrumentation, and arrangement. In this project, we will implement a cover song identification system using audio feature extraction and a machine learning model (e.g., SVM or KNN) to identify cover songs based on similarity of the audio content.
+
+🧪 Python Implementation (Cover Song Identification using Audio Features and SVM)
+In this project, we will extract audio features (such as MFCC, chroma, and spectral contrast) from the original and cover versions of the songs. Then, we will train a machine learning model (e.g., Support Vector Machine or K-Nearest Neighbors) to classify whether two songs are a cover version of each other.
+
+Required Libraries:
+pip install librosa scikit-learn numpy matplotlib
+Python Code for Cover Song Identification:
+import librosa
+import numpy as np
+from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+import os
+ 
+# 1. Extract features (MFCC, chroma, spectral contrast) from an audio file
+def extract_audio_features(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    
+    # Extract MFCC features
+    mfcc = librosa.feature.mfcc(audio, sr=sr, n_mfcc=13)
+    mfcc_mean = np.mean(mfcc, axis=1)
+    
+    # Extract chroma features
+    chroma = librosa.feature.chroma_stft(audio, sr=sr)
+    chroma_mean = np.mean(chroma, axis=1)
+    
+    # Extract spectral contrast features
+    spectral_contrast = librosa.feature.spectral_contrast(audio, sr=sr)
+    spectral_contrast_mean = np.mean(spectral_contrast, axis=1)
+    
+    # Combine features
+    features = np.hstack((mfcc_mean, chroma_mean, spectral_contrast_mean))
+    
+    return features
+ 
+# 2. Collect the dataset (folder with subfolders named by song titles, and labels for original/cover)
+def collect_data(directory):
+    X = []  # Features
+    y = []  # Labels (1 for cover, 0 for original)
+    songs = os.listdir(directory)  # List of song folders
+    
+    for song in songs:
+        song_folder = os.path.join(directory, song)
+        if os.path.isdir(song_folder):
+            for file in os.listdir(song_folder):
+                file_path = os.path.join(song_folder, file)
+                if file.endswith('.wav'):  # Assuming all audio files are .wav format
+                    features = extract_audio_features(file_path)
+                    X.append(features)
+                    if 'cover' in song:
+                        y.append(1)  # Label 1 for cover songs
+                    else:
+                        y.append(0)  # Label 0 for original songs
+    
+    return np.array(X), np.array(y)
+ 
+# 3. Train the cover song identification model
+def train_cover_song_model(X, y):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    model = SVC(kernel='linear')  # Support Vector Classifier for cover song identification
+    model.fit(X_train, y_train)  # Train the model
+    
+    # Evaluate the model
+    y_pred = model.predict(X_test)
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    
+    return model
+ 
+# 4. Test the model with a new pair of audio files (query the model with two songs)
+def classify_cover_song(model, song1_path, song2_path):
+    song1_features = extract_audio_features(song1_path)
+    song2_features = extract_audio_features(song2_path)
+    
+    # Combine the features of the two songs to compare them
+    features = np.abs(song1_features - song2_features)  # Feature difference
+    
+    # Predict if the songs are a match (cover or not)
+    prediction = model.predict([features])
+    if prediction == 1:
+        print("The songs are a cover version of each other!")
+    else:
+        print("The songs are not a cover version of each other.")
+ 
+# 5. Example usage
+directory = "path_to_song_dataset"  # Replace with the path to your song dataset folder
+X, y = collect_data(directory)  # Collect features and labels from the dataset
+model = train_cover_song_model(X, y)  # Train the model
+ 
+# Test the model with a pair of audio files (query two songs for cover song identification)
+song1 = "path_to_original_song.wav"  # Replace with path to an original song
+song2 = "path_to_cover_song.wav"  # Replace with path to a cover version of the song
+classify_cover_song(model, song1, song2)
+Explanation:
+Audio Feature Extraction: We extract MFCC, chroma, and spectral contrast features from both the original and cover versions of songs using Librosa.
+
+Model Training: We use a Support Vector Classifier (SVC) to classify the songs as either original or cover. We train the model on a dataset of labeled original and cover songs.
+
+Cover Song Matching: The model predicts whether two songs are cover versions of each other based on the extracted audio features. We use the difference between features from two songs to perform the matching.
+
+For a more advanced solution, deep learning models such as Siamese Networks can be used for comparing two audio signals directly and can provide more accurate results.
+
+Project 710: Music Recommendation System
+Description:
+A music recommendation system suggests music tracks to users based on their preferences, listening history, or other factors. These systems are widely used by music streaming platforms like Spotify, Apple Music, and YouTube. In this project, we will implement a music recommendation system using collaborative filtering, which recommends music based on user interactions (e.g., listening history, ratings). We will use matrix factorization techniques such as SVD (Singular Value Decomposition) to generate recommendations.
+
+🧪 Python Implementation (Music Recommendation System using Collaborative Filtering and SVD)
+We will use a simple collaborative filtering approach to recommend songs. We will create a user-item interaction matrix, where rows represent users, columns represent songs, and the values represent user ratings or interactions. We will then apply SVD to factorize the matrix and predict missing values, which are used to generate recommendations.
+
+Required Libraries:
+pip install numpy pandas scikit-learn
+Python Code for Music Recommendation:
+import numpy as np
+import pandas as pd
+from sklearn.decomposition import TruncatedSVD
+from sklearn.metrics import mean_squared_error
+ 
+# 1. Create a sample user-item interaction matrix (user-song ratings)
+def create_user_item_matrix(data):
+    # Convert the data into a pandas DataFrame for better handling
+    df = pd.DataFrame(data)
+    return df.pivot(index='user_id', columns='song_id', values='rating')
+ 
+# 2. Apply Singular Value Decomposition (SVD) for collaborative filtering
+def apply_svd(user_item_matrix, n_components=5):
+    # Perform matrix factorization using SVD
+    svd = TruncatedSVD(n_components=n_components)
+    matrix_reduced = svd.fit_transform(user_item_matrix.fillna(0))  # Fill NaN with 0 (missing values)
+    return svd, matrix_reduced
+ 
+# 3. Make song recommendations for a specific user
+def recommend_songs(user_id, user_item_matrix, svd, matrix_reduced, n_recommendations=5):
+    user_index = user_id - 1  # User ID starts from 1, so subtract 1 for index
+    user_scores = np.dot(matrix_reduced[user_index, :], svd.components_)
+    recommended_song_indices = np.argsort(user_scores)[::-1][:n_recommendations]
+    
+    # Retrieve song IDs and their predicted scores
+    recommended_songs = [(user_item_matrix.columns[i], user_scores[i]) for i in recommended_song_indices]
+    return recommended_songs
+ 
+# 4. Example usage
+data = {
+    'user_id': [1, 1, 1, 2, 2, 3, 3, 3],
+    'song_id': [1, 2, 3, 1, 3, 2, 4, 5],
+    'rating': [5, 3, 4, 4, 5, 2, 4, 5]
+}
+ 
+# Create user-item interaction matrix
+user_item_matrix = create_user_item_matrix(data)
+ 
+# Apply SVD for matrix factorization
+svd, matrix_reduced = apply_svd(user_item_matrix, n_components=3)
+ 
+# Make recommendations for user 1
+user_id = 1
+recommended_songs = recommend_songs(user_id, user_item_matrix, svd, matrix_reduced)
+print(f"Recommended songs for User {user_id}:")
+for song, score in recommended_songs:
+    print(f"Song ID: {song}, Predicted Score: {score}")
+Explanation:
+User-Item Matrix: We create a user-item interaction matrix where users' interactions with songs (like ratings) are represented in a matrix format.
+
+SVD (Singular Value Decomposition): We use SVD for matrix factorization, which decomposes the user-item matrix into latent factors (representing users and songs). This allows us to predict missing values (unrated songs) and recommend songs to users based on their interaction history.
+
+Song Recommendation: The system recommends songs to users based on their predicted scores for each song, which are generated by the SVD model.
+
+This is a basic collaborative filtering implementation. You can extend this project by incorporating content-based filtering, hybrid approaches, and deep learning models for better accuracy in recommending music.
+
+Project 711: Music Style Transfer
+Description:
+Music style transfer refers to the process of transferring the style (e.g., tempo, instrument arrangement) of one music piece to another while preserving the content (e.g., melody or harmony). This technique is inspired by image style transfer and can be used to generate new musical compositions by applying the style of one track to the melody of another. In this project, we will implement a music style transfer system using neural networks to modify the style of a song while keeping its melody intact.
+
+🧪 Python Implementation (Music Style Transfer using Neural Networks)
+For simplicity, we will use feature extraction methods like MFCC and Chroma to represent the content and style of the audio. A neural network model, such as a Convolutional Neural Network (CNN), can be trained to map one piece of music to another, transferring style while preserving the melody.
+
+Required Libraries:
+pip install librosa tensorflow numpy
+Python Code for Music Style Transfer:
+import numpy as np
+import librosa
+import tensorflow as tf
+from tensorflow.keras import layers
+import matplotlib.pyplot as plt
+ 
+# 1. Load the audio file
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Extract audio features (MFCC, Chroma) from the audio
+def extract_features(audio, sr, n_mfcc=13):
+    # Extract MFCC features (used for content)
+    mfcc = librosa.feature.mfcc(audio, sr=sr, n_mfcc=n_mfcc)
+    
+    # Extract Chroma features (used for style)
+    chroma = librosa.feature.chroma_stft(audio, sr=sr)
+    
+    return mfcc, chroma
+ 
+# 3. Define the style transfer model (CNN-based)
+def build_style_transfer_model(content_shape, style_shape):
+    content_input = layers.Input(shape=content_shape)
+    style_input = layers.Input(shape=style_shape)
+ 
+    # CNN layers for content extraction
+    content_x = layers.Conv1D(64, 3, activation='relu')(content_input)
+    content_x = layers.MaxPooling1D(2)(content_x)
+    content_x = layers.Conv1D(128, 3, activation='relu')(content_x)
+    content_x = layers.MaxPooling1D(2)(content_x)
+    
+    # CNN layers for style extraction
+    style_x = layers.Conv1D(64, 3, activation='relu')(style_input)
+    style_x = layers.MaxPooling1D(2)(style_x)
+    style_x = layers.Conv1D(128, 3, activation='relu')(style_x)
+    style_x = layers.MaxPooling1D(2)(style_x)
+ 
+    # Combine content and style features
+    combined = layers.concatenate([content_x, style_x])
+    
+    # Fully connected layers to generate the stylized audio
+    x = layers.Flatten()(combined)
+    x = layers.Dense(128, activation='relu')(x)
+    output = layers.Dense(content_shape[0], activation='linear')(x)
+ 
+    model = tf.keras.Model(inputs=[content_input, style_input], outputs=output)
+    model.compile(optimizer='adam', loss='mean_squared_error')
+    return model
+ 
+# 4. Train the model for style transfer (using a paired content and style dataset)
+def train_style_transfer_model(model, content_audio, style_audio, epochs=10):
+    # Extract features from both content and style audio
+    content_mfcc, content_chroma = extract_features(content_audio, sr)
+    style_mfcc, style_chroma = extract_features(style_audio, sr)
+    
+    # Train the model
+    model.fit([content_mfcc, style_chroma], content_mfcc, epochs=epochs)
+    
+# 5. Apply style transfer to new content audio
+def apply_style_transfer(model, content_audio, style_audio):
+    # Extract features from both content and style audio
+    content_mfcc, content_chroma = extract_features(content_audio, sr)
+    style_mfcc, style_chroma = extract_features(style_audio, sr)
+    
+    # Generate the stylized audio
+    stylized_audio = model.predict([content_mfcc, style_chroma])
+    return stylized_audio
+ 
+# 6. Example usage
+content_audio_file = 'path_to_content_audio.wav'  # Replace with the content audio path
+style_audio_file = 'path_to_style_audio.wav'  # Replace with the style audio path
+ 
+# Load the content and style audio
+content_audio, sr = load_audio(content_audio_file)
+style_audio, _ = load_audio(style_audio_file)
+ 
+# Build the style transfer model
+model = build_style_transfer_model(content_shape=(13, content_audio.shape[0]), style_shape=(13, style_audio.shape[0]))
+ 
+# Train the model (with paired content and style audio)
+train_style_transfer_model(model, content_audio, style_audio, epochs=10)
+ 
+# Apply style transfer to new content
+stylized_audio = apply_style_transfer(model, content_audio, style_audio)
+ 
+# Plot the original and stylized audio
+plt.figure(figsize=(10, 6))
+ 
+# Plot content audio
+plt.subplot(2, 1, 1)
+plt.plot(content_audio)
+plt.title("Original Content Audio")
+ 
+# Plot stylized audio
+plt.subplot(2, 1, 2)
+plt.plot(stylized_audio[0])
+plt.title("Stylized Audio (with Transferred Style)")
+ 
+plt.tight_layout()
+plt.show()
+Explanation:
+In this Music Style Transfer project:
+
+Feature Extraction: We use MFCC to represent the content of the audio and Chroma features to capture the style of the music.
+
+Neural Network Model: We build a CNN-based model to extract features from both the content and style of the music. The model combines these features and learns how to generate a new audio signal that combines the content from one track and the style from another.
+
+Training and Application: The model is trained with paired audio data (one content and one style track). After training, we can apply the learned style to new content tracks to generate stylized music.
+
+This is a basic approach to music style transfer. More sophisticated techniques like WaveNet or GANs can be used for higher-quality results.
+
+Project 712: Audio-to-MIDI Conversion
+Description:
+Audio-to-MIDI conversion is the process of converting an audio signal (e.g., a music recording) into MIDI format. MIDI (Musical Instrument Digital Interface) is a standard protocol used to represent musical data, such as notes, velocities, and timings. The task is challenging because it involves converting continuous audio waveforms into discrete musical events, such as notes and chords, while maintaining timing and pitch information. In this project, we will implement an audio-to-MIDI conversion system that extracts pitch and timing information from an audio signal and generates a corresponding MIDI file.
+
+🧪 Python Implementation (Audio-to-MIDI Conversion using Pitch Detection)
+We will use Librosa to extract pitch information from the audio signal and mido to create a MIDI file. The process will involve detecting pitch and timing of the audio and converting them into MIDI events.
+
+Install Required Libraries:
+pip install librosa mido numpy
+Python Code for Audio-to-MIDI Conversion:
+import librosa
+import numpy as np
+import mido
+from mido import MidiFile, MidiTrack, Message
+ 
+# 1. Load the audio file
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Extract pitch and timing (onset) information from the audio
+def extract_pitch_and_onsets(audio, sr):
+    # Detect pitch using librosa's pitch tracking algorithm
+    onset_env = librosa.onset.onset_strength(audio, sr=sr)
+    times = librosa.frames_to_time(np.arange(len(onset_env)), sr=sr)
+    
+    # Use librosa's pitch detection
+    pitches, magnitudes = librosa.core.piptrack(y=audio, sr=sr)
+    
+    # Extract the most prominent pitch at each frame
+    pitch_values = []
+    for t in range(pitches.shape[1]):
+        pitch = pitches[:, t]
+        index = np.argmax(pitch)  # Find the most prominent pitch
+        pitch_values.append(pitch[index])
+    
+    return pitch_values, times
+ 
+# 3. Convert pitch and timing information to MIDI events
+def audio_to_midi(pitches, times, output_file="output_midi.mid"):
+    mid = MidiFile()
+    track = MidiTrack()
+    mid.tracks.append(track)
+    
+    # Loop through each pitch and its corresponding time
+    for pitch, time in zip(pitches, times):
+        # Convert pitch to MIDI note (note 69 is A4)
+        midi_note = int(librosa.hz_to_midi(pitch))
+        
+        # Add MIDI note on event (velocity of 64)
+        track.append(Message('note_on', note=midi_note, velocity=64, time=int(time * 1000)))  # time in ms
+        # Add note off event (duration of 500ms for simplicity)
+        track.append(Message('note_off', note=midi_note, velocity=64, time=int((time + 0.5) * 1000)))  # 500ms duration
+    
+    # Save the MIDI file
+    mid.save(output_file)
+    print(f"MIDI file saved as {output_file}")
+ 
+# 4. Example usage
+audio_file = 'path_to_audio_file.wav'  # Replace with your audio file path
+ 
+# Load the audio signal
+audio, sr = load_audio(audio_file)
+ 
+# Extract pitch and onset information
+pitches, times = extract_pitch_and_onsets(audio, sr)
+ 
+# Convert audio to MIDI
+audio_to_midi(pitches, times, output_file="converted_audio.mid")
+Explanation:
+Audio Feature Extraction: We extract the pitch of the audio using Librosa's pitch tracking function and the onset strength for detecting note onsets.
+
+MIDI Conversion: We convert the extracted pitch values to MIDI note numbers (MIDI uses note numbers, with 69 representing A4) and generate MIDI events (note on and note off).
+
+MIDI File Generation: Using the mido library, we create a MIDI file that represents the audio as musical notes with proper timings.
+
+This is a simplified version of audio-to-MIDI conversion. For better accuracy, more advanced techniques such as deep learning models trained on large music datasets can be used for higher-quality pitch and onset detection.
+
+Project 713: Speech-to-Text Translation
+Description:
+Speech-to-text translation is the process of converting spoken language into written text. This is a fundamental task in speech recognition systems and is widely used in applications like virtual assistants, dictation software, and voice-enabled devices. In this project, we will implement a speech-to-text system that takes an audio input (speech) and converts it into corresponding text using a pre-trained model like Google Speech-to-Text API or DeepSpeech.
+
+🧪 Python Implementation (Speech-to-Text using Google Speech API)
+In this implementation, we will use the Google Speech-to-Text API to perform speech recognition. The API converts audio files containing speech into text with high accuracy. You'll need a Google Cloud account and set up the Google Speech-to-Text API.
+
+Steps:
+Install the required libraries:
+
+pip install SpeechRecognition pydub
+Google Cloud setup:
+
+Go to Google Cloud Console, enable the Speech-to-Text API, and create a service account with a key.
+
+Download the JSON key and set the GOOGLE_APPLICATION_CREDENTIALS environment variable to point to the downloaded file.
+
+Python Code for Speech-to-Text:
+import speech_recognition as sr
+from pydub import AudioSegment
+ 
+# 1. Load and convert the audio file to the required format (WAV)
+def load_and_convert_audio(file_path):
+    audio = AudioSegment.from_file(file_path)
+    audio = audio.set_channels(1).set_sample_width(2).set_frame_rate(16000)  # Mono, 16 kHz, 16-bit
+    audio.export("converted_audio.wav", format="wav")
+    return "converted_audio.wav"
+ 
+# 2. Perform speech-to-text using Google Speech API
+def speech_to_text(audio_file):
+    recognizer = sr.Recognizer()
+    
+    # Load the audio file
+    with sr.AudioFile(audio_file) as source:
+        audio_data = recognizer.record(source)
+    
+    try:
+        # Use Google Web Speech API to recognize speech
+        print("Recognizing...")
+        text = recognizer.recognize_google(audio_data)
+        print(f"Recognized Text: {text}")
+    except sr.UnknownValueError:
+        print("Google Speech Recognition could not understand the audio.")
+    except sr.RequestError:
+        print("Could not request results from Google Speech Recognition service.")
+ 
+# 3. Example usage
+audio_file = 'path_to_audio_file.mp3'  # Replace with your audio file path
+ 
+# Convert the audio file to the required format
+converted_audio = load_and_convert_audio(audio_file)
+ 
+# Perform speech-to-text
+speech_to_text(converted_audio)
+Explanation:
+Audio Conversion: We use pydub to convert the audio file (e.g., MP3) to a WAV file with mono channel, 16kHz sample rate, and 16-bit depth. These settings are required by the Google Speech-to-Text API.
+
+Speech Recognition: The SpeechRecognition library is used to send the audio data to the Google Speech API for transcription. The recognize_google method sends the audio data to Google’s API and retrieves the corresponding text.
+
+Error Handling: We handle potential errors like unrecognizable speech or API request failures.
+
+This system uses Google's Speech-to-Text API, but you can replace it with other speech recognition systems such as DeepSpeech or AssemblyAI for better customization or offline recognition.
+
+Project 714: Multilingual Speech Recognition
+Description:
+Multilingual speech recognition refers to the task of converting spoken language into text in multiple languages. This is crucial in applications like voice assistants, global communication tools, and real-time translation systems. In this project, we will implement a multilingual speech recognition system that can handle speech in different languages. We'll use a pre-trained model or API that supports multiple languages, such as Google Cloud Speech-to-Text or DeepSpeech.
+
+🧪 Python Implementation (Multilingual Speech Recognition using Google Cloud Speech-to-Text API)
+We'll use the Google Cloud Speech-to-Text API, which supports multiple languages, including English, Spanish, French, German, and many others. The implementation will automatically detect the language of the speech, but you can also specify the language if you know it in advance.
+
+Steps:
+Install the required libraries:
+
+pip install google-cloud-speech pydub SpeechRecognition
+Google Cloud setup:
+
+Go to Google Cloud Console, enable the Speech-to-Text API, and create a service account with a key.
+
+Download the JSON key and set the GOOGLE_APPLICATION_CREDENTIALS environment variable to point to the downloaded file.
+
+Python Code for Multilingual Speech Recognition:
+import os
+import speech_recognition as sr
+from google.cloud import speech
+from pydub import AudioSegment
+ 
+# 1. Set up the Google Cloud Speech client
+def initialize_google_cloud_client():
+    client = speech.SpeechClient()
+    return client
+ 
+# 2. Convert audio to WAV format
+def load_and_convert_audio(file_path):
+    audio = AudioSegment.from_file(file_path)
+    audio = audio.set_channels(1).set_sample_width(2).set_frame_rate(16000)  # Mono, 16 kHz, 16-bit
+    audio.export("converted_audio.wav", format="wav")
+    return "converted_audio.wav"
+ 
+# 3. Perform multilingual speech recognition using Google Cloud Speech API
+def recognize_speech(file_path, language_code="en-US"):
+    client = initialize_google_cloud_client()
+    
+    with open(file_path, 'rb') as audio_file:
+        content = audio_file.read()
+    
+    audio = speech.RecognitionAudio(content=content)
+    config = speech.RecognitionConfig(
+        encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+        sample_rate_hertz=16000,
+        language_code=language_code,
+        enable_automatic_punctuation=True,
+    )
+    
+    # Perform the recognition request
+    response = client.recognize(config=config, audio=audio)
+    
+    # Print the recognized text from each segment
+    for result in response.results:
+        print(f"Recognized Text: {result.alternatives[0].transcript}")
+ 
+# 4. Example usage
+audio_file = "path_to_audio_file.mp3"  # Replace with the path to your audio file
+ 
+# Convert audio file to WAV format
+converted_audio = load_and_convert_audio(audio_file)
+ 
+# Recognize speech in the audio file (specify language code)
+language_code = "es-ES"  # Spanish (you can change this to other languages like "fr-FR", "de-DE", etc.)
+recognize_speech(converted_audio, language_code)
+Explanation:
+Audio Conversion: We use pydub to convert the audio file (e.g., MP3) to WAV format with mono channel, 16kHz sample rate, and 16-bit depth, as required by the Google Cloud Speech API.
+
+Google Cloud Speech-to-Text API: The Google Cloud Speech API is used to transcribe audio into text. It supports multiple languages, and you can specify the language for speech recognition by passing the language_code parameter (e.g., "en-US" for English, "es-ES" for Spanish).
+
+Language Detection: In this example, you can specify the language directly. However, the Google API can auto-detect the language if needed.
+
+Supported Languages by Google Cloud:
+English (en-US)
+
+Spanish (es-ES)
+
+French (fr-FR)
+
+German (de-DE)
+
+Chinese (zh-CN, zh-TW)
+
+Many others.
+
+For a real-world multilingual system, you would likely need to handle language detection automatically or allow the user to choose the language.
+
+Project 715: Low-Resource Speech Recognition
+Description:
+Low-resource speech recognition refers to building speech recognition systems for languages or dialects that lack large annotated datasets or resources (e.g., audio corpora, linguistic models). This is a challenging task, as most modern speech recognition systems rely on large amounts of labeled data to train accurate models. In this project, we will explore methods to build speech recognition systems for low-resource languages using transfer learning, data augmentation, and unsupervised learning techniques.
+
+🧪 Python Implementation (Low-Resource Speech Recognition using Transfer Learning)
+For this project, we'll use pre-trained models (such as DeepSpeech or Wav2Vec 2.0) and fine-tune them for a low-resource language using smaller datasets. The Hugging Face Transformers library provides models like Wav2Vec 2.0 that can be fine-tuned on smaller datasets for low-resource languages.
+
+Steps:
+Install the required libraries:
+
+pip install transformers datasets torchaudio
+Use a pre-trained Wav2Vec 2.0 model for transfer learning.
+
+Python Code for Low-Resource Speech Recognition:
+import torch
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+from datasets import load_dataset
+import torchaudio
+ 
+# 1. Load the pre-trained Wav2Vec 2.0 model and processor
+def load_wav2vec_model():
+    processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-large-960h")
+    model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-960h")
+    return processor, model
+ 
+# 2. Fine-tune the model on a low-resource language dataset (if available)
+def fine_tune_model(model, processor, train_dataset, test_dataset):
+    # Tokenizing the audio files and labels
+    def preprocess_function(examples):
+        audio = examples["audio"]
+        # Extract the waveform
+        waveform, _ = torchaudio.load(audio["path"])
+        return processor(waveform, sampling_rate=16000, return_tensors="pt", padding=True)
+ 
+    train_dataset = train_dataset.map(preprocess_function, remove_columns=["audio"])
+    test_dataset = test_dataset.map(preprocess_function, remove_columns=["audio"])
+ 
+    # Fine-tune the model (a simplified example)
+    training_args = torch.optim.AdamW(model.parameters(), lr=1e-5)
+    model.train()
+ 
+    # Loop through the training data
+    for epoch in range(3):  # Training for 3 epochs as an example
+        for batch in train_dataset:
+            inputs = batch['input_values']
+            labels = batch['labels']
+            outputs = model(input_values=inputs, labels=labels)
+            loss = outputs.loss
+            loss.backward()
+            training_args.step()  # Update weights
+            training_args.zero_grad()  # Clear gradients
+ 
+    return model
+ 
+# 3. Perform speech recognition (transcribe speech)
+def transcribe_audio(model, processor, audio_file):
+    # Load the audio file and process it
+    waveform, _ = torchaudio.load(audio_file)
+    inputs = processor(waveform, sampling_rate=16000, return_tensors="pt", padding=True)
+    
+    # Perform speech recognition
+    with torch.no_grad():
+        logits = model(input_values=inputs.input_values).logits
+    predicted_ids = torch.argmax(logits, dim=-1)
+ 
+    # Decode the predicted IDs into text
+    transcription = processor.decode(predicted_ids[0])
+    return transcription
+ 
+# 4. Example usage
+# Load pre-trained Wav2Vec 2.0 model and processor
+processor, model = load_wav2vec_model()
+ 
+# (Optional) Fine-tune the model on your low-resource language dataset
+# For real-world usage, you would load your own dataset with the `load_dataset` function
+train_dataset = load_dataset("common_voice", "en", split="train[:1%]")  # Replace with your language's dataset
+test_dataset = load_dataset("common_voice", "en", split="test[:1%]")  # Replace with your language's dataset
+fine_tuned_model = fine_tune_model(model, processor, train_dataset, test_dataset)
+ 
+# Transcribe an audio file
+audio_file = "path_to_audio_file.wav"  # Replace with your audio file path
+transcription = transcribe_audio(fine_tuned_model, processor, audio_file)
+print(f"Transcription: {transcription}")
+Explanation:
+Pre-trained Wav2Vec 2.0 Model: We use Wav2Vec 2.0, a pre-trained model for speech recognition. This model is trained on a large corpus of speech and can be fine-tuned for low-resource languages with smaller datasets.
+
+Fine-tuning: We demonstrate how to fine-tune a pre-trained Wav2Vec 2.0 model on a low-resource language dataset. You can substitute this with any smaller speech dataset from a low-resource language.
+
+Speech Recognition: We use the fine-tuned model to perform speech-to-text conversion on a new audio file.
+
+For real-world low-resource language recognition, it's important to gather as much data as possible for fine-tuning and explore techniques like data augmentation (e.g., pitch shifting, time-stretching) to enhance the training process.
+
+Project 716: Accented Speech Recognition
+Description:
+Accented speech recognition involves improving the accuracy of speech recognition systems for speakers with different accents. Accents can significantly impact the performance of speech recognition models, especially when they are not trained on diverse speech data. In this project, we will focus on building a speech recognition system that works well with a variety of accents by either fine-tuning pre-trained models or using accent-specific datasets to increase the model's robustness to different accents.
+
+🧪 Python Implementation (Accented Speech Recognition using Pre-trained Models and Fine-Tuning)
+To handle accented speech, we will use a pre-trained speech recognition model (e.g., Wav2Vec 2.0) and fine-tune it on an accented dataset to improve its ability to recognize speech from diverse accents.
+
+Required Libraries:
+pip install transformers datasets torchaudio librosa
+Python Code for Accented Speech Recognition:
+import torch
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+from datasets import load_dataset
+import torchaudio
+ 
+# 1. Load a pre-trained Wav2Vec 2.0 model and processor
+def load_wav2vec_model():
+    processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-large-960h")
+    model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-960h")
+    return processor, model
+ 
+# 2. Load and prepare the accented speech dataset
+def load_accented_dataset(language_code="en"):
+    # Example dataset: You can replace it with a real accented dataset (e.g., from CommonVoice)
+    dataset = load_dataset("common_voice", language_code)
+    return dataset
+ 
+# 3. Fine-tune the pre-trained model on an accented dataset
+def fine_tune_model(model, processor, train_dataset, test_dataset):
+    # Tokenize and process the dataset
+    def preprocess_function(examples):
+        audio = examples["audio"]
+        waveform, _ = torchaudio.load(audio["path"])
+        return processor(waveform, sampling_rate=16000, return_tensors="pt", padding=True)
+ 
+    train_dataset = train_dataset.map(preprocess_function, remove_columns=["audio"])
+    test_dataset = test_dataset.map(preprocess_function, remove_columns=["audio"])
+ 
+    # Fine-tune the model (this example uses a simple loop, but you can add training loops here)
+    training_args = torch.optim.AdamW(model.parameters(), lr=1e-5)
+    model.train()
+ 
+    for epoch in range(3):  # Example: training for 3 epochs
+        for batch in train_dataset:
+            inputs = batch['input_values']
+            labels = batch['labels']
+            outputs = model(input_values=inputs, labels=labels)
+            loss = outputs.loss
+            loss.backward()
+            training_args.step()
+            training_args.zero_grad()
+ 
+    return model
+ 
+# 4. Perform speech-to-text for a new audio file
+def transcribe_audio(model, processor, audio_file):
+    waveform, _ = torchaudio.load(audio_file)
+    inputs = processor(waveform, sampling_rate=16000, return_tensors="pt", padding=True)
+ 
+    with torch.no_grad():
+        logits = model(input_values=inputs.input_values).logits
+    predicted_ids = torch.argmax(logits, dim=-1)
+    transcription = processor.decode(predicted_ids[0])
+    
+    return transcription
+ 
+# 5. Example usage
+# Load pre-trained Wav2Vec 2.0 model and processor
+processor, model = load_wav2vec_model()
+ 
+# Load accented dataset (replace with your own dataset of accented speech)
+accented_dataset = load_accented_dataset("en")  # Replace "en" with your accented language
+train_dataset = accented_dataset["train"]
+test_dataset = accented_dataset["test"]
+ 
+# Fine-tune the model on the accented dataset
+fine_tuned_model = fine_tune_model(model, processor, train_dataset, test_dataset)
+ 
+# Test the fine-tuned model with a new accented audio file
+audio_file = "path_to_accented_audio.wav"  # Replace with your audio file path
+transcription = transcribe_audio(fine_tuned_model, processor, audio_file)
+print(f"Transcription of Accented Speech: {transcription}")
+Explanation:
+Wav2Vec 2.0 Pre-trained Model: We use the Wav2Vec 2.0 model from Hugging Face for speech recognition. Wav2Vec 2.0 is pre-trained on a large corpus of speech data and can be fine-tuned for specific tasks, including accented speech recognition.
+
+Dataset: We use an accented speech dataset like CommonVoice. You can use datasets with diverse accents or fine-tune the model on specific accent data (e.g., British English, African American Vernacular English, etc.).
+
+Fine-Tuning: The model is fine-tuned on the accented dataset using a simple training loop with AdamW optimization.
+
+Speech Recognition: After fine-tuning, we use the model to transcribe speech from new audio files containing accented speech.
+
+By fine-tuning a pre-trained model like Wav2Vec 2.0 on an accented speech dataset, we can improve its performance for different accents, even when the data is limited. For better results, consider using more diverse and large datasets or applying data augmentation techniques.
+
+Project 717: Child Speech Recognition
+Description:
+Child speech recognition focuses on improving the accuracy of speech recognition systems when dealing with speech from children. Children’s speech can differ significantly from adult speech in terms of pronunciation, pitch, and speech patterns. In this project, we will implement a speech recognition system specifically designed for children’s voices by using transfer learning, fine-tuning, or data augmentation techniques.
+
+🧪 Python Implementation (Child Speech Recognition using Transfer Learning)
+In this project, we'll use a pre-trained model like Wav2Vec 2.0 and fine-tune it with a child speech dataset (e.g., Child Speech Corpus or any available dataset with children’s speech). The model will be trained to handle the characteristics of child speech, such as higher pitch and faster or slower speech rate.
+
+Required Libraries:
+pip install transformers datasets torchaudio librosa
+Python Code for Child Speech Recognition:
+import torch
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+from datasets import load_dataset
+import torchaudio
+ 
+# 1. Load a pre-trained Wav2Vec 2.0 model and processor
+def load_wav2vec_model():
+    processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-large-960h")
+    model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-960h")
+    return processor, model
+ 
+# 2. Load and prepare the child speech dataset
+def load_child_speech_dataset():
+    # Example dataset: Replace with an actual child speech dataset
+    dataset = load_dataset("common_voice", "en")  # Example dataset, replace with child-specific dataset
+    return dataset
+ 
+# 3. Fine-tune the pre-trained model on a child speech dataset
+def fine_tune_model(model, processor, train_dataset, test_dataset):
+    def preprocess_function(examples):
+        audio = examples["audio"]
+        waveform, _ = torchaudio.load(audio["path"])
+        return processor(waveform, sampling_rate=16000, return_tensors="pt", padding=True)
+ 
+    # Preprocess the dataset
+    train_dataset = train_dataset.map(preprocess_function, remove_columns=["audio"])
+    test_dataset = test_dataset.map(preprocess_function, remove_columns=["audio"])
+ 
+    # Fine-tune the model (example loop, expand for full training)
+    training_args = torch.optim.AdamW(model.parameters(), lr=1e-5)
+    model.train()
+ 
+    for epoch in range(3):  # Training for 3 epochs (example)
+        for batch in train_dataset:
+            inputs = batch['input_values']
+            labels = batch['labels']
+            outputs = model(input_values=inputs, labels=labels)
+            loss = outputs.loss
+            loss.backward()
+            training_args.step()
+            training_args.zero_grad()
+ 
+    return model
+ 
+# 4. Perform speech-to-text for a new child audio file
+def transcribe_audio(model, processor, audio_file):
+    waveform, _ = torchaudio.load(audio_file)
+    inputs = processor(waveform, sampling_rate=16000, return_tensors="pt", padding=True)
+ 
+    with torch.no_grad():
+        logits = model(input_values=inputs.input_values).logits
+    predicted_ids = torch.argmax(logits, dim=-1)
+    transcription = processor.decode(predicted_ids[0])
+    
+    return transcription
+ 
+# 5. Example usage
+# Load pre-trained Wav2Vec 2.0 model and processor
+processor, model = load_wav2vec_model()
+ 
+# Load child speech dataset (replace with actual child-specific dataset)
+child_speech_dataset = load_child_speech_dataset()  # Replace with child-specific dataset
+train_dataset = child_speech_dataset["train"]
+test_dataset = child_speech_dataset["test"]
+ 
+# Fine-tune the model on the child speech dataset
+fine_tuned_model = fine_tune_model(model, processor, train_dataset, test_dataset)
+ 
+# Test the fine-tuned model with a new child speech audio file
+audio_file = "path_to_child_speech_audio.wav"  # Replace with your audio file path
+transcription = transcribe_audio(fine_tuned_model, processor, audio_file)
+print(f"Transcription of Child's Speech: {transcription}")
+Explanation:
+Pre-trained Wav2Vec 2.0 Model: We load a pre-trained Wav2Vec 2.0 model from Hugging Face, which has been trained on large amounts of general speech data.
+
+Child Speech Dataset: We use a child speech dataset (such as CommonVoice for English or a specialized child speech corpus) to fine-tune the model. You can replace CommonVoice with a dataset specifically containing children's voices.
+
+Fine-Tuning: The pre-trained model is fine-tuned on the child speech data to adapt it to the specific characteristics of children’s speech. This allows the model to perform better when transcribing speech from children.
+
+Speech Recognition: After fine-tuning, we use the model to transcribe speech from a new child audio file.
+
+For a real-world system, it's important to have a large labeled dataset of children's speech for fine-tuning and to consider data augmentation techniques to further improve performance on low-resource datasets.
+
+Project 718: Pathological Speech Recognition
+Description:
+Pathological speech recognition refers to the task of recognizing speech that is affected by various disorders or conditions such as Parkinson's disease, stroke, or ALS (Amyotrophic Lateral Sclerosis). These conditions often result in speech impairments like slurred speech, tremors, or reduced volume. In this project, we will focus on building a speech recognition system that can handle pathological speech, enabling accurate transcription for people with speech impairments. We will fine-tune a pre-trained model using a dataset containing pathological speech and apply speech enhancement and noise reduction techniques.
+
+🧪 Python Implementation (Pathological Speech Recognition using Fine-Tuning)
+For this project, we will use a pre-trained speech recognition model like Wav2Vec 2.0 and fine-tune it using a pathological speech dataset. If a suitable dataset is unavailable, you can apply data augmentation techniques (such as speed variation, pitch shifting, and background noise) to simulate pathological speech variations.
+
+Required Libraries:
+pip install transformers datasets torchaudio librosa
+Python Code for Pathological Speech Recognition:
+import torch
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+from datasets import load_dataset
+import torchaudio
+ 
+# 1. Load the pre-trained Wav2Vec 2.0 model and processor
+def load_wav2vec_model():
+    processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-large-960h")
+    model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-960h")
+    return processor, model
+ 
+# 2. Load and prepare the pathological speech dataset (replace with real dataset)
+def load_pathological_speech_dataset():
+    # For demonstration purposes, using a common voice dataset
+    # Replace with an actual dataset of pathological speech if available
+    dataset = load_dataset("common_voice", "en")  # Replace with a relevant pathological speech dataset
+    return dataset
+ 
+# 3. Fine-tune the pre-trained model on the pathological speech dataset
+def fine_tune_model(model, processor, train_dataset, test_dataset):
+    # Tokenize and process the dataset
+    def preprocess_function(examples):
+        audio = examples["audio"]
+        waveform, _ = torchaudio.load(audio["path"])
+        return processor(waveform, sampling_rate=16000, return_tensors="pt", padding=True)
+ 
+    train_dataset = train_dataset.map(preprocess_function, remove_columns=["audio"])
+    test_dataset = test_dataset.map(preprocess_function, remove_columns=["audio"])
+ 
+    # Fine-tune the model (simplified loop, real training would use a proper trainer)
+    training_args = torch.optim.AdamW(model.parameters(), lr=1e-5)
+    model.train()
+ 
+    for epoch in range(3):  # Training for 3 epochs (for simplicity)
+        for batch in train_dataset:
+            inputs = batch['input_values']
+            labels = batch['labels']
+            outputs = model(input_values=inputs, labels=labels)
+            loss = outputs.loss
+            loss.backward()
+            training_args.step()
+            training_args.zero_grad()
+ 
+    return model
+ 
+# 4. Perform speech-to-text for a new pathological speech audio file
+def transcribe_audio(model, processor, audio_file):
+    waveform, _ = torchaudio.load(audio_file)
+    inputs = processor(waveform, sampling_rate=16000, return_tensors="pt", padding=True)
+ 
+    with torch.no_grad():
+        logits = model(input_values=inputs.input_values).logits
+    predicted_ids = torch.argmax(logits, dim=-1)
+    transcription = processor.decode(predicted_ids[0])
+    
+    return transcription
+ 
+# 5. Example usage
+# Load pre-trained Wav2Vec 2.0 model and processor
+processor, model = load_wav2vec_model()
+ 
+# Load the pathological speech dataset (use a real pathological dataset if available)
+pathological_speech_dataset = load_pathological_speech_dataset()  # Replace with actual dataset
+train_dataset = pathological_speech_dataset["train"]
+test_dataset = pathological_speech_dataset["test"]
+ 
+# Fine-tune the model on the pathological speech dataset
+fine_tuned_model = fine_tune_model(model, processor, train_dataset, test_dataset)
+ 
+# Test the fine-tuned model with a new pathological speech audio file
+audio_file = "path_to_pathological_speech_audio.wav"  # Replace with your audio file path
+transcription = transcribe_audio(fine_tuned_model, processor, audio_file)
+print(f"Transcription of Pathological Speech: {transcription}")
+Explanation:
+Pre-trained Wav2Vec 2.0 Model: We load a pre-trained Wav2Vec 2.0 model, which has been trained on large amounts of general speech data. This model is fine-tuned on a pathological speech dataset to improve its performance with speech impairments.
+
+Dataset: In this example, we use the CommonVoice dataset, but you can replace it with a pathological speech dataset (e.g., speech from individuals with Parkinson's disease, ALS, or stroke).
+
+Fine-Tuning: We fine-tune the model on the pathological speech dataset using a simple training loop. The model adapts to the specific characteristics of pathological speech (e.g., tremors, slurred speech).
+
+Speech Recognition: After fine-tuning, the model is used to transcribe new pathological speech audio files.
+
+For better results, you would need a larger and more diverse pathological speech dataset. Techniques like data augmentation, feature enhancement, or noise reduction can also be used to improve the model’s robustness to pathological speech variations.
+
+
+
+Project 719: Whispered Speech Recognition
+Description:
+Whispered speech recognition involves transcribing speech that is produced without vocal cord vibration, which makes it quieter and harder to recognize compared to normal speech. Whispered speech often lacks the normal harmonics and has different acoustic features, making traditional speech recognition models less effective. In this project, we will build a whispered speech recognition system using transfer learning and data augmentation to make the model more robust to the acoustic characteristics of whispered speech.
+
+🧪 Python Implementation (Whispered Speech Recognition using Transfer Learning)
+We will fine-tune a pre-trained model like Wav2Vec 2.0 using a dataset containing whispered speech (e.g., Whispered Speech Corpus or any available dataset with whispered speech). The model will be trained to better handle the acoustic properties of whispered speech.
+
+Required Libraries:
+pip install transformers datasets torchaudio librosa
+Python Code for Whispered Speech Recognition:
+import torch
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+from datasets import load_dataset
+import torchaudio
+ 
+# 1. Load the pre-trained Wav2Vec 2.0 model and processor
+def load_wav2vec_model():
+    processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-large-960h")
+    model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-960h")
+    return processor, model
+ 
+# 2. Load and prepare the whispered speech dataset (replace with real whispered speech dataset)
+def load_whispered_speech_dataset():
+    # For demonstration purposes, using a common voice dataset
+    # Replace with an actual whispered speech dataset if available
+    dataset = load_dataset("common_voice", "en")  # Replace with a whispered speech dataset
+    return dataset
+ 
+# 3. Fine-tune the pre-trained model on the whispered speech dataset
+def fine_tune_model(model, processor, train_dataset, test_dataset):
+    def preprocess_function(examples):
+        audio = examples["audio"]
+        waveform, _ = torchaudio.load(audio["path"])
+        return processor(waveform, sampling_rate=16000, return_tensors="pt", padding=True)
+ 
+    # Preprocess the dataset
+    train_dataset = train_dataset.map(preprocess_function, remove_columns=["audio"])
+    test_dataset = test_dataset.map(preprocess_function, remove_columns=["audio"])
+ 
+    # Fine-tune the model (example loop, real training would use a proper trainer)
+    training_args = torch.optim.AdamW(model.parameters(), lr=1e-5)
+    model.train()
+ 
+    for epoch in range(3):  # Training for 3 epochs (for simplicity)
+        for batch in train_dataset:
+            inputs = batch['input_values']
+            labels = batch['labels']
+            outputs = model(input_values=inputs, labels=labels)
+            loss = outputs.loss
+            loss.backward()
+            training_args.step()
+            training_args.zero_grad()
+ 
+    return model
+ 
+# 4. Perform speech-to-text for a new whispered speech audio file
+def transcribe_audio(model, processor, audio_file):
+    waveform, _ = torchaudio.load(audio_file)
+    inputs = processor(waveform, sampling_rate=16000, return_tensors="pt", padding=True)
+ 
+    with torch.no_grad():
+        logits = model(input_values=inputs.input_values).logits
+    predicted_ids = torch.argmax(logits, dim=-1)
+    transcription = processor.decode(predicted_ids[0])
+    
+    return transcription
+ 
+# 5. Example usage
+# Load pre-trained Wav2Vec 2.0 model and processor
+processor, model = load_wav2vec_model()
+ 
+# Load the whispered speech dataset (replace with actual whispered speech dataset)
+whispered_speech_dataset = load_whispered_speech_dataset()  # Replace with actual dataset
+train_dataset = whispered_speech_dataset["train"]
+test_dataset = whispered_speech_dataset["test"]
+ 
+# Fine-tune the model on the whispered speech dataset
+fine_tuned_model = fine_tune_model(model, processor, train_dataset, test_dataset)
+ 
+# Test the fine-tuned model with a new whispered speech audio file
+audio_file = "path_to_whispered_speech_audio.wav"  # Replace with your audio file path
+transcription = transcribe_audio(fine_tuned_model, processor, audio_file)
+print(f"Transcription of Whispered Speech: {transcription}")
+Explanation:
+Pre-trained Wav2Vec 2.0 Model: We load a pre-trained Wav2Vec 2.0 model, which has been trained on general speech data. This model is fine-tuned on a whispered speech dataset to improve its performance on whispered speech.
+
+Dataset: In this example, we use the CommonVoice dataset, but you can replace it with a whispered speech dataset (e.g., Whispered Speech Corpus) for more accurate results.
+
+Fine-Tuning: The pre-trained model is fine-tuned on the whispered speech dataset to adapt it to the unique characteristics of whispered speech (e.g., lower volume, lack of vocal cord vibration).
+
+Speech Recognition: After fine-tuning, the model is used to transcribe whispered speech from new audio files.
+
+For better results, you would need a large whispered speech dataset. Additionally, data augmentation (e.g., noise addition, pitch shifting) can help improve model robustness.
+
+
+
+Project 720: Audio Deepfake Detection
+Description:
+Audio deepfake detection focuses on identifying synthetic audio generated by deep learning models, which mimics real human speech. Deepfake audio can be used for malicious purposes, such as impersonating someone's voice, spreading misinformation, or creating fake news. In this project, we will implement a deepfake detection system that can distinguish between real and fake audio by analyzing speech characteristics using machine learning techniques.
+
+🧪 Python Implementation (Audio Deepfake Detection using Spectrograms and Neural Networks)
+For this project, we will extract spectrograms from both real and fake audio samples and use a Convolutional Neural Network (CNN) to classify the audio as either real or fake. We'll use Librosa for feature extraction and TensorFlow for building the neural network model.
+
+Required Libraries:
+pip install librosa tensorflow numpy matplotlib
+Python Code for Audio Deepfake Detection:
+import librosa
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+ 
+# 1. Load the audio file
+def load_audio(file_path):
+    audio, sr = librosa.load(file_path, sr=None)
+    return audio, sr
+ 
+# 2. Extract the spectrogram (Mel-spectrogram)
+def extract_spectrogram(audio, sr, n_mfcc=13, n_mels=128, hop_length=512):
+    # Convert to Mel Spectrogram
+    mel_spectrogram = librosa.feature.melspectrogram(audio, sr=sr, n_mfcc=n_mfcc, n_mels=n_mels, hop_length=hop_length)
+    spectrogram_db = librosa.power_to_db(mel_spectrogram, ref=np.max)
+    return spectrogram_db
+ 
+# 3. Build the deepfake detection model (CNN-based)
+def build_deepfake_detection_model(input_shape):
+    model = tf.keras.Sequential()
+    model.add(layers.InputLayer(input_shape=input_shape))
+    
+    # Convolutional layers to extract features from spectrogram
+    model.add(layers.Conv2D(32, (3, 3), activation='relu'))
+    model.add(layers.MaxPooling2D((2, 2)))
+    model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+    model.add(layers.MaxPooling2D((2, 2)))
+    model.add(layers.Conv2D(128, (3, 3), activation='relu'))
+    model.add(layers.MaxPooling2D((2, 2)))
+    
+    # Flatten and add fully connected layers
+    model.add(layers.Flatten())
+    model.add(layers.Dense(128, activation='relu'))
+    model.add(layers.Dense(1, activation='sigmoid'))  # Output: 0 (real) or 1 (fake)
+    
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    return model
+ 
+# 4. Train the model on real and fake audio samples
+def train_model(model, real_audio_files, fake_audio_files, epochs=10, batch_size=32):
+    X = []
+    y = []
+    
+    # Extract features from real audio files
+    for file in real_audio_files:
+        audio, sr = load_audio(file)
+        spectrogram = extract_spectrogram(audio, sr)
+        X.append(spectrogram)
+        y.append(0)  # Label 0 for real audio
+    
+    # Extract features from fake audio files
+    for file in fake_audio_files:
+        audio, sr = load_audio(file)
+        spectrogram = extract_spectrogram(audio, sr)
+        X.append(spectrogram)
+        y.append(1)  # Label 1 for fake audio
+    
+    X = np.array(X)
+    y = np.array(y)
+    
+    # Reshape X to fit the CNN input shape (add channel dimension)
+    X = X.reshape(X.shape[0], X.shape[1], X.shape[2], 1)
+    
+    # Split data into training and test sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # Train the model
+    model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(X_test, y_test))
+ 
+# 5. Example usage
+real_audio_files = ['path_to_real_audio_1.wav', 'path_to_real_audio_2.wav']  # Replace with paths to real audio files
+fake_audio_files = ['path_to_fake_audio_1.wav', 'path_to_fake_audio_2.wav']  # Replace with paths to fake audio files
+ 
+# Build the deepfake detection model
+model = build_deepfake_detection_model(input_shape=(128, 128, 1))  # Assuming 128x128 spectrogram input
+ 
+# Train the model on the real and fake audio datasets
+train_model(model, real_audio_files, fake_audio_files)
+ 
+# Example test (you can test with new audio files)
+test_audio_file = "path_to_test_audio.wav"  # Replace with the test audio file path
+audio, sr = load_audio(test_audio_file)
+spectrogram = extract_spectrogram(audio, sr)
+spectrogram = spectrogram.reshape(1, spectrogram.shape[0], spectrogram.shape[1], 1)  # Reshape for CNN input
+ 
+# Predict if the test audio is real or fake
+prediction = model.predict(spectrogram)
+if prediction > 0.5:
+    print("The audio is fake.")
+else:
+    print("The audio is real.")
+Explanation:
+Feature Extraction: We extract Mel-spectrogram features from both real and fake audio files. These features represent the time-frequency characteristics of the audio signal, which are important for detecting audio manipulations.
+
+Deepfake Detection Model (CNN): We build a CNN-based model that takes the Mel-spectrogram as input and outputs a binary classification: 0 (real) or 1 (fake). The CNN is trained to distinguish between real and deepfake audio based on the spectrogram features.
+
+Training: The model is trained using labeled audio samples (real and fake) to learn the differences between genuine and synthesized speech. It uses a binary cross-entropy loss function for training.
+
+Testing: After training, we use the model to test a new audio file and predict if it is real or fake.
+
+This project provides a basic audio deepfake detection system. For better results, you can experiment with larger datasets, data augmentation techniques, and more sophisticated models like GANs or LSTMs.
+
